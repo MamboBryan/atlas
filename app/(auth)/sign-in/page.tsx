@@ -3,6 +3,7 @@ import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AtlasLogo } from "@/components/atlas-logo";
 
 export default function SignIn() {
   const supabase = createSupabaseBrowserClient();
@@ -28,7 +29,10 @@ export default function SignIn() {
   return (
     <main className="min-h-screen grid place-items-center p-8">
       <div className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">Sign in to Atlas</h1>
+        <div className="flex flex-col items-center gap-3 pb-2">
+          <AtlasLogo className="h-16 w-16" />
+          <h1 className="text-2xl font-semibold">Sign in to Atlas</h1>
+        </div>
         <Input
           type="email"
           placeholder="you@team.com"

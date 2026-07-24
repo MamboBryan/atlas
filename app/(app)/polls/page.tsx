@@ -87,9 +87,17 @@ export default async function PollsPage() {
     <div className="space-y-8 max-w-3xl">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Polls</h1>
-        <Link href={"/polls/new" as never} className={buttonVariants()}>
-          New poll
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={"/polls/past" as never}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Past
+          </Link>
+          <Link href={"/polls/new" as never} className={buttonVariants()}>
+            New poll
+          </Link>
+        </div>
       </div>
 
       <section className="space-y-3">

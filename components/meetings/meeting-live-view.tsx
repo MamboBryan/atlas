@@ -21,6 +21,7 @@ import {
   startMeeting,
 } from "@/lib/actions/meeting";
 import { AgendaRunner } from "@/components/meetings/agenda-runner";
+import { AgendaSummary } from "@/components/meetings/agenda-summary";
 import type { AgendaItem } from "@/components/meetings/agenda-editor";
 
 type MeetingRow = {
@@ -256,10 +257,10 @@ export function MeetingLiveView({
           <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
             Not started yet.
           </div>
-        ) : meeting.status === "ended" ? (
-          <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
-            Meeting ended.
-          </div>
+        ) : meeting.status === "ended" ||
+          meeting.status === "cancelled" ||
+          meeting.status === "postponed" ? (
+          <AgendaSummary items={items} status={meeting.status} />
         ) : (
           <AgendaRunner
             current={current}

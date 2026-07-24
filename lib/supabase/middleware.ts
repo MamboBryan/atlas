@@ -26,7 +26,8 @@ export async function updateSupabaseAuthCookies(request: NextRequest) {
   const isPublic =
     url.pathname.startsWith("/sign-in") ||
     url.pathname.startsWith("/auth") ||
-    url.pathname.startsWith("/api/health");
+    url.pathname.startsWith("/api/health") ||
+    url.pathname.startsWith("/api/cron");
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }

@@ -18,6 +18,17 @@ export async function updateSupabaseAuthCookies(request: NextRequest) {
       },
     },
   );
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const url = new URL(request.url);
+  const isPublic =
+    url.pathname.startsWith("/sign-in") ||
+    url.pathname.startsWith("/auth") ||
+    url.pathname.startsWith("/api/health");
+  if (!user && !isPublic) {
+    return NextResponse.redirect(new URL("/sign-in", request.url));
+  }
   return response;
 }

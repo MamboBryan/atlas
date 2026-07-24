@@ -15,7 +15,17 @@ type PromptRow = {
   created_at: string;
 };
 
-function PromptRowCard({ p, href }: { p: PromptRow; href: string }) {
+function PromptRowCard({
+  p,
+  href,
+  mine,
+  answered,
+}: {
+  p: PromptRow;
+  href: string;
+  mine: boolean;
+  answered: boolean;
+}) {
   return (
     <Link
       href={href as never}
@@ -30,7 +40,9 @@ function PromptRowCard({ p, href }: { p: PromptRow; href: string }) {
             <span>{p.anonymity}</span>
           </div>
         </div>
-        <div className="shrink-0 flex gap-1.5">
+        <div className="shrink-0 flex flex-wrap gap-1.5 justify-end">
+          {mine && <Badge variant="outline">Yours</Badge>}
+          {!mine && answered && <Badge variant="outline">Answered</Badge>}
           {p.is_revealed ? (
             <Badge variant="secondary">Revealed</Badge>
           ) : p.is_open ? (
@@ -47,21 +59,11 @@ function PromptRowCard({ p, href }: { p: PromptRow; href: string }) {
 export default async function PollsPage() {
   const { user, supabase } = await requireUser();
 
-  const { data: mine } = await supabase
+  const { data: all } = await supabase
     .from("prompts")
     .select(
       "id,question,response_type,anonymity,is_open,is_revealed,owner_user_id,created_by,created_at",
     )
-    .eq("owner_user_id", user.id)
-    .order("created_at", { ascending: false });
-
-  const { data: openAll } = await supabase
-    .from("prompts")
-    .select(
-      "id,question,response_type,anonymity,is_open,is_revealed,owner_user_id,created_by,created_at",
-    )
-    .eq("is_open", true)
-    .eq("is_revealed", false)
     .order("created_at", { ascending: false });
 
   const { data: myParticipation } = await supabase
@@ -72,7 +74,14 @@ export default async function PollsPage() {
     (myParticipation ?? []).map((r) => r.prompt_id as string),
   );
 
-  const openForMe = (openAll ?? []).filter((p) => !answered.has(p.id));
+  const polls = (all ?? []) as PromptRow[];
+  const needsMe = polls.filter(
+    (p) =>
+      p.is_open &&
+      !p.is_revealed &&
+      p.owner_user_id !== user.id &&
+      !answered.has(p.id),
+  );
 
   return (
     <div className="space-y-8 max-w-3xl">
@@ -85,19 +94,21 @@ export default async function PollsPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Open for me ({openForMe.length})
+          Needs your response ({needsMe.length})
         </h2>
-        {openForMe.length === 0 ? (
+        {needsMe.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nothing waiting on you.
           </p>
         ) : (
           <div className="space-y-2">
-            {openForMe.map((p) => (
+            {needsMe.map((p) => (
               <PromptRowCard
                 key={p.id}
-                p={p as PromptRow}
+                p={p}
                 href={`/polls/${p.id}`}
+                mine={p.owner_user_id === user.id}
+                answered={answered.has(p.id)}
               />
             ))}
           </div>
@@ -106,19 +117,21 @@ export default async function PollsPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Mine ({(mine ?? []).length})
+          All polls ({polls.length})
         </h2>
-        {(mine ?? []).length === 0 ? (
+        {polls.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            You haven&apos;t created any polls yet.
+            No polls yet. Create the first one.
           </p>
         ) : (
           <div className="space-y-2">
-            {(mine ?? []).map((p) => (
+            {polls.map((p) => (
               <PromptRowCard
                 key={p.id}
-                p={p as PromptRow}
+                p={p}
                 href={`/polls/${p.id}`}
+                mine={p.owner_user_id === user.id}
+                answered={answered.has(p.id)}
               />
             ))}
           </div>

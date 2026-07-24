@@ -37,9 +37,11 @@ type Row = {
 export function RosterTable({
   rows,
   isAdmin,
+  currentUserId,
 }: {
   rows: Row[];
   isAdmin: boolean;
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -151,8 +153,20 @@ export function RosterTable({
               </tr>
             )}
             {rows.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="p-2 font-medium">{r.display_name}</td>
+              <tr
+                key={r.id}
+                className={
+                  r.id === currentUserId ? "border-t bg-muted/40" : "border-t"
+                }
+              >
+                <td className="p-2 font-medium">
+                  {r.display_name}
+                  {r.id === currentUserId && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      (you)
+                    </span>
+                  )}
+                </td>
                 <td className="p-2 text-muted-foreground">{r.email}</td>
                 <td className="p-2">
                   <Badge variant={r.role === "admin" ? "default" : "secondary"}>

@@ -16,7 +16,11 @@ export default async function RosterPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Roster</h1>
-      <RosterTable rows={data ?? []} isAdmin={mine?.role === "admin"} />
+      <RosterTable
+        rows={data ?? []}
+        isAdmin={mine?.role === "admin"}
+        currentUserId={user.id}
+      />
     </div>
   );
 }

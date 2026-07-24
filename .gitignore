@@ -6,6 +6,7 @@ out
 coverage
 playwright-report
 test-results
+qa-screenshots
 .vercel
 db/supabase/.branches
 db/supabase/.temp

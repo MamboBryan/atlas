@@ -10,3 +10,4 @@ test-results
 db/supabase/.branches
 db/supabase/.temp
 .superpowers/
+tsconfig.tsbuildinfo

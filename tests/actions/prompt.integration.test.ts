@@ -29,14 +29,14 @@ test.runIf(canRun)(
     const c = admin!;
 
     const { data: u1 } = await c.auth.admin.inviteUserByEmail(
-      "creator@example.com",
-      { data: { full_name: "Creator" } },
+      "admin@atlas.com",
+      { data: { full_name: "Admin" } },
     );
     expect(u1?.user).toBeTruthy();
 
     const { data: u2 } = await c.auth.admin.inviteUserByEmail(
-      "responder@example.com",
-      { data: { full_name: "Responder" } },
+      "user1@atlas.com",
+      { data: { full_name: "User 1" } },
     );
     expect(u2?.user).toBeTruthy();
 
@@ -111,14 +111,14 @@ test.runIf(canRun)(
     const c = admin!;
 
     const { data: u1 } = await c.auth.admin.inviteUserByEmail(
-      "d1@example.com",
-      { data: { full_name: "D1" } },
+      "admin@atlas.com",
+      { data: { full_name: "Admin" } },
     );
-    await c.auth.admin.inviteUserByEmail("d2@example.com", {
-      data: { full_name: "D2" },
+    await c.auth.admin.inviteUserByEmail("user1@atlas.com", {
+      data: { full_name: "User 1" },
     });
-    await c.auth.admin.inviteUserByEmail("d3@example.com", {
-      data: { full_name: "D3" },
+    await c.auth.admin.inviteUserByEmail("user2@atlas.com", {
+      data: { full_name: "User 2" },
     });
 
     const { data: promptRow } = await c
@@ -154,9 +154,10 @@ test.runIf(canRun)(
   "atlas_submit_attributed rejects calls without auth.uid()",
   async () => {
     const c = admin!;
-    const { data: u1 } = await c.auth.admin.inviteUserByEmail("n@example.com", {
-      data: { full_name: "N" },
-    });
+    const { data: u1 } = await c.auth.admin.inviteUserByEmail(
+      "admin@atlas.com",
+      { data: { full_name: "Admin" } },
+    );
     const { data: promptRow } = await c
       .from("prompts")
       .insert({

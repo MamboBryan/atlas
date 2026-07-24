@@ -26,6 +26,11 @@ _Every task inherits these. Do not restate them per task; check compliance at ta
 - Single-tenant (one team per deployment). No public or unauthenticated endpoints except sign-in and the health check.
 - Branch strategy: each Phase N is on branch `atlas/NN-<slug>`, off `atlas/(NN-1)-<slug>` (or `main` for Phase 1). Use `gh-stack` for PR stacking. One PR per phase.
 - Every phase ends with a clean, mergeable branch: green CI, no `TODO` in shipping code, and a short PR description that names what changed and what the reviewer should look for.
+- **Test & seed fixture convention.** All fixture users use the `@atlas.com` domain (grep-able, never collides with real inboxes) **and** a fixed `full_name` per identity, because the Supabase local auth server preserves `raw_user_meta_data` across delete/re-invite cycles — tests that pick different names for the same email will fight each other:
+  - `admin@atlas.com` — `full_name: "Admin"`. The first admin / owner-of-record. Also used as the "creator" role in prompt/meeting tests.
+  - `test@atlas.com` — `full_name: "Test"`. A single generic test user when the test only needs one non-admin identity.
+  - `user1@atlas.com`, `user2@atlas.com`, `user3@atlas.com`, … — `full_name: "User 1"`, `"User 2"`, … Additional participants, numbered from 1. Reuse the same numbering across tests (u1 is always `user1@atlas.com`), so a reader can scan an unfamiliar test and immediately know who is who.
+  - Do **not** invent per-test emails or full_names (`creator@...`, `"Test One"`, `"D1"`). If a test needs a specific role, prefer the convention above.
 
 ---
 
@@ -1098,13 +1103,13 @@ beforeEach(async () => {
 test("inviteUserByEmail materialises a profile row via auth trigger", async () => {
   const c = createClient(url, svc);
   const { data, error } = await c.auth.admin.inviteUserByEmail(
-    "t1@example.com",
+    "test@atlas.com",
     {
-      data: { full_name: "Test One" },
+      data: { full_name: "Test" },
     },
   );
   expect(error).toBeNull();
-  expect(data.user?.email).toBe("t1@example.com");
+  expect(data.user?.email).toBe("test@atlas.com");
   const { data: profile } = await c
     .from("profiles")
     .select("*")
@@ -1902,9 +1907,9 @@ const svc = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 test("attributed single_choice: submit + reveal + read back", async () => {
   const admin = createClient(url, svc);
   const { data: u1 } =
-    await admin.auth.admin.inviteUserByEmail("a@example.com");
+    await admin.auth.admin.inviteUserByEmail("admin@atlas.com");
   const { data: u2 } =
-    await admin.auth.admin.inviteUserByEmail("b@example.com");
+    await admin.auth.admin.inviteUserByEmail("user1@atlas.com");
   const prompt = await admin
     .from("prompts")
     .insert({

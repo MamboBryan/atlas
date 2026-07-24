@@ -23,8 +23,8 @@ test.runIf(canRun)(
   async () => {
     const c = admin!;
     const { data: u1 } = await c.auth.admin.inviteUserByEmail(
-      "anon-shape@example.com",
-      { data: { full_name: "S" } },
+      "admin@atlas.com",
+      { data: { full_name: "Admin" } },
     );
     const { data: prompt } = await c
       .from("prompts")
@@ -59,8 +59,8 @@ test.runIf(canRun)(
   async () => {
     const c = admin!;
     const { data: u1 } = await c.auth.admin.inviteUserByEmail(
-      "anon-noauth@example.com",
-      { data: { full_name: "N" } },
+      "admin@atlas.com",
+      { data: { full_name: "Admin" } },
     );
     const { data: prompt } = await c
       .from("prompts")

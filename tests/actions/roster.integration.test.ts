@@ -25,18 +25,18 @@ test.runIf(canRun)(
   async () => {
     const c = admin!;
     const { data, error } = await c.auth.admin.inviteUserByEmail(
-      "t1@example.com",
-      { data: { full_name: "Test One" } },
+      "admin@atlas.com",
+      { data: { full_name: "Admin" } },
     );
     expect(error).toBeNull();
-    expect(data.user?.email).toBe("t1@example.com");
+    expect(data.user?.email).toBe("admin@atlas.com");
     const { data: profile, error: pErr } = await c
       .from("profiles")
       .select("display_name,role,is_active")
       .eq("id", data.user!.id)
       .single();
     expect(pErr).toBeNull();
-    expect(profile?.display_name).toBe("Test One");
+    expect(profile?.display_name).toBe("Admin");
     expect(profile?.role).toBe("admin"); // first user is admin
     expect(profile?.is_active).toBe(true);
   },

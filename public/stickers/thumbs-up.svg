@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+  <!-- yellow 10-point starburst behind -->
+  <polygon points="100,18 108,42 130,28 126,53 150,48 138,70 162,74 144,90 160,108 136,106 138,132 116,122 108,148 100,124 92,148 84,122 62,132 64,106 40,108 56,90 38,74 62,70 50,48 74,53 70,28 92,42" fill="#FFD84A" stroke="none"/>
+  <!-- thumb pill (vertical rounded rect) -->
+  <rect x="74" y="30" width="44" height="90" rx="22" fill="var(--sticker-fill)" stroke="currentColor" stroke-width="10"/>
+  <!-- fist body below thumb -->
+  <rect x="55" y="110" width="90" height="62" rx="18" fill="var(--sticker-fill)" stroke="currentColor" stroke-width="10"/>
+</svg>

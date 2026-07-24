@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+  <!-- left eye -->
+  <circle cx="65" cy="100" r="45" fill="var(--sticker-fill)"/>
+  <!-- left pupil, slightly right of center for personality -->
+  <circle cx="75" cy="100" r="15" fill="currentColor" stroke="none"/>
+  <!-- right eye -->
+  <circle cx="145" cy="100" r="45" fill="var(--sticker-fill)"/>
+  <!-- right pupil -->
+  <circle cx="155" cy="100" r="15" fill="currentColor" stroke="none"/>
+</svg>

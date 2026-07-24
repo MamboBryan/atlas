@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+  <!-- bell body -->
+  <path d="M100 20 Q100 20 100 25 Q130 30 148 60 Q162 85 162 115 L38 115 Q38 85 52 60 Q70 30 100 25 Z" fill="var(--sticker-fill)"/>
+  <!-- bell base rim (yellow ring arc) -->
+  <path d="M32 115 Q32 138 100 138 Q168 138 168 115" fill="none" stroke="#FFD84A" stroke-width="12"/>
+  <!-- bell outline arc (same path, currentColor) -->
+  <path d="M100 20 Q100 20 100 25 Q130 30 148 60 Q162 85 162 115 L38 115 Q38 85 52 60 Q70 30 100 25 Z" fill="none" stroke="currentColor" stroke-width="10"/>
+  <!-- base flat edge -->
+  <line x1="32" y1="115" x2="168" y2="115"/>
+  <!-- clapper -->
+  <circle cx="100" cy="152" r="12" fill="var(--sticker-fill)" stroke="currentColor" stroke-width="10"/>
+  <!-- hanger at top -->
+  <path d="M88 25 Q88 10 100 10 Q112 10 112 25" fill="none" stroke="currentColor" stroke-width="10"/>
+</svg>

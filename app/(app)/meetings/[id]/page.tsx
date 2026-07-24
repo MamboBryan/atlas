@@ -19,6 +19,7 @@ type Meeting = {
   created_by: string;
   current_agenda_item_id: string | null;
   participants_override: string[] | null;
+  series_id: string | null;
 };
 
 function fmtWhen(iso: string, tz: string, viewerTz: string) {
@@ -47,7 +48,7 @@ export default async function MeetingDetailPage({
   const { data: meeting } = await supabase
     .from("meetings")
     .select(
-      "id,title,status,scheduled_start,timezone,host_user_id,created_by,current_agenda_item_id,participants_override",
+      "id,title,status,scheduled_start,timezone,host_user_id,created_by,current_agenda_item_id,participants_override,series_id",
     )
     .eq("id", id)
     .single();
@@ -55,20 +56,28 @@ export default async function MeetingDetailPage({
 
   const m = meeting as Meeting;
 
-  const [{ data: hostRow }, { data: items }] = await Promise.all([
-    m.host_user_id
-      ? supabase
-          .from("profiles")
-          .select("display_name")
-          .eq("id", m.host_user_id)
-          .single()
-      : Promise.resolve({ data: null }),
-    supabase
-      .from("agenda_items")
-      .select("id,ordinal,title,kind,prompt_id,picker_config,picker_result")
-      .eq("meeting_id", id)
-      .order("ordinal", { ascending: true }),
-  ]);
+  const [{ data: hostRow }, { data: items }, { data: seriesRow }] =
+    await Promise.all([
+      m.host_user_id
+        ? supabase
+            .from("profiles")
+            .select("display_name")
+            .eq("id", m.host_user_id)
+            .single()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from("agenda_items")
+        .select("id,ordinal,title,kind,prompt_id,picker_config,picker_result")
+        .eq("meeting_id", id)
+        .order("ordinal", { ascending: true }),
+      m.series_id
+        ? supabase
+            .from("meeting_series")
+            .select("id,name")
+            .eq("id", m.series_id)
+            .single()
+        : Promise.resolve({ data: null }),
+    ]);
 
   const agendaItems = (items ?? []) as AgendaItem[];
 
@@ -119,6 +128,17 @@ export default async function MeetingDetailPage({
           <span>Host: {hostRow?.display_name ?? "?"}</span>
           {participantCount !== null && (
             <span>{participantCount} participants (restricted)</span>
+          )}
+          {seriesRow && (
+            <span>
+              Series:{" "}
+              <Link
+                href={`/series/${seriesRow.id}` as never}
+                className="underline hover:text-foreground"
+              >
+                {seriesRow.name}
+              </Link>
+            </span>
           )}
         </div>
       </div>

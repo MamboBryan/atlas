@@ -81,9 +81,9 @@ test.runIf(canRun)(
       .select("response")
       .eq("prompt_id", promptRow!.id);
     expect(resps?.length).toBe(1);
-    expect(
-      (resps?.[0]?.response as { option_id: string })?.option_id,
-    ).toBe("blue");
+    expect((resps?.[0]?.response as { option_id: string })?.option_id).toBe(
+      "blue",
+    );
 
     const { error: revErr } = await c
       .from("prompts")
@@ -154,10 +154,9 @@ test.runIf(canRun)(
   "atlas_submit_attributed rejects calls without auth.uid()",
   async () => {
     const c = admin!;
-    const { data: u1 } = await c.auth.admin.inviteUserByEmail(
-      "n@example.com",
-      { data: { full_name: "N" } },
-    );
+    const { data: u1 } = await c.auth.admin.inviteUserByEmail("n@example.com", {
+      data: { full_name: "N" },
+    });
     const { data: promptRow } = await c
       .from("prompts")
       .insert({

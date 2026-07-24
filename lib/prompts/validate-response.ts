@@ -1,10 +1,6 @@
 type Prompt = {
   response_type:
-    | "text"
-    | "single_choice"
-    | "multi_choice"
-    | "yes_no"
-    | "rating";
+    "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
   options?: { id: string; label?: string }[];
   rating_min?: number | null;
   rating_max?: number | null;

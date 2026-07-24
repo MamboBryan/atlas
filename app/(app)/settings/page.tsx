@@ -1,13 +1,14 @@
 import { requireUser } from "@/lib/auth/require";
 import { SettingsForm } from "@/components/app/settings-form";
 import { UnavailabilityEditor } from "@/components/app/unavailability-editor";
+import { EmailPrefsForm } from "@/components/app/email-prefs-form";
 import { Separator } from "@/components/ui/separator";
 
 export default async function SettingsPage() {
   const { user, supabase } = await requireUser();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name,avatar_url,email")
+    .select("display_name,avatar_url,email,email_prefs")
     .eq("id", user.id)
     .single();
   const { data: windows } = await supabase
@@ -27,6 +28,19 @@ export default async function SettingsPage() {
         <SettingsForm
           displayName={profile?.display_name ?? ""}
           avatarUrl={profile?.avatar_url ?? null}
+        />
+      </section>
+      <Separator />
+      <section className="space-y-3">
+        <h2 className="font-medium">Email notifications</h2>
+        <p className="text-sm text-muted-foreground">
+          Choose which emails you want to receive. In-app notifications are
+          always shown.
+        </p>
+        <EmailPrefsForm
+          displayName={profile?.display_name ?? ""}
+          avatarUrl={profile?.avatar_url ?? null}
+          emailPrefs={(profile?.email_prefs as Record<string, boolean>) ?? {}}
         />
       </section>
       <Separator />

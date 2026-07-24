@@ -214,9 +214,13 @@ export function PromptForm() {
           ))}
         </div>
         {anonymity === "hard_anonymous" && (
-          <p className="text-xs text-muted-foreground">
-            Anonymous prompts are supported starting in the next phase.
-          </p>
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-100">
+            <p className="font-medium">Hard anonymous.</p>
+            <p className="mt-1">
+              The database will not store who submitted what. Note: writing
+              style or timing can still give you away in a small group.
+            </p>
+          </div>
         )}
       </div>
 

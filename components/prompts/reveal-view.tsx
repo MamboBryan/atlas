@@ -1,15 +1,18 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+type ResponseType =
+  "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
+
 type Prompt = {
   id: string;
-  response_type:
-    "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
+  response_type: ResponseType;
   options?: { id: string; label: string }[] | null;
   rating_min?: number | null;
   rating_max?: number | null;
+  anonymity: "attributed" | "hard_anonymous";
 };
 
-type ResponseRow = {
+type AttributedRow = {
   user_id: string;
   response: Record<string, unknown>;
   profiles: { display_name: string } | null;
@@ -42,6 +45,13 @@ function Bar({
 }
 
 export async function RevealView({ prompt }: { prompt: Prompt }) {
+  if (prompt.anonymity === "hard_anonymous") {
+    return <AnonymousReveal prompt={prompt} />;
+  }
+  return <AttributedReveal prompt={prompt} />;
+}
+
+async function AttributedReveal({ prompt }: { prompt: Prompt }) {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("responses_attributed")
@@ -49,7 +59,7 @@ export async function RevealView({ prompt }: { prompt: Prompt }) {
     .eq("prompt_id", prompt.id)
     .order("created_at");
 
-  const rows = (data ?? []) as unknown as ResponseRow[];
+  const rows = (data ?? []) as unknown as AttributedRow[];
 
   if (rows.length === 0) {
     return (
@@ -167,6 +177,133 @@ export async function RevealView({ prompt }: { prompt: Prompt }) {
             key={v}
             label={String(v)}
             count={counts.get(v) ?? 0}
+            max={barMax}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type ResultsPayload =
+  | { kind: "text"; items: string[] }
+  | { kind: "choice"; counts: Record<string, number>; options: { id: string; label: string }[] }
+  | { kind: "multi"; counts: Record<string, number>; options: { id: string; label: string }[] }
+  | { kind: "rating"; avg: number | null; dist: Record<string, number> };
+
+async function AnonymousReveal({ prompt }: { prompt: Prompt }) {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("atlas_get_prompt_results", {
+    p_prompt: prompt.id,
+  });
+
+  if (error || !data) {
+    return (
+      <div className="rounded-lg border p-4 text-sm text-destructive">
+        Could not load anonymous results{error?.message ? `: ${error.message}` : ""}.
+      </div>
+    );
+  }
+
+  const payload = data as unknown as ResultsPayload;
+
+  if (payload.kind === "text") {
+    if (payload.items.length === 0) {
+      return (
+        <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+          Revealed with no responses.
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Anonymous — order randomised, no names shown.
+        </p>
+        {payload.items.map((text, i) => (
+          <div key={i} className="rounded-lg border p-3">
+            <div className="whitespace-pre-wrap text-sm">{text}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (payload.kind === "choice") {
+    const counts = payload.counts;
+    const max = Math.max(...Object.values(counts), 0);
+    if (max === 0) {
+      return (
+        <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+          Revealed with no responses.
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        {payload.options.map((o) => (
+          <Bar
+            key={o.id}
+            label={o.label}
+            count={counts[o.id] ?? 0}
+            max={max}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (payload.kind === "multi") {
+    const counts = payload.counts;
+    const max = Math.max(...Object.values(counts), 0);
+    if (max === 0) {
+      return (
+        <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+          Revealed with no responses.
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        {payload.options.map((o) => (
+          <Bar
+            key={o.id}
+            label={o.label}
+            count={counts[o.id] ?? 0}
+            max={max}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // rating
+  const dist = payload.dist ?? {};
+  const min = prompt.rating_min ?? 1;
+  const max = prompt.rating_max ?? 5;
+  const barMax = Math.max(...Object.values(dist), 0);
+  const total = Object.values(dist).reduce((a, b) => a + b, 0);
+  const mean =
+    payload.avg == null ? 0 : Math.round(Number(payload.avg) * 10) / 10;
+  if (total === 0) {
+    return (
+      <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+        Revealed with no responses.
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <div className="text-sm text-muted-foreground">
+        Mean: <span className="font-medium text-foreground">{mean}</span> ·{" "}
+        {total} responses
+      </div>
+      <div className="space-y-2">
+        {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((v) => (
+          <Bar
+            key={v}
+            label={String(v)}
+            count={dist[String(v)] ?? 0}
             max={barMax}
           />
         ))}

@@ -2,7 +2,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { submitResponse } from "@/lib/actions/response";
 
 export type PromptForResponse = {
@@ -12,6 +11,7 @@ export type PromptForResponse = {
   options?: { id: string; label: string }[] | null;
   rating_min?: number | null;
   rating_max?: number | null;
+  anonymity: "attributed" | "hard_anonymous";
 };
 
 export function ResponseInput({
@@ -25,11 +25,14 @@ export function ResponseInput({
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(alreadyResponded);
+  const [confirming, setConfirming] = useState(false);
 
   const [text, setText] = useState("");
   const [choice, setChoice] = useState<string>("");
   const [multi, setMulti] = useState<Set<string>>(new Set());
   const [rating, setRating] = useState<number | null>(null);
+
+  const isAnonymous = prompt.anonymity === "hard_anonymous";
 
   function toggleMulti(id: string) {
     setMulti((prev) => {
@@ -40,33 +43,42 @@ export function ResponseInput({
     });
   }
 
-  function submit() {
-    setErr(null);
-    let response: unknown;
+  function buildResponse(): unknown {
     switch (prompt.response_type) {
       case "text":
-        response = { text };
-        break;
+        return { text };
       case "single_choice":
       case "yes_no":
-        response = { option_id: choice };
-        break;
+        return { option_id: choice };
       case "multi_choice":
-        response = { option_ids: Array.from(multi) };
-        break;
+        return { option_ids: Array.from(multi) };
       case "rating":
-        response = { value: rating };
-        break;
+        return { value: rating };
     }
+  }
+
+  function reallySubmit() {
+    setErr(null);
+    const response = buildResponse();
     start(async () => {
       const res = await submitResponse(prompt.id, response);
       if (!res.ok) {
         setErr(res.error.message);
+        setConfirming(false);
         return;
       }
+      setConfirming(false);
       setDone(true);
       router.refresh();
     });
+  }
+
+  function onSubmitClick() {
+    if (isAnonymous) {
+      setConfirming(true);
+    } else {
+      reallySubmit();
+    }
   }
 
   if (done) {
@@ -76,6 +88,15 @@ export function ResponseInput({
       </div>
     );
   }
+
+  const disabled =
+    pending ||
+    (prompt.response_type === "text" && text.trim().length === 0) ||
+    ((prompt.response_type === "single_choice" ||
+      prompt.response_type === "yes_no") &&
+      !choice) ||
+    (prompt.response_type === "multi_choice" && multi.size === 0) ||
+    (prompt.response_type === "rating" && rating == null);
 
   return (
     <div className="space-y-4">
@@ -179,20 +200,47 @@ export function ResponseInput({
         </p>
       )}
 
-      <Button
-        onClick={submit}
-        disabled={
-          pending ||
-          (prompt.response_type === "text" && text.trim().length === 0) ||
-          ((prompt.response_type === "single_choice" ||
-            prompt.response_type === "yes_no") &&
-            !choice) ||
-          (prompt.response_type === "multi_choice" && multi.size === 0) ||
-          (prompt.response_type === "rating" && rating == null)
-        }
-      >
-        {pending ? "Submitting…" : "Submit"}
+      <Button onClick={onSubmitClick} disabled={disabled}>
+        {pending
+          ? "Submitting…"
+          : isAnonymous
+            ? "Submit anonymously"
+            : "Submit"}
       </Button>
+
+      {confirming && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="anon-confirm-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div className="w-full max-w-sm rounded-lg border bg-background p-5 shadow-lg space-y-4">
+            <div>
+              <h2 id="anon-confirm-title" className="text-base font-semibold">
+                Anonymous — final.
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Take a moment. Once submitted, this response cannot be edited or
+                withdrawn, and it isn&apos;t tied to your account in the
+                database.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setConfirming(false)}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+              <Button onClick={reallySubmit} disabled={pending}>
+                {pending ? "Submitting…" : "Submit anonymously"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

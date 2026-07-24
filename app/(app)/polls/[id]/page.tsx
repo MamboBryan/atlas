@@ -97,6 +97,7 @@ export default async function PollDetailPage({
               { id: string; label: string }[] | null | undefined,
             rating_min: prompt.rating_min,
             rating_max: prompt.rating_max,
+            anonymity: prompt.anonymity,
           }}
         />
       ) : prompt.is_open ? (
@@ -108,6 +109,7 @@ export default async function PollDetailPage({
               { id: string; label: string }[] | null | undefined,
             rating_min: prompt.rating_min,
             rating_max: prompt.rating_max,
+            anonymity: prompt.anonymity,
           }}
           alreadyResponded={alreadyResponded}
         />

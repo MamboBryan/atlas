@@ -36,7 +36,11 @@ export async function submitResponse(
     });
     if (error) return err("db_error", error.message);
   } else {
-    return err("not_implemented", "hard-anonymous ships in phase 4");
+    const { error } = await supabase.rpc("atlas_submit_anonymous", {
+      p_prompt: prompt_id,
+      p_response: response as never,
+    });
+    if (error) return err("db_error", error.message);
   }
 
   revalidatePath(`/polls/${prompt_id}`);

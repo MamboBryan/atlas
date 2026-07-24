@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-*Every task inherits these. Do not restate them per task; check compliance at task acceptance.*
+_Every task inherits these. Do not restate them per task; check compliance at task acceptance._
 
 - Node 20+, TypeScript `strict`, ESLint + Prettier baseline enforced in CI.
 - Every write path is a typed Server Action returning `{ ok: true, data } | { ok: false, error: { code, message } }`. No API routes for mutations except Vercel Cron endpoints.
@@ -31,18 +31,18 @@
 
 ## Phase Overview
 
-| # | Branch | Title | Deliverable |
-|---|---|---|---|
-| 1 | `atlas/01-foundation` | Foundation | Next.js app scaffold, Supabase local dev, CI, test harness, empty auth-gated shell |
-| 2 | `atlas/02-auth-roster` | Auth, profiles, roster | Login, roster CRUD (admin), profile page, unavailability windows |
-| 3 | `atlas/03-attributed-prompts` | Attributed prompts (standalone polls) | prompts + attributed responses + participation counter + reveal |
-| 4 | `atlas/04-anonymous-prompts` | Hard-anonymous prompts | responses_anonymous + `atlas_get_prompt_results` + hard-anon UI |
-| 5 | `atlas/05-meetings-one-off` | One-off meetings + agenda | Meetings list, meeting live view, agenda with embedded prompts, live reveal + counter |
-| 6 | `atlas/06-random-tools` | Random tools | One-shot pick + shuffle sessions, standalone + meeting-embedded with live sync |
-| 7 | `atlas/07-series-rotation` | Series + rotation | meeting_series, rotation cursor, occurrence generator, agenda template |
-| 8 | `atlas/08-postpone-state` | Start/Postpone + auto-postpone cron | Manual postpone, 15-min grace, 3-strike cancel, cron endpoint |
-| 9 | `atlas/09-notifications` | Notifications (in-app + email) | notifications table + realtime feed + Resend pipeline + settings toggles |
-| 10 | `atlas/10-history-polish` | History + polish | Past meetings/polls, home dashboard, a11y pass, smoke E2E, deploy docs |
+| #   | Branch                        | Title                                 | Deliverable                                                                           |
+| --- | ----------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------- |
+| 1   | `atlas/01-foundation`         | Foundation                            | Next.js app scaffold, Supabase local dev, CI, test harness, empty auth-gated shell    |
+| 2   | `atlas/02-auth-roster`        | Auth, profiles, roster                | Login, roster CRUD (admin), profile page, unavailability windows                      |
+| 3   | `atlas/03-attributed-prompts` | Attributed prompts (standalone polls) | prompts + attributed responses + participation counter + reveal                       |
+| 4   | `atlas/04-anonymous-prompts`  | Hard-anonymous prompts                | responses_anonymous + `atlas_get_prompt_results` + hard-anon UI                       |
+| 5   | `atlas/05-meetings-one-off`   | One-off meetings + agenda             | Meetings list, meeting live view, agenda with embedded prompts, live reveal + counter |
+| 6   | `atlas/06-random-tools`       | Random tools                          | One-shot pick + shuffle sessions, standalone + meeting-embedded with live sync        |
+| 7   | `atlas/07-series-rotation`    | Series + rotation                     | meeting_series, rotation cursor, occurrence generator, agenda template                |
+| 8   | `atlas/08-postpone-state`     | Start/Postpone + auto-postpone cron   | Manual postpone, 15-min grace, 3-strike cancel, cron endpoint                         |
+| 9   | `atlas/09-notifications`      | Notifications (in-app + email)        | notifications table + realtime feed + Resend pipeline + settings toggles              |
+| 10  | `atlas/10-history-polish`     | History + polish                      | Past meetings/polls, home dashboard, a11y pass, smoke E2E, deploy docs                |
 
 ---
 
@@ -53,16 +53,18 @@ Branch: `atlas/01-foundation` (off `main`)
 **Goal:** A minimal Next.js app that boots, has a Supabase local dev environment, runs Vitest + Playwright + pgTAP in CI, and renders a placeholder home page behind a middleware that will later gate on auth.
 
 **Files touched:**
+
 - Create: `package.json`, `tsconfig.json`, `next.config.mjs`, `tailwind.config.ts`, `postcss.config.mjs`, `.eslintrc.cjs`, `.prettierrc`, `.gitignore`, `.env.example`
 - Create: `app/layout.tsx`, `app/page.tsx`, `app/globals.css`, `middleware.ts`
 - Create: `lib/supabase/server.ts`, `lib/supabase/browser.ts`, `lib/supabase/middleware.ts`
-- Create: `db/supabase/config.toml`, `db/migrations/0001_init.sql` (empty placeholder)
+- Create: `db/supabase/config.toml`, `db/supabase/supabase/migrations/0001_init.sql` (empty placeholder)
 - Create: `tests/setup.ts`, `vitest.config.ts`, `e2e/smoke.spec.ts`, `playwright.config.ts`
-- Create: `db/tests/rls.sql` (empty pgTAP file)
+- Create: `db/supabase/supabase/tests/rls.sql` (empty pgTAP file)
 - Create: `.github/workflows/ci.yml`
 - Create: `README.md`
 
 **Interfaces produced:**
+
 - `createSupabaseServerClient()`, `createSupabaseBrowserClient()`, `updateSupabaseAuthCookies(request)`
 - `middleware.ts` exports a matcher for future auth-gated routes
 - CI job names: `unit`, `rls`, `e2e`
@@ -70,6 +72,7 @@ Branch: `atlas/01-foundation` (off `main`)
 ### Task 1.1: Repo scaffolding
 
 **Files:**
+
 - Create: `.gitignore`, `.editorconfig`, `README.md`
 
 - [ ] **Step 1: Create `.gitignore`**
@@ -90,7 +93,7 @@ db/supabase/.temp
 
 - [ ] **Step 2: Create minimal `README.md`**
 
-```markdown
+````markdown
 # Atlas
 
 Internal meeting webapp. See `docs/superpowers/specs/2026-07-24-atlas-design.md` for the design and `docs/superpowers/plans/2026-07-24-atlas-implementation.md` for the phased plan.
@@ -103,13 +106,15 @@ pnpm supabase start
 cp .env.example .env.local  # fill in local Supabase keys from `pnpm supabase status`
 pnpm dev
 ```
+````
 
 ## Tests
 
 - `pnpm test` — Vitest unit
 - `pnpm test:rls` — pgTAP against local Supabase
 - `pnpm test:e2e` — Playwright against local dev
-```
+
+````
 
 - [ ] **Step 3: Commit**
 
@@ -117,11 +122,12 @@ pnpm dev
 git checkout -b atlas/01-foundation
 git add .gitignore .editorconfig README.md
 git commit -m "chore: scaffold repo"
-```
+````
 
 ### Task 1.2: Next.js + TypeScript baseline
 
 **Files:**
+
 - Create: `package.json`, `tsconfig.json`, `next.config.mjs`, `app/layout.tsx`, `app/page.tsx`, `app/globals.css`
 
 - [ ] **Step 1: `package.json`**
@@ -210,12 +216,21 @@ export default nextConfig;
 import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "Atlas", description: "Team meeting rituals" };
+export const metadata: Metadata = {
+  title: "Atlas",
+  description: "Team meeting rituals",
+};
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-background text-foreground antialiased">{children}</body>
+      <body className="min-h-screen bg-background text-foreground antialiased">
+        {children}
+      </body>
     </html>
   );
 }
@@ -224,7 +239,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```tsx
 // app/page.tsx
 export default function HomePage() {
-  return <main className="p-8"><h1 className="text-2xl font-semibold">Atlas</h1></main>;
+  return (
+    <main className="p-8">
+      <h1 className="text-2xl font-semibold">Atlas</h1>
+    </main>
+  );
 }
 ```
 
@@ -233,7 +252,9 @@ export default function HomePage() {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+}
 ```
 
 - [ ] **Step 5: Install and verify build**
@@ -251,6 +272,7 @@ git commit -m "feat: bootstrap Next.js 15 app"
 ### Task 1.3: Tailwind + shadcn/ui init
 
 **Files:**
+
 - Create/modify: `tailwind.config.ts`, `postcss.config.mjs`, `components.json`, `lib/utils.ts`
 - Modify: `app/globals.css` (add shadcn tokens)
 
@@ -295,6 +317,7 @@ git commit -m "feat: init tailwind + shadcn primitives"
 ### Task 1.4: Supabase local dev + client wrappers
 
 **Files:**
+
 - Create: `db/supabase/config.toml` (via `supabase init`)
 - Create: `lib/supabase/server.ts`, `lib/supabase/browser.ts`, `lib/supabase/middleware.ts`, `middleware.ts`
 - Create: `.env.example`
@@ -323,7 +346,9 @@ export function createSupabaseServerClient() {
         getAll: () => cookieStore.getAll(),
         setAll: (cookiesToSet) => {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            );
           } catch {
             // Called from a Server Component; ignore — middleware will refresh.
           }
@@ -382,7 +407,9 @@ import type { NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   return updateSupabaseAuthCookies(request);
 }
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health).*)"] };
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health).*)"],
+};
 ```
 
 - [ ] **Step 6: `.env.example`**
@@ -409,7 +436,8 @@ git commit -m "feat: supabase local dev + ssr client wrappers"
 ### Task 1.5: Vitest + Playwright + pgTAP harness
 
 **Files:**
-- Create: `vitest.config.ts`, `tests/setup.ts`, `tests/lib/utils.test.ts`, `playwright.config.ts`, `e2e/smoke.spec.ts`, `db/tests/rls.sql`
+
+- Create: `vitest.config.ts`, `tests/setup.ts`, `tests/lib/utils.test.ts`, `playwright.config.ts`, `e2e/smoke.spec.ts`, `db/supabase/supabase/tests/rls.sql`
 
 - [ ] **Step 1: `vitest.config.ts`**
 
@@ -417,7 +445,11 @@ git commit -m "feat: supabase local dev + ssr client wrappers"
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 export default defineConfig({
-  test: { environment: "node", setupFiles: ["./tests/setup.ts"], globals: true },
+  test: {
+    environment: "node",
+    setupFiles: ["./tests/setup.ts"],
+    globals: true,
+  },
   resolve: { alias: { "@": path.resolve(__dirname) } },
 });
 ```
@@ -442,7 +474,11 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
   use: { baseURL: "http://localhost:3000" },
-  webServer: { command: "pnpm dev", url: "http://localhost:3000", reuseExistingServer: !process.env.CI },
+  webServer: {
+    command: "pnpm dev",
+    url: "http://localhost:3000",
+    reuseExistingServer: !process.env.CI,
+  },
 });
 ```
 
@@ -456,7 +492,7 @@ test("home renders", async ({ page }) => {
 });
 ```
 
-- [ ] **Step 5: `db/tests/rls.sql` scaffolding**
+- [ ] **Step 5: `db/supabase/supabase/tests/rls.sql` scaffolding**
 
 ```sql
 BEGIN;
@@ -472,13 +508,14 @@ Expected: 1 passing.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add vitest.config.ts tests/ playwright.config.ts e2e/ db/tests/
+git add vitest.config.ts tests/ playwright.config.ts e2e/ db/supabase/supabase/tests/
 git commit -m "test: wire vitest, playwright, pgtap harnesses"
 ```
 
 ### Task 1.6: CI
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 - [ ] **Step 1: CI workflow**
@@ -555,8 +592,9 @@ Branch: `atlas/02-auth-roster` (off `atlas/01-foundation`)
 **Goal:** A signed-in user can view their profile, edit their display name, set unavailability windows. An admin can add/remove members and change roles. First user is admin.
 
 **Files touched:**
-- Create: `db/migrations/0002_profiles.sql`, `db/migrations/0003_unavailability.sql`, `db/migrations/0004_first_admin_seed.sql`
-- Create: `db/tests/profiles_rls.sql`, `db/tests/unavailability_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0002_profiles.sql`, `db/supabase/supabase/migrations/0003_unavailability.sql`, `db/supabase/supabase/migrations/0004_first_admin_seed.sql`
+- Create: `db/supabase/supabase/tests/profiles_rls.sql`, `db/supabase/supabase/tests/unavailability_rls.sql`
 - Create: `lib/actions/profile.ts`, `lib/actions/roster.ts`, `lib/actions/unavailability.ts`, `lib/actions/_result.ts`
 - Create: `lib/auth/require.ts`, `lib/auth/is-admin.ts`
 - Create: `app/(auth)/sign-in/page.tsx`, `app/(auth)/callback/route.ts`
@@ -564,6 +602,7 @@ Branch: `atlas/02-auth-roster` (off `atlas/01-foundation`)
 - Modify: `middleware.ts` (redirect unauthenticated → `/sign-in`)
 
 **Interfaces produced:**
+
 - `profiles(id, email, display_name, avatar_url, role, is_active, email_prefs, created_at, updated_at)` with RLS.
 - `unavailability_windows(id, user_id, starts_on, ends_on, note)` with RLS.
 - `requireUser()` and `requireAdmin()` helpers throw a typed `AuthError` when the caller isn't allowed.
@@ -573,12 +612,13 @@ Branch: `atlas/02-auth-roster` (off `atlas/01-foundation`)
 ### Task 2.1: `profiles` migration + RLS
 
 **Files:**
-- Create: `db/migrations/0002_profiles.sql`, `db/tests/profiles_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0002_profiles.sql`, `db/supabase/supabase/tests/profiles_rls.sql`
 
 - [ ] **Step 1: Failing pgTAP**
 
 ```sql
--- db/tests/profiles_rls.sql
+-- db/supabase/supabase/tests/profiles_rls.sql
 BEGIN;
 SELECT plan(3);
 
@@ -602,7 +642,7 @@ Expected: FAIL.
 - [ ] **Step 2: Migration**
 
 ```sql
--- db/migrations/0002_profiles.sql
+-- db/supabase/supabase/migrations/0002_profiles.sql
 create type public.user_role as enum ('admin','member');
 
 create table public.profiles (
@@ -651,19 +691,20 @@ Expected: PASS.
 
 ```bash
 git checkout -b atlas/02-auth-roster
-git add db/migrations/0002_profiles.sql db/tests/profiles_rls.sql
+git add db/supabase/supabase/migrations/0002_profiles.sql db/supabase/supabase/tests/profiles_rls.sql
 git commit -m "feat(db): profiles table + rls"
 ```
 
 ### Task 2.2: `unavailability_windows` migration + RLS
 
 **Files:**
-- Create: `db/migrations/0003_unavailability.sql`, `db/tests/unavailability_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0003_unavailability.sql`, `db/supabase/supabase/tests/unavailability_rls.sql`
 
 - [ ] **Step 1: Failing pgTAP**
 
 ```sql
--- db/tests/unavailability_rls.sql
+-- db/supabase/supabase/tests/unavailability_rls.sql
 BEGIN;
 SELECT plan(2);
 SELECT has_table('public','unavailability_windows');
@@ -675,7 +716,7 @@ ROLLBACK;
 - [ ] **Step 2: Migration**
 
 ```sql
--- db/migrations/0003_unavailability.sql
+-- db/supabase/supabase/migrations/0003_unavailability.sql
 create table public.unavailability_windows (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references public.profiles(id) on delete cascade,
@@ -703,19 +744,20 @@ $$;
 
 ```bash
 pnpm supabase db reset && pnpm supabase db test
-git add db/migrations/0003_unavailability.sql db/tests/unavailability_rls.sql
+git add db/supabase/supabase/migrations/0003_unavailability.sql db/supabase/supabase/tests/unavailability_rls.sql
 git commit -m "feat(db): unavailability_windows + is_unavailable_on"
 ```
 
 ### Task 2.3: First-admin seed + auth trigger
 
 **Files:**
-- Create: `db/migrations/0004_first_admin_seed.sql`
+
+- Create: `db/supabase/supabase/migrations/0004_first_admin_seed.sql`
 
 - [ ] **Step 1: Migration**
 
 ```sql
--- db/migrations/0004_first_admin_seed.sql
+-- db/supabase/supabase/migrations/0004_first_admin_seed.sql
 -- When a new auth.user is created, upsert into profiles. Because admins pre-provision
 -- rows (with is_active + display_name), we UPDATE on conflict. First user in the
 -- system becomes admin.
@@ -744,24 +786,28 @@ Run: `pnpm supabase db reset`. Then via Supabase Studio (`http://127.0.0.1:54323
 - [ ] **Step 3: Commit**
 
 ```bash
-git add db/migrations/0004_first_admin_seed.sql
+git add db/supabase/supabase/migrations/0004_first_admin_seed.sql
 git commit -m "feat(db): auth trigger + first-user-is-admin"
 ```
 
 ### Task 2.4: Auth helpers + Server Action result type
 
 **Files:**
+
 - Create: `lib/actions/_result.ts`, `lib/auth/require.ts`, `lib/auth/is-admin.ts`
 - Create: `tests/auth/require.test.ts`
 
 - [ ] **Step 1: `_result.ts`**
 
 ```ts
-export type ActionOk<T>   = { ok: true;  data: T };
-export type ActionErr     = { ok: false; error: { code: string; message: string } };
+export type ActionOk<T> = { ok: true; data: T };
+export type ActionErr = { ok: false; error: { code: string; message: string } };
 export type ActionResult<T> = ActionOk<T> | ActionErr;
-export const ok  = <T>(data: T): ActionOk<T> => ({ ok: true, data });
-export const err = (code: string, message: string): ActionErr => ({ ok: false, error: { code, message } });
+export const ok = <T>(data: T): ActionOk<T> => ({ ok: true, data });
+export const err = (code: string, message: string): ActionErr => ({
+  ok: false,
+  error: { code, message },
+});
 ```
 
 - [ ] **Step 2: `require.ts` + `is-admin.ts`**
@@ -770,19 +816,33 @@ export const err = (code: string, message: string): ActionErr => ({ ok: false, e
 // lib/auth/require.ts
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export class AuthError extends Error { constructor(public code: string, message: string) { super(message); } }
+export class AuthError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 
 export async function requireUser() {
   const s = createSupabaseServerClient();
-  const { data: { user } } = await s.auth.getUser();
+  const {
+    data: { user },
+  } = await s.auth.getUser();
   if (!user) throw new AuthError("unauthenticated", "sign in required");
   return { user, supabase: s };
 }
 
 export async function requireAdmin() {
   const ctx = await requireUser();
-  const { data, error } = await ctx.supabase.from("profiles").select("role,is_active").eq("id", ctx.user.id).single();
-  if (error || !data || data.role !== "admin" || !data.is_active) throw new AuthError("forbidden", "admin required");
+  const { data, error } = await ctx.supabase
+    .from("profiles")
+    .select("role,is_active")
+    .eq("id", ctx.user.id)
+    .single();
+  if (error || !data || data.role !== "admin" || !data.is_active)
+    throw new AuthError("forbidden", "admin required");
   return ctx;
 }
 ```
@@ -812,6 +872,7 @@ git commit -m "feat(auth): requireUser/requireAdmin + ActionResult"
 ### Task 2.5: Server Actions — profile, roster, unavailability
 
 **Files:**
+
 - Create: `lib/actions/profile.ts`, `lib/actions/roster.ts`, `lib/actions/unavailability.ts`
 - Create: `lib/zod/profile.ts`, `lib/zod/roster.ts`, `lib/zod/unavailability.ts`
 - Create: `tests/actions/roster.integration.test.ts`
@@ -832,9 +893,15 @@ export type ProfileUpdate = z.infer<typeof profileUpdate>;
 ```ts
 // lib/zod/roster.ts
 import { z } from "zod";
-export const addMember   = z.object({ email: z.string().email(), display_name: z.string().min(1).max(80) });
-export const setRole     = z.object({ user_id: z.string().uuid(), role: z.enum(["admin","member"]) });
-export const deactivate  = z.object({ user_id: z.string().uuid() });
+export const addMember = z.object({
+  email: z.string().email(),
+  display_name: z.string().min(1).max(80),
+});
+export const setRole = z.object({
+  user_id: z.string().uuid(),
+  role: z.enum(["admin", "member"]),
+});
+export const deactivate = z.object({ user_id: z.string().uuid() });
 ```
 
 ```ts
@@ -842,7 +909,7 @@ export const deactivate  = z.object({ user_id: z.string().uuid() });
 import { z } from "zod";
 export const setWindow = z.object({
   starts_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  ends_on:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  ends_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().max(200).nullable().optional(),
 });
 ```
@@ -856,11 +923,16 @@ import { profileUpdate } from "@/lib/zod/profile";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import { requireUser } from "@/lib/auth/require";
 
-export async function updateProfile(input: unknown): Promise<ActionResult<null>> {
+export async function updateProfile(
+  input: unknown,
+): Promise<ActionResult<null>> {
   const parsed = profileUpdate.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { user, supabase } = await requireUser();
-  const { error } = await supabase.from("profiles").update(parsed.data).eq("id", user.id);
+  const { error } = await supabase
+    .from("profiles")
+    .update(parsed.data)
+    .eq("id", user.id);
   if (error) return err("db_error", error.message);
   revalidatePath("/settings");
   return ok(null);
@@ -879,38 +951,63 @@ import { createClient } from "@supabase/supabase-js";
 
 // Admin uses the service role to create the auth user + invite by email.
 function serviceClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+    },
+  );
 }
 
-export async function addMemberAction(input: unknown): Promise<ActionResult<{ user_id: string }>> {
-  const parsed = addMember.safeParse(input); if (!parsed.success) return err("invalid_input", parsed.error.message);
+export async function addMemberAction(
+  input: unknown,
+): Promise<ActionResult<{ user_id: string }>> {
+  const parsed = addMember.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireAdmin();
   const svc = serviceClient();
-  const { data, error } = await svc.auth.admin.inviteUserByEmail(parsed.data.email, {
-    data: { full_name: parsed.data.display_name },
-  });
-  if (error || !data.user) return err("invite_failed", error?.message ?? "unknown");
+  const { data, error } = await svc.auth.admin.inviteUserByEmail(
+    parsed.data.email,
+    {
+      data: { full_name: parsed.data.display_name },
+    },
+  );
+  if (error || !data.user)
+    return err("invite_failed", error?.message ?? "unknown");
   // Auth trigger populates the profiles row.
   revalidatePath("/roster");
   return ok({ user_id: data.user.id });
 }
 
-export async function setRoleAction(input: unknown): Promise<ActionResult<null>> {
-  const parsed = setRole.safeParse(input); if (!parsed.success) return err("invalid_input", parsed.error.message);
+export async function setRoleAction(
+  input: unknown,
+): Promise<ActionResult<null>> {
+  const parsed = setRole.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { supabase } = await requireAdmin();
-  const { error } = await supabase.from("profiles").update({ role: parsed.data.role }).eq("id", parsed.data.user_id);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ role: parsed.data.role })
+    .eq("id", parsed.data.user_id);
   if (error) return err("db_error", error.message);
-  revalidatePath("/roster"); return ok(null);
+  revalidatePath("/roster");
+  return ok(null);
 }
 
-export async function deactivateAction(input: unknown): Promise<ActionResult<null>> {
-  const parsed = deactivate.safeParse(input); if (!parsed.success) return err("invalid_input", parsed.error.message);
+export async function deactivateAction(
+  input: unknown,
+): Promise<ActionResult<null>> {
+  const parsed = deactivate.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { supabase } = await requireAdmin();
-  const { error } = await supabase.from("profiles").update({ is_active: false }).eq("id", parsed.data.user_id);
+  const { error } = await supabase
+    .from("profiles")
+    .update({ is_active: false })
+    .eq("id", parsed.data.user_id);
   if (error) return err("db_error", error.message);
-  revalidatePath("/roster"); return ok(null);
+  revalidatePath("/roster");
+  return ok(null);
 }
 ```
 
@@ -923,20 +1020,33 @@ import { setWindow } from "@/lib/zod/unavailability";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import { requireUser } from "@/lib/auth/require";
 
-export async function setUnavailability(input: unknown): Promise<ActionResult<{ id: string }>> {
-  const parsed = setWindow.safeParse(input); if (!parsed.success) return err("invalid_input", parsed.error.message);
+export async function setUnavailability(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = setWindow.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { user, supabase } = await requireUser();
-  const { data, error } = await supabase.from("unavailability_windows")
-    .insert({ user_id: user.id, ...parsed.data }).select("id").single();
+  const { data, error } = await supabase
+    .from("unavailability_windows")
+    .insert({ user_id: user.id, ...parsed.data })
+    .select("id")
+    .single();
   if (error || !data) return err("db_error", error?.message ?? "unknown");
-  revalidatePath("/settings"); return ok({ id: data.id });
+  revalidatePath("/settings");
+  return ok({ id: data.id });
 }
 
-export async function clearUnavailability(id: string): Promise<ActionResult<null>> {
+export async function clearUnavailability(
+  id: string,
+): Promise<ActionResult<null>> {
   const { supabase } = await requireUser();
-  const { error } = await supabase.from("unavailability_windows").delete().eq("id", id);
+  const { error } = await supabase
+    .from("unavailability_windows")
+    .delete()
+    .eq("id", id);
   if (error) return err("db_error", error.message);
-  revalidatePath("/settings"); return ok(null);
+  revalidatePath("/settings");
+  return ok(null);
 }
 ```
 
@@ -950,22 +1060,34 @@ import { createClient } from "@supabase/supabase-js";
 // Uses the local supabase; requires SUPABASE_TEST_URL and SUPABASE_TEST_SERVICE_KEY
 // to be set (mirror of NEXT_PUBLIC_* + SUPABASE_SERVICE_ROLE_KEY).
 
-const url = process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const svc = process.env.SUPABASE_TEST_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const url =
+  process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const svc =
+  process.env.SUPABASE_TEST_SERVICE_KEY ??
+  process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 beforeEach(async () => {
   const c = createClient(url, svc);
-  await c.rpc("exec_sql" as any, { sql: "truncate public.profiles cascade" }).catch(() => {});
+  await c
+    .rpc("exec_sql" as any, { sql: "truncate public.profiles cascade" })
+    .catch(() => {});
 });
 
 test("inviteUserByEmail materialises a profile row via auth trigger", async () => {
   const c = createClient(url, svc);
-  const { data, error } = await c.auth.admin.inviteUserByEmail("t1@example.com", {
-    data: { full_name: "Test One" },
-  });
+  const { data, error } = await c.auth.admin.inviteUserByEmail(
+    "t1@example.com",
+    {
+      data: { full_name: "Test One" },
+    },
+  );
   expect(error).toBeNull();
   expect(data.user?.email).toBe("t1@example.com");
-  const { data: profile } = await c.from("profiles").select("*").eq("id", data.user!.id).single();
+  const { data: profile } = await c
+    .from("profiles")
+    .select("*")
+    .eq("id", data.user!.id)
+    .single();
   expect(profile?.display_name).toBe("Test One");
   expect(profile?.role).toBe("admin"); // first user
 });
@@ -984,6 +1106,7 @@ git commit -m "feat(actions): profile + roster + unavailability"
 ### Task 2.6: Sign-in flow + auth-gated shell
 
 **Files:**
+
 - Create: `app/(auth)/sign-in/page.tsx`, `app/(auth)/callback/route.ts`
 - Create: `app/(app)/layout.tsx`, `components/app/nav.tsx`
 - Modify: `middleware.ts`
@@ -1002,19 +1125,34 @@ export default function SignIn() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   async function magic() {
-    await s.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/auth/callback` } });
+    await s.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${location.origin}/auth/callback` },
+    });
     setSent(true);
   }
   async function google() {
-    await s.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${location.origin}/auth/callback` } });
+    await s.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${location.origin}/auth/callback` },
+    });
   }
   return (
     <main className="min-h-screen grid place-items-center p-8">
       <div className="w-full max-w-sm space-y-4">
         <h1 className="text-2xl font-semibold">Sign in to Atlas</h1>
-        <Input type="email" placeholder="you@team.com" value={email} onChange={e => setEmail(e.target.value)} />
-        <Button className="w-full" onClick={magic}>{sent ? "Check your email" : "Send magic link"}</Button>
-        <Button variant="secondary" className="w-full" onClick={google}>Continue with Google</Button>
+        <Input
+          type="email"
+          placeholder="you@team.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Button className="w-full" onClick={magic}>
+          {sent ? "Check your email" : "Send magic link"}
+        </Button>
+        <Button variant="secondary" className="w-full" onClick={google}>
+          Continue with Google
+        </Button>
       </div>
     </main>
   );
@@ -1028,7 +1166,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function GET(req: NextRequest) {
   const code = new URL(req.url).searchParams.get("code");
-  if (code) await createSupabaseServerClient().auth.exchangeCodeForSession(code);
+  if (code)
+    await createSupabaseServerClient().auth.exchangeCodeForSession(code);
   return NextResponse.redirect(new URL("/", req.url));
 }
 ```
@@ -1041,8 +1180,16 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/require";
 import { Nav } from "@/components/app/nav";
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  try { await requireUser(); } catch { redirect("/sign-in"); }
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  try {
+    await requireUser();
+  } catch {
+    redirect("/sign-in");
+  }
   return (
     <div className="grid grid-cols-[220px_1fr] min-h-screen">
       <Nav />
@@ -1068,7 +1215,15 @@ export function Nav() {
   return (
     <nav className="border-r p-4 space-y-1">
       <div className="font-semibold px-2 py-1">Atlas</div>
-      {items.map(i => <Link key={i.href} href={i.href} className="block px-2 py-1 rounded hover:bg-muted">{i.label}</Link>)}
+      {items.map((i) => (
+        <Link
+          key={i.href}
+          href={i.href}
+          className="block px-2 py-1 rounded hover:bg-muted"
+        >
+          {i.label}
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -1080,9 +1235,14 @@ Update `lib/supabase/middleware.ts` to inspect the resolved user and redirect fo
 
 ```ts
 // lib/supabase/middleware.ts (excerpt after supabase.auth.getUser())
-const { data: { user } } = await supabase.auth.getUser();
+const {
+  data: { user },
+} = await supabase.auth.getUser();
 const url = new URL(request.url);
-const isPublic = url.pathname.startsWith("/sign-in") || url.pathname.startsWith("/auth") || url.pathname.startsWith("/api/health");
+const isPublic =
+  url.pathname.startsWith("/sign-in") ||
+  url.pathname.startsWith("/auth") ||
+  url.pathname.startsWith("/api/health");
 if (!user && !isPublic) {
   const to = new URL("/sign-in", request.url);
   return NextResponse.redirect(to);
@@ -1098,7 +1258,9 @@ import { test, expect } from "@playwright/test";
 test("unauthenticated → sign-in", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/sign-in$/);
-  await expect(page.getByRole("heading", { name: "Sign in to Atlas" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Sign in to Atlas" }),
+  ).toBeVisible();
 });
 ```
 
@@ -1115,6 +1277,7 @@ git commit -m "feat(auth): sign-in, callback, auth-gated shell"
 ### Task 2.7: Roster + Settings pages
 
 **Files:**
+
 - Create: `app/(app)/roster/page.tsx`, `app/(app)/roster/[id]/page.tsx`, `app/(app)/settings/page.tsx`
 - Create: `components/app/roster-table.tsx`, `components/app/unavailability-editor.tsx`
 
@@ -1129,9 +1292,16 @@ import { RosterTable } from "@/components/app/roster-table";
 export default async function RosterPage() {
   await requireUser();
   const s = createSupabaseServerClient();
-  const { data } = await s.from("profiles").select("id,display_name,email,role,is_active").order("display_name");
+  const { data } = await s
+    .from("profiles")
+    .select("id,display_name,email,role,is_active")
+    .order("display_name");
   const { data: me } = await s.auth.getUser();
-  const { data: mine } = await s.from("profiles").select("role").eq("id", me.user!.id).single();
+  const { data: mine } = await s
+    .from("profiles")
+    .select("role")
+    .eq("id", me.user!.id)
+    .single();
   return <RosterTable rows={data ?? []} isAdmin={mine?.role === "admin"} />;
 }
 ```
@@ -1176,8 +1346,9 @@ Branch: `atlas/03-attributed-prompts` (off `atlas/02-auth-roster`)
 **Goal:** Any active member can create a standalone attributed prompt of any response type, others answer, participation counter updates live, creator reveals. Meetings are not touched here — the prompt lives as a standalone poll.
 
 **Files touched:**
-- Create: `db/migrations/0005_prompts_and_responses.sql`, `db/migrations/0006_participation.sql`, `db/migrations/0007_participation_counter.sql`, `db/migrations/0008_participation_denominator.sql`
-- Create: `db/tests/prompts_rls.sql`, `db/tests/participation_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0005_prompts_and_responses.sql`, `db/supabase/supabase/migrations/0006_participation.sql`, `db/supabase/supabase/migrations/0007_participation_counter.sql`, `db/supabase/supabase/migrations/0008_participation_denominator.sql`
+- Create: `db/supabase/supabase/tests/prompts_rls.sql`, `db/supabase/supabase/tests/participation_rls.sql`
 - Create: `lib/zod/prompt.ts`, `lib/zod/response.ts`
 - Create: `lib/actions/prompt.ts`, `lib/actions/response.ts`
 - Create: `lib/prompts/validate-response.ts`
@@ -1185,6 +1356,7 @@ Branch: `atlas/03-attributed-prompts` (off `atlas/02-auth-roster`)
 - Create: `components/prompts/prompt-form.tsx`, `components/prompts/response-input.tsx`, `components/prompts/reveal-view.tsx`, `components/prompts/participation-counter.tsx`
 
 **Interfaces produced:**
+
 - Tables: `prompts`, `responses_attributed`, `participation`.
 - SQL function: `atlas_prompt_denominator(prompt_id uuid) returns int` — returns the current expected-participant count.
 - SQL function: `atlas_prompt_counter(prompt_id uuid) returns int` — returns the numerator.
@@ -1193,8 +1365,9 @@ Branch: `atlas/03-attributed-prompts` (off `atlas/02-auth-roster`)
 ### Task 3.1: prompts + responses_attributed + participation migrations
 
 **Files:**
-- Create: `db/migrations/0005_prompts_and_responses.sql`, `db/migrations/0006_participation.sql`
-- Create: `db/tests/prompts_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0005_prompts_and_responses.sql`, `db/supabase/supabase/migrations/0006_participation.sql`
+- Create: `db/supabase/supabase/tests/prompts_rls.sql`
 
 - [ ] **Step 1: Migration `0005`**
 
@@ -1288,7 +1461,7 @@ create policy part_write_self on public.participation for insert with check (aut
 - [ ] **Step 3: pgTAP RLS test**
 
 ```sql
--- db/tests/prompts_rls.sql
+-- db/supabase/supabase/tests/prompts_rls.sql
 BEGIN;
 SELECT plan(4);
 SELECT has_table('public','prompts');
@@ -1306,19 +1479,20 @@ Expected: PASS.
 
 ```bash
 git checkout -b atlas/03-attributed-prompts
-git add db/migrations/0005_prompts_and_responses.sql db/migrations/0006_participation.sql db/tests/prompts_rls.sql
+git add db/supabase/supabase/migrations/0005_prompts_and_responses.sql db/supabase/supabase/migrations/0006_participation.sql db/supabase/supabase/tests/prompts_rls.sql
 git commit -m "feat(db): prompts + attributed responses + participation"
 ```
 
 ### Task 3.2: participation counter + denominator functions
 
 **Files:**
-- Create: `db/migrations/0007_participation_counter.sql`, `db/migrations/0008_participation_denominator.sql`
+
+- Create: `db/supabase/supabase/migrations/0007_participation_counter.sql`, `db/supabase/supabase/migrations/0008_participation_denominator.sql`
 
 - [ ] **Step 1: Numerator**
 
 ```sql
--- db/migrations/0007_participation_counter.sql
+-- db/supabase/supabase/migrations/0007_participation_counter.sql
 create or replace function public.atlas_prompt_counter(p_prompt uuid) returns int
 language sql stable as $$
   select count(*)::int from public.participation where prompt_id = p_prompt;
@@ -1329,7 +1503,7 @@ grant execute on function public.atlas_prompt_counter(uuid) to authenticated;
 - [ ] **Step 2: Denominator (standalone-poll flavour; meeting override wired in Phase 5)**
 
 ```sql
--- db/migrations/0008_participation_denominator.sql
+-- db/supabase/supabase/migrations/0008_participation_denominator.sql
 create or replace function public.atlas_prompt_denominator(p_prompt uuid) returns int
 language plpgsql stable as $$
 declare v_meeting uuid; v_count int;
@@ -1358,13 +1532,14 @@ Expected: returns `0`.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add db/migrations/0007_participation_counter.sql db/migrations/0008_participation_denominator.sql
+git add db/supabase/supabase/migrations/0007_participation_counter.sql db/supabase/supabase/migrations/0008_participation_denominator.sql
 git commit -m "feat(db): participation counter + denominator (standalone flavour)"
 ```
 
 ### Task 3.3: Response validators (pure)
 
 **Files:**
+
 - Create: `lib/prompts/validate-response.ts`, `tests/prompts/validate-response.test.ts`
 
 - [ ] **Step 1: Failing test**
@@ -1374,23 +1549,34 @@ import { expect, test } from "vitest";
 import { validateResponse } from "@/lib/prompts/validate-response";
 
 test("text rejects >2000 chars", () => {
-  const r = validateResponse({ response_type: "text" } as any, { text: "a".repeat(2001) });
+  const r = validateResponse({ response_type: "text" } as any, {
+    text: "a".repeat(2001),
+  });
   expect(r.ok).toBe(false);
 });
 
 test("rating rejects out of range", () => {
-  const r = validateResponse({ response_type: "rating", rating_min: 1, rating_max: 5 } as any, { value: 7 });
+  const r = validateResponse(
+    { response_type: "rating", rating_min: 1, rating_max: 5 } as any,
+    { value: 7 },
+  );
   expect(r.ok).toBe(false);
 });
 
 test("multi_choice accepts subset of options", () => {
-  const p = { response_type: "multi_choice", options: [{id:"a"},{id:"b"},{id:"c"}] } as any;
-  const r = validateResponse(p, { option_ids: ["a","c"] });
+  const p = {
+    response_type: "multi_choice",
+    options: [{ id: "a" }, { id: "b" }, { id: "c" }],
+  } as any;
+  const r = validateResponse(p, { option_ids: ["a", "c"] });
   expect(r.ok).toBe(true);
 });
 
 test("yes_no accepts yes only", () => {
-  const p = { response_type: "yes_no", options: [{id:"yes"},{id:"no"}] } as any;
+  const p = {
+    response_type: "yes_no",
+    options: [{ id: "yes" }, { id: "no" }],
+  } as any;
   expect(validateResponse(p, { option_id: "yes" }).ok).toBe(true);
   expect(validateResponse(p, { option_id: "maybe" }).ok).toBe(false);
 });
@@ -1403,36 +1589,50 @@ Run: `pnpm test` — FAIL.
 ```ts
 // lib/prompts/validate-response.ts
 type Prompt = {
-  response_type: "text"|"single_choice"|"multi_choice"|"yes_no"|"rating";
+  response_type:
+    "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
   options?: { id: string; label?: string }[];
-  rating_min?: number|null; rating_max?: number|null;
+  rating_min?: number | null;
+  rating_max?: number | null;
 };
 export type ValidationResult = { ok: true } | { ok: false; error: string };
 
 export function validateResponse(p: Prompt, r: unknown): ValidationResult {
-  const ids = new Set(p.options?.map(o => o.id) ?? []);
+  const ids = new Set(p.options?.map((o) => o.id) ?? []);
   switch (p.response_type) {
     case "text": {
       const t = (r as any)?.text;
-      if (typeof t !== "string" || t.length === 0 || t.length > 2000) return { ok:false, error:"text must be 1..2000 chars" };
-      return { ok:true };
+      if (typeof t !== "string" || t.length === 0 || t.length > 2000)
+        return { ok: false, error: "text must be 1..2000 chars" };
+      return { ok: true };
     }
     case "single_choice":
     case "yes_no": {
       const id = (r as any)?.option_id;
-      if (typeof id !== "string" || !ids.has(id)) return { ok:false, error:"option_id invalid" };
-      return { ok:true };
+      if (typeof id !== "string" || !ids.has(id))
+        return { ok: false, error: "option_id invalid" };
+      return { ok: true };
     }
     case "multi_choice": {
       const arr = (r as any)?.option_ids;
-      if (!Array.isArray(arr) || arr.length === 0 || arr.some((x) => !ids.has(x))) return { ok:false, error:"option_ids invalid" };
-      return { ok:true };
+      if (
+        !Array.isArray(arr) ||
+        arr.length === 0 ||
+        arr.some((x) => !ids.has(x))
+      )
+        return { ok: false, error: "option_ids invalid" };
+      return { ok: true };
     }
     case "rating": {
       const v = (r as any)?.value;
-      if (typeof v !== "number" || !Number.isInteger(v) ||
-          v < (p.rating_min ?? 1) || v > (p.rating_max ?? 5)) return { ok:false, error:"value out of range" };
-      return { ok:true };
+      if (
+        typeof v !== "number" ||
+        !Number.isInteger(v) ||
+        v < (p.rating_min ?? 1) ||
+        v > (p.rating_max ?? 5)
+      )
+        return { ok: false, error: "value out of range" };
+      return { ok: true };
     }
   }
 }
@@ -1450,6 +1650,7 @@ git commit -m "feat(prompts): pure response validator"
 ### Task 3.4: Server Actions — prompt CRUD + submit + reveal (attributed only)
 
 **Files:**
+
 - Create: `lib/zod/prompt.ts`, `lib/actions/prompt.ts`, `lib/actions/response.ts`
 - Create: `tests/actions/prompt.integration.test.ts`
 
@@ -1458,13 +1659,55 @@ git commit -m "feat(prompts): pure response validator"
 ```ts
 // lib/zod/prompt.ts
 import { z } from "zod";
-export const option = z.object({ id: z.string().min(1).max(40), label: z.string().min(1).max(120) });
+export const option = z.object({
+  id: z.string().min(1).max(40),
+  label: z.string().min(1).max(120),
+});
 export const createPromptInput = z.discriminatedUnion("response_type", [
-  z.object({ response_type: z.literal("text"),          question: z.string().min(1).max(500), anonymity: z.enum(["attributed","hard_anonymous"]), timing: z.enum(["async","live"]).default("async"), opens_at: z.string().datetime().optional(), closes_at: z.string().datetime().optional() }),
-  z.object({ response_type: z.literal("single_choice"), question: z.string().min(1).max(500), anonymity: z.enum(["attributed","hard_anonymous"]), timing: z.enum(["async","live"]).default("async"), options: z.array(option).min(2).max(20), opens_at: z.string().datetime().optional(), closes_at: z.string().datetime().optional() }),
-  z.object({ response_type: z.literal("multi_choice"),  question: z.string().min(1).max(500), anonymity: z.enum(["attributed","hard_anonymous"]), timing: z.enum(["async","live"]).default("async"), options: z.array(option).min(2).max(20), opens_at: z.string().datetime().optional(), closes_at: z.string().datetime().optional() }),
-  z.object({ response_type: z.literal("yes_no"),        question: z.string().min(1).max(500), anonymity: z.enum(["attributed","hard_anonymous"]), timing: z.enum(["async","live"]).default("async"), opens_at: z.string().datetime().optional(), closes_at: z.string().datetime().optional() }),
-  z.object({ response_type: z.literal("rating"),        question: z.string().min(1).max(500), anonymity: z.enum(["attributed","hard_anonymous"]), timing: z.enum(["async","live"]).default("async"), rating_min: z.union([z.literal(1)]).default(1), rating_max: z.union([z.literal(5),z.literal(10)]).default(5), opens_at: z.string().datetime().optional(), closes_at: z.string().datetime().optional() }),
+  z.object({
+    response_type: z.literal("text"),
+    question: z.string().min(1).max(500),
+    anonymity: z.enum(["attributed", "hard_anonymous"]),
+    timing: z.enum(["async", "live"]).default("async"),
+    opens_at: z.string().datetime().optional(),
+    closes_at: z.string().datetime().optional(),
+  }),
+  z.object({
+    response_type: z.literal("single_choice"),
+    question: z.string().min(1).max(500),
+    anonymity: z.enum(["attributed", "hard_anonymous"]),
+    timing: z.enum(["async", "live"]).default("async"),
+    options: z.array(option).min(2).max(20),
+    opens_at: z.string().datetime().optional(),
+    closes_at: z.string().datetime().optional(),
+  }),
+  z.object({
+    response_type: z.literal("multi_choice"),
+    question: z.string().min(1).max(500),
+    anonymity: z.enum(["attributed", "hard_anonymous"]),
+    timing: z.enum(["async", "live"]).default("async"),
+    options: z.array(option).min(2).max(20),
+    opens_at: z.string().datetime().optional(),
+    closes_at: z.string().datetime().optional(),
+  }),
+  z.object({
+    response_type: z.literal("yes_no"),
+    question: z.string().min(1).max(500),
+    anonymity: z.enum(["attributed", "hard_anonymous"]),
+    timing: z.enum(["async", "live"]).default("async"),
+    opens_at: z.string().datetime().optional(),
+    closes_at: z.string().datetime().optional(),
+  }),
+  z.object({
+    response_type: z.literal("rating"),
+    question: z.string().min(1).max(500),
+    anonymity: z.enum(["attributed", "hard_anonymous"]),
+    timing: z.enum(["async", "live"]).default("async"),
+    rating_min: z.union([z.literal(1)]).default(1),
+    rating_max: z.union([z.literal(5), z.literal(10)]).default(5),
+    opens_at: z.string().datetime().optional(),
+    closes_at: z.string().datetime().optional(),
+  }),
 ]);
 ```
 
@@ -1477,10 +1720,16 @@ import { requireUser } from "@/lib/auth/require";
 import { createPromptInput } from "@/lib/zod/prompt";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 
-const YES_NO_OPTIONS = [{ id: "yes", label: "Yes" }, { id: "no", label: "No" }];
+const YES_NO_OPTIONS = [
+  { id: "yes", label: "Yes" },
+  { id: "no", label: "No" },
+];
 
-export async function createPrompt(input: unknown): Promise<ActionResult<{ id: string }>> {
-  const parsed = createPromptInput.safeParse(input); if (!parsed.success) return err("invalid_input", parsed.error.message);
+export async function createPrompt(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = createPromptInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { user, supabase } = await requireUser();
   const p = parsed.data;
   const row: Record<string, unknown> = {
@@ -1489,33 +1738,54 @@ export async function createPrompt(input: unknown): Promise<ActionResult<{ id: s
     response_type: p.response_type,
     anonymity: p.anonymity,
     timing: p.timing,
-    is_open: true,     // standalone polls open on creation
+    is_open: true, // standalone polls open on creation
     opens_at: p.opens_at ?? null,
     closes_at: p.closes_at ?? null,
   };
-  if (p.response_type === "single_choice" || p.response_type === "multi_choice") row.options = p.options;
+  if (p.response_type === "single_choice" || p.response_type === "multi_choice")
+    row.options = p.options;
   if (p.response_type === "yes_no") row.options = YES_NO_OPTIONS;
-  if (p.response_type === "rating") { row.rating_min = p.rating_min; row.rating_max = p.rating_max; }
-  const { data, error } = await supabase.from("prompts").insert(row).select("id").single();
+  if (p.response_type === "rating") {
+    row.rating_min = p.rating_min;
+    row.rating_max = p.rating_max;
+  }
+  const { data, error } = await supabase
+    .from("prompts")
+    .insert(row)
+    .select("id")
+    .single();
   if (error || !data) return err("db_error", error?.message ?? "unknown");
   revalidatePath("/polls");
   return ok({ id: data.id });
 }
 
-export async function revealPrompt(prompt_id: string): Promise<ActionResult<null>> {
+export async function revealPrompt(
+  prompt_id: string,
+): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
-  const { error } = await supabase.from("prompts")
-    .update({ is_revealed: true, revealed_at: new Date().toISOString(), is_open: false })
-    .eq("id", prompt_id).eq("author_user_id", user.id);
+  const { error } = await supabase
+    .from("prompts")
+    .update({
+      is_revealed: true,
+      revealed_at: new Date().toISOString(),
+      is_open: false,
+    })
+    .eq("id", prompt_id)
+    .eq("author_user_id", user.id);
   if (error) return err("db_error", error.message);
   revalidatePath(`/polls/${prompt_id}`);
   return ok(null);
 }
 
-export async function closePrompt(prompt_id: string): Promise<ActionResult<null>> {
+export async function closePrompt(
+  prompt_id: string,
+): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
-  const { error } = await supabase.from("prompts")
-    .update({ is_open: false }).eq("id", prompt_id).eq("author_user_id", user.id);
+  const { error } = await supabase
+    .from("prompts")
+    .update({ is_open: false })
+    .eq("id", prompt_id)
+    .eq("author_user_id", user.id);
   if (error) return err("db_error", error.message);
   revalidatePath(`/polls/${prompt_id}`);
   return ok(null);
@@ -1531,23 +1801,36 @@ import { requireUser } from "@/lib/auth/require";
 import { validateResponse } from "@/lib/prompts/validate-response";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 
-export async function submitResponse(prompt_id: string, response: unknown): Promise<ActionResult<null>> {
+export async function submitResponse(
+  prompt_id: string,
+  response: unknown,
+): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
 
-  const { data: p } = await supabase.from("prompts")
-    .select("id,response_type,options,rating_min,rating_max,anonymity,is_open,is_revealed,opens_at,closes_at,timing")
-    .eq("id", prompt_id).single();
+  const { data: p } = await supabase
+    .from("prompts")
+    .select(
+      "id,response_type,options,rating_min,rating_max,anonymity,is_open,is_revealed,opens_at,closes_at,timing",
+    )
+    .eq("id", prompt_id)
+    .single();
   if (!p) return err("not_found", "prompt");
   if (p.is_revealed || !p.is_open) return err("closed", "prompt not open");
   const now = new Date();
-  if (p.opens_at  && now < new Date(p.opens_at))  return err("closed", "not yet open");
-  if (p.closes_at && now > new Date(p.closes_at)) return err("closed", "past close");
+  if (p.opens_at && now < new Date(p.opens_at))
+    return err("closed", "not yet open");
+  if (p.closes_at && now > new Date(p.closes_at))
+    return err("closed", "past close");
 
-  const v = validateResponse(p as any, response); if (!v.ok) return err("invalid_input", v.error);
+  const v = validateResponse(p as any, response);
+  if (!v.ok) return err("invalid_input", v.error);
 
   if (p.anonymity === "attributed") {
     // upsert attributed row + participation in a single RPC
-    const { error } = await supabase.rpc("atlas_submit_attributed", { p_prompt: prompt_id, p_response: response });
+    const { error } = await supabase.rpc("atlas_submit_attributed", {
+      p_prompt: prompt_id,
+      p_response: response,
+    });
     if (error) return err("db_error", error.message);
   } else {
     return err("not_implemented", "hard-anonymous ships in phase 4");
@@ -1560,7 +1843,7 @@ export async function submitResponse(prompt_id: string, response: unknown): Prom
 Add the RPC in a small migration inline (create in the same commit to keep coupling explicit):
 
 ```sql
--- db/migrations/0009_submit_attributed_rpc.sql
+-- db/supabase/supabase/migrations/0009_submit_attributed_rpc.sql
 create or replace function public.atlas_submit_attributed(p_prompt uuid, p_response jsonb) returns void
 language plpgsql security invoker as $$
 declare v_uid uuid := auth.uid();
@@ -1588,17 +1871,37 @@ const svc = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 test("attributed single_choice: submit + reveal + read back", async () => {
   const admin = createClient(url, svc);
-  const { data: u1 } = await admin.auth.admin.inviteUserByEmail("a@example.com");
-  const { data: u2 } = await admin.auth.admin.inviteUserByEmail("b@example.com");
-  const prompt = await admin.from("prompts").insert({
-    author_user_id: u1!.user!.id, question: "Which color?", response_type: "single_choice",
-    options: [{id:"red",label:"Red"},{id:"blue",label:"Blue"}], anonymity: "attributed", timing:"async", is_open: true,
-  }).select("id").single();
+  const { data: u1 } =
+    await admin.auth.admin.inviteUserByEmail("a@example.com");
+  const { data: u2 } =
+    await admin.auth.admin.inviteUserByEmail("b@example.com");
+  const prompt = await admin
+    .from("prompts")
+    .insert({
+      author_user_id: u1!.user!.id,
+      question: "Which color?",
+      response_type: "single_choice",
+      options: [
+        { id: "red", label: "Red" },
+        { id: "blue", label: "Blue" },
+      ],
+      anonymity: "attributed",
+      timing: "async",
+      is_open: true,
+    })
+    .select("id")
+    .single();
 
   // as u2 (need magic-link session simulation; use service role SELECTs instead of RLS-checked writes for now)
-  await admin.rpc("atlas_submit_attributed" as any, { p_prompt: prompt.data!.id, p_response: { option_id: "blue" } });
+  await admin.rpc("atlas_submit_attributed" as any, {
+    p_prompt: prompt.data!.id,
+    p_response: { option_id: "blue" },
+  });
 
-  const { data: parts } = await admin.from("participation").select("*").eq("prompt_id", prompt.data!.id);
+  const { data: parts } = await admin
+    .from("participation")
+    .select("*")
+    .eq("prompt_id", prompt.data!.id);
   expect(parts?.length).toBe(1); // service role acts as admin — participation row lands under admin uid; assert row count only
 });
 ```
@@ -1608,13 +1911,14 @@ Run: `pnpm test` — PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add db/migrations/0009_submit_attributed_rpc.sql lib/zod/prompt.ts lib/actions/prompt.ts lib/actions/response.ts tests/actions/prompt.integration.test.ts
+git add db/supabase/supabase/migrations/0009_submit_attributed_rpc.sql lib/zod/prompt.ts lib/actions/prompt.ts lib/actions/response.ts tests/actions/prompt.integration.test.ts
 git commit -m "feat(actions): prompt + submitResponse (attributed) + reveal"
 ```
 
 ### Task 3.5: UI — create poll, respond, live counter, reveal
 
 **Files:**
+
 - Create: `app/(app)/polls/page.tsx`, `app/(app)/polls/new/page.tsx`, `app/(app)/polls/[id]/page.tsx`
 - Create: `components/prompts/prompt-form.tsx`, `components/prompts/response-input.tsx`, `components/prompts/reveal-view.tsx`, `components/prompts/participation-counter.tsx`
 
@@ -1641,22 +1945,40 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function ParticipationCounter({ promptId }: { promptId: string }) {
   const s = createSupabaseBrowserClient();
-  const [n, setN] = useState(0); const [d, setD] = useState(0);
+  const [n, setN] = useState(0);
+  const [d, setD] = useState(0);
   async function refresh() {
     const [a, b] = await Promise.all([
       s.rpc("atlas_prompt_counter", { p_prompt: promptId }),
       s.rpc("atlas_prompt_denominator", { p_prompt: promptId }),
     ]);
-    setN(a.data ?? 0); setD(b.data ?? 0);
+    setN(a.data ?? 0);
+    setD(b.data ?? 0);
   }
   useEffect(() => {
     refresh();
-    const ch = s.channel(`part:${promptId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "participation", filter: `prompt_id=eq.${promptId}` }, refresh)
+    const ch = s
+      .channel(`part:${promptId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "participation",
+          filter: `prompt_id=eq.${promptId}`,
+        },
+        refresh,
+      )
       .subscribe();
-    return () => { s.removeChannel(ch); };
+    return () => {
+      s.removeChannel(ch);
+    };
   }, [promptId]);
-  return <div className="text-sm text-muted-foreground">{n} of {d} responded • {Math.max(d - n, 0)} to go</div>;
+  return (
+    <div className="text-sm text-muted-foreground">
+      {n} of {d} responded • {Math.max(d - n, 0)} to go
+    </div>
+  );
 }
 ```
 
@@ -1709,14 +2031,16 @@ Branch: `atlas/04-anonymous-prompts` (off `atlas/03-attributed-prompts`)
 **Goal:** Adds hard-anonymous responses without a `user_id` column, aggregation-only reads via `atlas_get_prompt_results`, and the "final, no undo" submission UI.
 
 **Files touched:**
-- Create: `db/migrations/0010_responses_anonymous.sql`, `db/migrations/0011_prompt_results.sql`
-- Create: `db/tests/anon_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0010_responses_anonymous.sql`, `db/supabase/supabase/migrations/0011_prompt_results.sql`
+- Create: `db/supabase/supabase/tests/anon_rls.sql`
 - Modify: `lib/actions/response.ts` (add anonymous branch via `atlas_submit_anonymous` RPC)
 - Modify: `components/prompts/prompt-form.tsx` (warn + lock message on hard-anonymous)
 - Modify: `components/prompts/reveal-view.tsx` (anonymous path uses aggregation function)
-- Create: `db/migrations/0012_submit_anonymous_rpc.sql`
+- Create: `db/supabase/supabase/migrations/0012_submit_anonymous_rpc.sql`
 
 **Interfaces produced:**
+
 - Table: `responses_anonymous(id, prompt_id, response, created_at)` — no `user_id`.
 - Function: `atlas_get_prompt_results(prompt_id uuid) returns jsonb` — returns type-appropriate aggregate.
 - RPC: `atlas_submit_anonymous(p_prompt uuid, p_response jsonb)` — atomic insert into `responses_anonymous` + `participation`.
@@ -1724,7 +2048,8 @@ Branch: `atlas/04-anonymous-prompts` (off `atlas/03-attributed-prompts`)
 ### Task 4.1: `responses_anonymous` migration
 
 **Files:**
-- Create: `db/migrations/0010_responses_anonymous.sql`, `db/tests/anon_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0010_responses_anonymous.sql`, `db/supabase/supabase/tests/anon_rls.sql`
 
 - [ ] **Step 1: Migration**
 
@@ -1753,7 +2078,7 @@ comment on table public.responses_anonymous is
 - [ ] **Step 2: pgTAP — no `user_id` column, ever**
 
 ```sql
--- db/tests/anon_rls.sql
+-- db/supabase/supabase/tests/anon_rls.sql
 BEGIN;
 SELECT plan(3);
 SELECT hasnt_column('public','responses_anonymous','user_id', 'responses_anonymous MUST NOT have user_id');
@@ -1776,14 +2101,15 @@ Expected: PASS.
 
 ```bash
 git checkout -b atlas/04-anonymous-prompts
-git add db/migrations/0010_responses_anonymous.sql db/tests/anon_rls.sql
+git add db/supabase/supabase/migrations/0010_responses_anonymous.sql db/supabase/supabase/tests/anon_rls.sql
 git commit -m "feat(db): responses_anonymous with no user_id column"
 ```
 
 ### Task 4.2: `atlas_submit_anonymous` RPC
 
 **Files:**
-- Create: `db/migrations/0012_submit_anonymous_rpc.sql`
+
+- Create: `db/supabase/supabase/migrations/0012_submit_anonymous_rpc.sql`
 
 - [ ] **Step 1: RPC**
 
@@ -1815,12 +2141,13 @@ grant  execute on function public.atlas_submit_anonymous(uuid, jsonb) to authent
 // tests/actions/anonymous.integration.test.ts
 import { expect, test } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL!, svc = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  svc = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 test("no query returns (response, user_id) tuples for anonymous prompts", async () => {
   const c = createClient(url, svc);
   const { data: cols } = await c.rpc("exec_sql" as any, {
-    sql: "select column_name from information_schema.columns where table_schema='public' and table_name='responses_anonymous'"
+    sql: "select column_name from information_schema.columns where table_schema='public' and table_name='responses_anonymous'",
   });
   expect(JSON.stringify(cols)).not.toMatch(/user_id/);
 });
@@ -1829,14 +2156,15 @@ test("no query returns (response, user_id) tuples for anonymous prompts", async 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add db/migrations/0012_submit_anonymous_rpc.sql tests/actions/anonymous.integration.test.ts
+git add db/supabase/supabase/migrations/0012_submit_anonymous_rpc.sql tests/actions/anonymous.integration.test.ts
 git commit -m "feat(db): atlas_submit_anonymous rpc"
 ```
 
 ### Task 4.3: `atlas_get_prompt_results` aggregation
 
 **Files:**
-- Create: `db/migrations/0011_prompt_results.sql`
+
+- Create: `db/supabase/supabase/migrations/0011_prompt_results.sql`
 
 - [ ] **Step 1: Function**
 
@@ -1910,7 +2238,7 @@ grant execute on function public.atlas_get_prompt_results(uuid) to authenticated
 
 - [ ] **Step 2: pgTAP smoke**
 
-Extend `db/tests/anon_rls.sql` with a plan bump + one assertion that the function exists and is `SECURITY DEFINER`:
+Extend `db/supabase/supabase/tests/anon_rls.sql` with a plan bump + one assertion that the function exists and is `SECURITY DEFINER`:
 
 ```sql
 SELECT has_function('public','atlas_get_prompt_results', ARRAY['uuid']);
@@ -1922,13 +2250,14 @@ Expected: PASS.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add db/migrations/0011_prompt_results.sql db/tests/anon_rls.sql
+git add db/supabase/supabase/migrations/0011_prompt_results.sql db/supabase/supabase/tests/anon_rls.sql
 git commit -m "feat(db): atlas_get_prompt_results aggregate"
 ```
 
 ### Task 4.4: Wire anonymous into `submitResponse` + reveal view
 
 **Files:**
+
 - Modify: `lib/actions/response.ts`
 - Modify: `components/prompts/reveal-view.tsx`
 - Modify: `components/prompts/prompt-form.tsx` (warning strip on hard-anonymous)
@@ -1962,13 +2291,15 @@ Attributed branch stays unchanged and joins `profiles.display_name`.
 
 > "Hard anonymous. The database will not store who submitted what. Note: writing style or timing can still give you away in a small group."
 
-`response-input.tsx` — for hard-anonymous, replace the submit button label with **"Submit anonymously"** and open a confirm dialog: *"Anonymous — final. Take a moment."* No edit/undo after.
+`response-input.tsx` — for hard-anonymous, replace the submit button label with **"Submit anonymously"** and open a confirm dialog: _"Anonymous — final. Take a moment."_ No edit/undo after.
 
 - [ ] **Step 4: E2E — hard-anonymous full loop**
 
 ```ts
 // e2e/polls-anonymous.spec.ts (skeleton)
-test.skip("hard-anonymous single_choice", async () => {/* two users submit, one reveals, verify no names shown */});
+test.skip("hard-anonymous single_choice", async () => {
+  /* two users submit, one reveals, verify no names shown */
+});
 ```
 
 - [ ] **Step 5: Commit + PR**
@@ -1997,13 +2328,15 @@ Branch: `atlas/05-meetings-one-off` (off `atlas/04-anonymous-prompts`)
 **Goal:** Anyone can create a one-off meeting with themselves as host. The meeting has an ordered agenda of prompts (all response types + both anonymities available). Live view syncs current agenda item + reveal state across all participants.
 
 **Files touched:**
-- Create: `db/migrations/0013_meetings.sql`, `db/migrations/0014_agenda_items.sql`, `db/migrations/0015_prompts_meeting_fk.sql`, `db/migrations/0016_denominator_meeting.sql`
-- Create: `db/tests/meetings_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0013_meetings.sql`, `db/supabase/supabase/migrations/0014_agenda_items.sql`, `db/supabase/supabase/migrations/0015_prompts_meeting_fk.sql`, `db/supabase/supabase/migrations/0016_denominator_meeting.sql`
+- Create: `db/supabase/supabase/tests/meetings_rls.sql`
 - Create: `lib/zod/meeting.ts`, `lib/actions/meeting.ts`, `lib/actions/agenda.ts`
 - Create: `app/(app)/meetings/page.tsx`, `app/(app)/meetings/new/page.tsx`, `app/(app)/meetings/[id]/page.tsx`
 - Create: `components/meetings/meeting-live-view.tsx`, `components/meetings/agenda-editor.tsx`, `components/meetings/agenda-runner.tsx`
 
 **Interfaces produced:**
+
 - Tables: `meetings`, `agenda_items`.
 - `meetings.status` state machine (`scheduled`, `live`, `ended`) — no rotation/postpone yet (Phase 7 + 8).
 - Server actions: `meeting.createOneOff`, `meeting.start`, `meeting.end`, `agenda.addItem`, `agenda.updateItem`, `agenda.reorder`, `agenda.advanceTo`.
@@ -2012,7 +2345,8 @@ Branch: `atlas/05-meetings-one-off` (off `atlas/04-anonymous-prompts`)
 ### Task 5.1: Migrations
 
 **Files:**
-- Create: `db/migrations/0013_meetings.sql`, `db/migrations/0014_agenda_items.sql`, `db/migrations/0015_prompts_meeting_fk.sql`, `db/migrations/0016_denominator_meeting.sql`
+
+- Create: `db/supabase/supabase/migrations/0013_meetings.sql`, `db/supabase/supabase/migrations/0014_agenda_items.sql`, `db/supabase/supabase/migrations/0015_prompts_meeting_fk.sql`, `db/supabase/supabase/migrations/0016_denominator_meeting.sql`
 
 - [ ] **Step 1: `meetings`**
 
@@ -2146,7 +2480,7 @@ end $$;
 - [ ] **Step 5: pgTAP + reset + commit**
 
 ```sql
--- db/tests/meetings_rls.sql
+-- db/supabase/supabase/tests/meetings_rls.sql
 BEGIN;
 SELECT plan(3);
 SELECT has_table('public','meetings');
@@ -2159,13 +2493,14 @@ ROLLBACK;
 ```bash
 pnpm supabase db reset && pnpm supabase db test
 git checkout -b atlas/05-meetings-one-off
-git add db/migrations/00{13,14,15,16}_*.sql db/tests/meetings_rls.sql
+git add db/supabase/supabase/migrations/00{13,14,15,16}_*.sql db/supabase/supabase/tests/meetings_rls.sql
 git commit -m "feat(db): meetings + agenda_items + denominator update"
 ```
 
 ### Task 5.2: Server actions — meeting + agenda
 
 **Files:**
+
 - Create: `lib/zod/meeting.ts`, `lib/actions/meeting.ts`, `lib/actions/agenda.ts`
 
 - [ ] **Step 1: Schemas**
@@ -2180,12 +2515,35 @@ export const createOneOff = z.object({
   participants_override: z.array(z.string().uuid()).nullable().optional(),
 });
 export const addAgendaItem = z.discriminatedUnion("kind", [
-  z.object({ meeting_id: z.string().uuid(), kind: z.literal("discussion"), title: z.string().min(1).max(120) }),
-  z.object({ meeting_id: z.string().uuid(), kind: z.literal("prompt"),     title: z.string().min(1).max(120), prompt_id: z.string().uuid() }),
-  z.object({ meeting_id: z.string().uuid(), kind: z.literal("picker"),     title: z.string().min(1).max(120), picker_config: z.object({ mode: z.enum(["oneshot","shuffle"]), scope: z.enum(["whole_roster","meeting_participants"]) }) }),
+  z.object({
+    meeting_id: z.string().uuid(),
+    kind: z.literal("discussion"),
+    title: z.string().min(1).max(120),
+  }),
+  z.object({
+    meeting_id: z.string().uuid(),
+    kind: z.literal("prompt"),
+    title: z.string().min(1).max(120),
+    prompt_id: z.string().uuid(),
+  }),
+  z.object({
+    meeting_id: z.string().uuid(),
+    kind: z.literal("picker"),
+    title: z.string().min(1).max(120),
+    picker_config: z.object({
+      mode: z.enum(["oneshot", "shuffle"]),
+      scope: z.enum(["whole_roster", "meeting_participants"]),
+    }),
+  }),
 ]);
-export const reorderAgenda = z.object({ meeting_id: z.string().uuid(), item_ids: z.array(z.string().uuid()).min(1) });
-export const advanceTo    = z.object({ meeting_id: z.string().uuid(), item_id: z.string().uuid().nullable() });
+export const reorderAgenda = z.object({
+  meeting_id: z.string().uuid(),
+  item_ids: z.array(z.string().uuid()).min(1),
+});
+export const advanceTo = z.object({
+  meeting_id: z.string().uuid(),
+  item_id: z.string().uuid().nullable(),
+});
 ```
 
 - [ ] **Step 2: `meeting.ts`**
@@ -2197,46 +2555,77 @@ import { requireUser } from "@/lib/auth/require";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import { createOneOff, advanceTo } from "@/lib/zod/meeting";
 
-export async function createOneOffMeeting(input: unknown): Promise<ActionResult<{ id: string }>> {
-  const parsed = createOneOff.safeParse(input); if (!parsed.success) return err("invalid_input", parsed.error.message);
+export async function createOneOffMeeting(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const parsed = createOneOff.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { user, supabase } = await requireUser();
-  const { data, error } = await supabase.from("meetings").insert({
-    title: parsed.data.title,
-    scheduled_start: parsed.data.scheduled_start,
-    timezone: parsed.data.timezone,
-    participants_override: parsed.data.participants_override ?? null,
-    host_user_id: user.id,
-    created_by: user.id,
-    status: "scheduled",
-  }).select("id").single();
+  const { data, error } = await supabase
+    .from("meetings")
+    .insert({
+      title: parsed.data.title,
+      scheduled_start: parsed.data.scheduled_start,
+      timezone: parsed.data.timezone,
+      participants_override: parsed.data.participants_override ?? null,
+      host_user_id: user.id,
+      created_by: user.id,
+      status: "scheduled",
+    })
+    .select("id")
+    .single();
   if (error || !data) return err("db_error", error?.message ?? "unknown");
-  revalidatePath("/meetings"); return ok({ id: data.id });
+  revalidatePath("/meetings");
+  return ok({ id: data.id });
 }
 
-export async function startMeeting(meeting_id: string): Promise<ActionResult<null>> {
+export async function startMeeting(
+  meeting_id: string,
+): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
-  const { error } = await supabase.from("meetings").update({
-    status: "live", started_at: new Date().toISOString(), auto_postpone_count: 0,
-  }).eq("id", meeting_id).eq("host_user_id", user.id);
+  const { error } = await supabase
+    .from("meetings")
+    .update({
+      status: "live",
+      started_at: new Date().toISOString(),
+      auto_postpone_count: 0,
+    })
+    .eq("id", meeting_id)
+    .eq("host_user_id", user.id);
   if (error) return err("db_error", error.message);
-  revalidatePath(`/meetings/${meeting_id}`); return ok(null);
+  revalidatePath(`/meetings/${meeting_id}`);
+  return ok(null);
 }
 
-export async function endMeeting(meeting_id: string): Promise<ActionResult<null>> {
+export async function endMeeting(
+  meeting_id: string,
+): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
-  const { error } = await supabase.from("meetings").update({
-    status: "ended", ended_at: new Date().toISOString(), current_agenda_item_id: null,
-  }).eq("id", meeting_id).eq("host_user_id", user.id);
+  const { error } = await supabase
+    .from("meetings")
+    .update({
+      status: "ended",
+      ended_at: new Date().toISOString(),
+      current_agenda_item_id: null,
+    })
+    .eq("id", meeting_id)
+    .eq("host_user_id", user.id);
   if (error) return err("db_error", error.message);
-  revalidatePath(`/meetings/${meeting_id}`); return ok(null);
+  revalidatePath(`/meetings/${meeting_id}`);
+  return ok(null);
 }
 
-export async function advanceMeetingAgenda(input: unknown): Promise<ActionResult<null>> {
-  const parsed = advanceTo.safeParse(input); if (!parsed.success) return err("invalid_input", parsed.error.message);
+export async function advanceMeetingAgenda(
+  input: unknown,
+): Promise<ActionResult<null>> {
+  const parsed = advanceTo.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { user, supabase } = await requireUser();
-  const { error } = await supabase.from("meetings")
+  const { error } = await supabase
+    .from("meetings")
     .update({ current_agenda_item_id: parsed.data.item_id })
-    .eq("id", parsed.data.meeting_id).eq("host_user_id", user.id);
+    .eq("id", parsed.data.meeting_id)
+    .eq("host_user_id", user.id);
   if (error) return err("db_error", error.message);
   return ok(null);
 }
@@ -2256,6 +2645,7 @@ git commit -m "feat(actions): meeting + agenda one-off"
 ### Task 5.3: UI — meetings list, meeting detail, agenda runner
 
 **Files:**
+
 - Create: `app/(app)/meetings/*`, `components/meetings/*`
 
 - [ ] **Step 1: Meetings list (RSC)**
@@ -2265,6 +2655,7 @@ Grouped by status: **Live now**, **Upcoming**, **Past**. Each row shows title, h
 - [ ] **Step 2: `meeting-live-view.tsx` (client)**
 
 Subscribes to two things:
+
 1. `postgres_changes` on `meetings` row (`id=eq.<id>`) — reflect `current_agenda_item_id`, `status`.
 2. `postgres_changes` on `agenda_items` (`meeting_id=eq.<id>`) — refresh list on edits.
 
@@ -2273,6 +2664,7 @@ Renders three columns: **Agenda**, **Now**, **Controls (host)**. Controls includ
 - [ ] **Step 3: `agenda-runner.tsx`**
 
 Given a `currentItem`, renders one of:
+
 - Discussion → title + notes area (local only in v1).
 - Prompt → `ResponseInput` (if not yet responded) + `ParticipationCounter` + reveal view.
 - Picker → placeholder card that Phase 6 will fill.
@@ -2305,7 +2697,8 @@ Branch: `atlas/06-random-tools` (off `atlas/05-meetings-one-off`)
 **Goal:** Standalone one-shot random pick and shuffle session tools on Home. Meeting-embedded picker agenda items work with live sync — host clicks Next, everyone sees the same person.
 
 **Files touched:**
-- Create: `db/migrations/0017_shuffle_sessions.sql`, `db/tests/shuffle_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0017_shuffle_sessions.sql`, `db/supabase/supabase/tests/shuffle_rls.sql`
 - Create: `lib/random/pick.ts` (pure), `tests/random/pick.test.ts`
 - Create: `lib/actions/picker.ts`
 - Create: `app/(app)/tools/pick/page.tsx`, `app/(app)/tools/shuffle/page.tsx`
@@ -2313,6 +2706,7 @@ Branch: `atlas/06-random-tools` (off `atlas/05-meetings-one-off`)
 - Modify: `components/meetings/agenda-runner.tsx` (fill picker case)
 
 **Interfaces produced:**
+
 - Table: `shuffle_sessions`.
 - Pure functions: `pickOne(rosterIds, seed?)`, `shuffle(rosterIds, seed?)`.
 - Server actions: `picker.oneShot(meeting_id?, scope)`, `picker.startShuffle(meeting_id?, scope)`, `picker.advanceShuffle(id)`, `picker.backShuffle(id)`, `picker.restartShuffle(id)`.
@@ -2320,7 +2714,8 @@ Branch: `atlas/06-random-tools` (off `atlas/05-meetings-one-off`)
 ### Task 6.1: `shuffle_sessions` + RLS
 
 **Files:**
-- Create: `db/migrations/0017_shuffle_sessions.sql`, `db/tests/shuffle_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0017_shuffle_sessions.sql`, `db/supabase/supabase/tests/shuffle_rls.sql`
 
 - [ ] **Step 1: Migration**
 
@@ -2377,13 +2772,14 @@ pnpm supabase db reset && pnpm supabase db test
 
 ```bash
 git checkout -b atlas/06-random-tools
-git add db/migrations/0017_shuffle_sessions.sql db/tests/shuffle_rls.sql
+git add db/supabase/supabase/migrations/0017_shuffle_sessions.sql db/supabase/supabase/tests/shuffle_rls.sql
 git commit -m "feat(db): shuffle_sessions"
 ```
 
 ### Task 6.2: Pure `pickOne` and `shuffle`
 
 **Files:**
+
 - Create: `lib/random/pick.ts`, `tests/random/pick.test.ts`
 
 - [ ] **Step 1: Failing tests**
@@ -2393,14 +2789,17 @@ import { expect, test } from "vitest";
 import { pickOne, shuffle } from "@/lib/random/pick";
 
 test("pickOne is uniform-ish and returns a member of the list", () => {
-  const list = ["a","b","c"]; for (let i = 0; i < 100; i++) expect(list).toContain(pickOne(list));
+  const list = ["a", "b", "c"];
+  for (let i = 0; i < 100; i++) expect(list).toContain(pickOne(list));
 });
 test("shuffle returns a permutation", () => {
-  const list = ["a","b","c","d"]; const s = shuffle(list);
-  expect(s.sort()).toEqual(list.sort()); expect(s.length).toBe(list.length);
+  const list = ["a", "b", "c", "d"];
+  const s = shuffle(list);
+  expect(s.sort()).toEqual(list.sort());
+  expect(s.length).toBe(list.length);
 });
 test("shuffle with seed is deterministic", () => {
-  expect(shuffle(["a","b","c"], 42)).toEqual(shuffle(["a","b","c"], 42));
+  expect(shuffle(["a", "b", "c"], 42)).toEqual(shuffle(["a", "b", "c"], 42));
 });
 ```
 
@@ -2413,14 +2812,24 @@ export function pickOne<T>(xs: T[], seed?: number): T {
   return xs[Math.floor(rng(seed)() * xs.length)];
 }
 export function shuffle<T>(xs: T[], seed?: number): T[] {
-  const r = rng(seed); const out = xs.slice();
-  for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+  const r = rng(seed);
+  const out = xs.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
   return out;
 }
 function rng(seed?: number) {
   if (seed === undefined) return Math.random;
   let s = seed >>> 0;
-  return () => { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  return () => {
+    s |= 0;
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 ```
 
@@ -2436,6 +2845,7 @@ git commit -m "feat(random): pickOne + seeded shuffle"
 ### Task 6.3: Server actions — picker
 
 **Files:**
+
 - Create: `lib/actions/picker.ts`
 
 - [ ] **Step 1: Actions**
@@ -2446,53 +2856,85 @@ import { requireUser } from "@/lib/auth/require";
 import { shuffle, pickOne } from "@/lib/random/pick";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 
-async function eligibleUserIds(supabase: ReturnType<Awaited<ReturnType<typeof requireUser>>['supabase']> | any, meetingId?: string | null) {
+async function eligibleUserIds(
+  supabase:
+    ReturnType<Awaited<ReturnType<typeof requireUser>>["supabase"]> | any,
+  meetingId?: string | null,
+) {
   if (meetingId) {
-    const { data: m } = await supabase.from("meetings").select("participants_override").eq("id", meetingId).single();
-    if (m?.participants_override) return (m.participants_override as string[]);
+    const { data: m } = await supabase
+      .from("meetings")
+      .select("participants_override")
+      .eq("id", meetingId)
+      .single();
+    if (m?.participants_override) return m.participants_override as string[];
   }
-  const today = new Date().toISOString().slice(0,10);
-  const { data } = await supabase.from("profiles").select("id").eq("is_active", true);
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("is_active", true);
   const ids = (data ?? []).map((p: any) => p.id as string);
   // filter out unavailable today via a batched rpc later; for v1, an in-loop check is fine.
   const filtered: string[] = [];
   for (const id of ids) {
-    const { data: unavail } = await supabase.rpc("atlas_is_unavailable_on", { uid: id, day: today });
+    const { data: unavail } = await supabase.rpc("atlas_is_unavailable_on", {
+      uid: id,
+      day: today,
+    });
     if (!unavail) filtered.push(id);
   }
   return filtered;
 }
 
-export async function oneShotPick(meetingId?: string): Promise<ActionResult<{ user_id: string }>> {
+export async function oneShotPick(
+  meetingId?: string,
+): Promise<ActionResult<{ user_id: string }>> {
   const { supabase } = await requireUser();
   const ids = await eligibleUserIds(supabase, meetingId);
   if (ids.length === 0) return err("empty_roster", "no eligible users");
   return ok({ user_id: pickOne(ids) });
 }
 
-export async function startShuffle(meetingId: string | null): Promise<ActionResult<{ id: string }>> {
+export async function startShuffle(
+  meetingId: string | null,
+): Promise<ActionResult<{ id: string }>> {
   const { user, supabase } = await requireUser();
   const ids = await eligibleUserIds(supabase, meetingId);
   if (ids.length === 0) return err("empty_roster", "no eligible users");
-  const { data, error } = await supabase.from("shuffle_sessions").insert({
-    owner_user_id: user.id,
-    meeting_id: meetingId,
-    roster_snapshot: shuffle(ids),
-    current_index: 0,
-    status: "active",
-  }).select("id").single();
+  const { data, error } = await supabase
+    .from("shuffle_sessions")
+    .insert({
+      owner_user_id: user.id,
+      meeting_id: meetingId,
+      roster_snapshot: shuffle(ids),
+      current_index: 0,
+      status: "active",
+    })
+    .select("id")
+    .single();
   if (error || !data) return err("db_error", error?.message ?? "unknown");
   return ok({ id: data.id });
 }
 
 export async function advanceShuffle(id: string): Promise<ActionResult<null>> {
   const { supabase } = await requireUser();
-  const { data } = await supabase.from("shuffle_sessions").select("current_index,roster_snapshot").eq("id", id).single();
+  const { data } = await supabase
+    .from("shuffle_sessions")
+    .select("current_index,roster_snapshot")
+    .eq("id", id)
+    .single();
   if (!data) return err("not_found", "shuffle");
   const next = data.current_index + 1;
   const finished = next >= (data.roster_snapshot as string[]).length;
-  const { error } = await supabase.from("shuffle_sessions")
-    .update({ current_index: finished ? (data.roster_snapshot as string[]).length - 1 : next, status: finished ? "finished" : "active" })
+  const { error } = await supabase
+    .from("shuffle_sessions")
+    .update({
+      current_index: finished
+        ? (data.roster_snapshot as string[]).length - 1
+        : next,
+      status: finished ? "finished" : "active",
+    })
     .eq("id", id);
   if (error) return err("db_error", error.message);
   return ok(null);
@@ -2500,20 +2942,37 @@ export async function advanceShuffle(id: string): Promise<ActionResult<null>> {
 
 export async function backShuffle(id: string): Promise<ActionResult<null>> {
   const { supabase } = await requireUser();
-  const { data } = await supabase.from("shuffle_sessions").select("current_index").eq("id", id).single();
+  const { data } = await supabase
+    .from("shuffle_sessions")
+    .select("current_index")
+    .eq("id", id)
+    .single();
   if (!data) return err("not_found", "shuffle");
   const prev = Math.max(0, data.current_index - 1);
-  const { error } = await supabase.from("shuffle_sessions").update({ current_index: prev, status: "active" }).eq("id", id);
+  const { error } = await supabase
+    .from("shuffle_sessions")
+    .update({ current_index: prev, status: "active" })
+    .eq("id", id);
   if (error) return err("db_error", error.message);
   return ok(null);
 }
 
 export async function restartShuffle(id: string): Promise<ActionResult<null>> {
   const { supabase } = await requireUser();
-  const { data } = await supabase.from("shuffle_sessions").select("roster_snapshot").eq("id", id).single();
+  const { data } = await supabase
+    .from("shuffle_sessions")
+    .select("roster_snapshot")
+    .eq("id", id)
+    .single();
   if (!data) return err("not_found", "shuffle");
-  const { error } = await supabase.from("shuffle_sessions")
-    .update({ roster_snapshot: shuffle(data.roster_snapshot as string[]), current_index: 0, status: "active" }).eq("id", id);
+  const { error } = await supabase
+    .from("shuffle_sessions")
+    .update({
+      roster_snapshot: shuffle(data.roster_snapshot as string[]),
+      current_index: 0,
+      status: "active",
+    })
+    .eq("id", id);
   if (error) return err("db_error", error.message);
   return ok(null);
 }
@@ -2529,6 +2988,7 @@ git commit -m "feat(actions): picker (oneshot + shuffle)"
 ### Task 6.4: Random tool UIs (standalone + meeting-embedded)
 
 **Files:**
+
 - Create: `app/(app)/tools/pick/page.tsx`, `app/(app)/tools/shuffle/page.tsx`, `components/tools/random-pick-card.tsx`, `components/tools/shuffle-runner.tsx`
 - Modify: `components/meetings/agenda-runner.tsx`
 
@@ -2547,6 +3007,7 @@ Client component. Takes either an existing session id (from `?id=`) or none. If 
 - [ ] **Step 4: Wire meeting agenda picker case**
 
 In `agenda-runner.tsx`, when `currentItem.kind === "picker"`:
+
 - If `picker_config.mode === "oneshot"`: if `picker_result` is set, show that person; if host and not set, show a "Pick" button that calls `oneShotPick(meetingId)` server-side and updates the agenda_item's `picker_result`.
 - If `picker_config.mode === "shuffle"`: use `<ShuffleRunner />` bound to the meeting; only host sees Prev/Next/Restart.
 
@@ -2577,7 +3038,8 @@ Branch: `atlas/07-series-rotation` (off `atlas/06-random-tools`)
 **Goal:** Admins define recurring meeting series with an rrule, rotation order, agenda template. A daily cron generates the next 14 days of occurrences and picks the next available host from the rotation cursor.
 
 **Files touched:**
-- Create: `db/migrations/0018_meeting_series.sql`, `db/tests/series_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0018_meeting_series.sql`, `db/supabase/supabase/tests/series_rls.sql`
 - Create: `lib/rotation/pick-next-host.ts` (pure), `tests/rotation/pick-next-host.test.ts`
 - Create: `lib/rrule/next-occurrences.ts` (pure), `tests/rrule/next-occurrences.test.ts`
 - Create: `lib/zod/series.ts`, `lib/actions/series.ts`
@@ -2585,9 +3047,10 @@ Branch: `atlas/07-series-rotation` (off `atlas/06-random-tools`)
 - Create: `app/(app)/series/page.tsx`, `app/(app)/series/new/page.tsx`, `app/(app)/series/[id]/page.tsx`
 - Create: `components/series/series-form.tsx`, `components/series/rotation-editor.tsx`
 - Modify: `app/(app)/meetings/[id]/page.tsx` (surface series link, if present)
-- Modify: `db/migrations/*` — add `meetings.series_id` FK
+- Modify: `db/supabase/supabase/migrations/*` — add `meetings.series_id` FK
 
 **Interfaces produced:**
+
 - Table: `meeting_series`.
 - FK: `meetings.series_id → meeting_series.id`.
 - Pure helpers: `pickNextHost(order, cursor, isUnavailable)`, `nextOccurrences(rrule, tz, since, until)`.
@@ -2597,7 +3060,8 @@ Branch: `atlas/07-series-rotation` (off `atlas/06-random-tools`)
 ### Task 7.1: `meeting_series` migration + FK
 
 **Files:**
-- Create: `db/migrations/0018_meeting_series.sql`, `db/tests/series_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0018_meeting_series.sql`, `db/supabase/supabase/tests/series_rls.sql`
 
 - [ ] **Step 1: Migration**
 
@@ -2642,13 +3106,14 @@ SELECT * FROM finish(); ROLLBACK;
 ```bash
 pnpm supabase db reset && pnpm supabase db test
 git checkout -b atlas/07-series-rotation
-git add db/migrations/0018_meeting_series.sql db/tests/series_rls.sql
+git add db/supabase/supabase/migrations/0018_meeting_series.sql db/supabase/supabase/tests/series_rls.sql
 git commit -m "feat(db): meeting_series + fk"
 ```
 
 ### Task 7.2: `pickNextHost` pure
 
 **Files:**
+
 - Create: `lib/rotation/pick-next-host.ts`, `tests/rotation/pick-next-host.test.ts`
 
 - [ ] **Step 1: Failing tests**
@@ -2658,19 +3123,22 @@ import { expect, test } from "vitest";
 import { pickNextHost } from "@/lib/rotation/pick-next-host";
 
 test("picks cursor when available", () => {
-  const r = pickNextHost(["u1","u2","u3"], 1, () => false);
-  expect(r.host).toBe("u2"); expect(r.nextCursor).toBe(2);
+  const r = pickNextHost(["u1", "u2", "u3"], 1, () => false);
+  expect(r.host).toBe("u2");
+  expect(r.nextCursor).toBe(2);
 });
 test("skips unavailable and advances cursor accordingly", () => {
-  const r = pickNextHost(["u1","u2","u3"], 0, id => id === "u1");
-  expect(r.host).toBe("u2"); expect(r.nextCursor).toBe(2);
+  const r = pickNextHost(["u1", "u2", "u3"], 0, (id) => id === "u1");
+  expect(r.host).toBe("u2");
+  expect(r.nextCursor).toBe(2);
 });
 test("wraps around", () => {
-  const r = pickNextHost(["u1","u2"], 3, () => false);
-  expect(r.host).toBe("u2"); expect(r.nextCursor).toBe(0);
+  const r = pickNextHost(["u1", "u2"], 3, () => false);
+  expect(r.host).toBe("u2");
+  expect(r.nextCursor).toBe(0);
 });
 test("returns null when everyone unavailable", () => {
-  const r = pickNextHost(["u1","u2"], 0, () => true);
+  const r = pickNextHost(["u1", "u2"], 0, () => true);
   expect(r.host).toBeNull();
 });
 ```
@@ -2680,14 +3148,23 @@ Run: FAIL.
 - [ ] **Step 2: Implementation**
 
 ```ts
-export type PickResult = { host: string | null; nextCursor: number; skipped: string[] };
-export function pickNextHost(order: string[], cursor: number, isUnavailable: (id: string) => boolean): PickResult {
+export type PickResult = {
+  host: string | null;
+  nextCursor: number;
+  skipped: string[];
+};
+export function pickNextHost(
+  order: string[],
+  cursor: number,
+  isUnavailable: (id: string) => boolean,
+): PickResult {
   const n = order.length;
   const skipped: string[] = [];
   for (let step = 0; step < n; step++) {
     const idx = (cursor + step) % n;
     const id = order[idx];
-    if (!isUnavailable(id)) return { host: id, nextCursor: (idx + 1) % n, skipped };
+    if (!isUnavailable(id))
+      return { host: id, nextCursor: (idx + 1) % n, skipped };
     skipped.push(id);
   }
   return { host: null, nextCursor: cursor % n, skipped };
@@ -2706,11 +3183,12 @@ git commit -m "feat(rotation): pickNextHost pure"
 ### Task 7.3: `nextOccurrences` from rrule
 
 **Files:**
+
 - Create: `lib/rrule/next-occurrences.ts`, `tests/rrule/next-occurrences.test.ts`
 
 - [ ] **Step 1: Add lib**
 
-Run: `pnpm add rrule luxon`  (rrule is battle-tested for RFC 5545; luxon handles TZ.)
+Run: `pnpm add rrule luxon` (rrule is battle-tested for RFC 5545; luxon handles TZ.)
 
 - [ ] **Step 2: Failing test**
 
@@ -2718,8 +3196,12 @@ Run: `pnpm add rrule luxon`  (rrule is battle-tested for RFC 5545; luxon handles
 import { expect, test } from "vitest";
 import { nextOccurrences } from "@/lib/rrule/next-occurrences";
 test("weekly Monday 10:00 Africa/Nairobi", () => {
-  const out = nextOccurrences("FREQ=WEEKLY;BYDAY=MO;BYHOUR=10;BYMINUTE=0", "Africa/Nairobi",
-    new Date("2026-01-01T00:00:00Z"), new Date("2026-01-31T00:00:00Z"));
+  const out = nextOccurrences(
+    "FREQ=WEEKLY;BYDAY=MO;BYHOUR=10;BYMINUTE=0",
+    "Africa/Nairobi",
+    new Date("2026-01-01T00:00:00Z"),
+    new Date("2026-01-31T00:00:00Z"),
+  );
   expect(out.length).toBeGreaterThan(3);
   expect(out[0].toISOString().endsWith("07:00:00.000Z")).toBe(true); // 10:00 EAT = 07:00 UTC
 });
@@ -2730,9 +3212,19 @@ test("weekly Monday 10:00 Africa/Nairobi", () => {
 ```ts
 import { RRule } from "rrule";
 import { DateTime } from "luxon";
-export function nextOccurrences(rrule: string, tz: string, since: Date, until: Date): Date[] {
+export function nextOccurrences(
+  rrule: string,
+  tz: string,
+  since: Date,
+  until: Date,
+): Date[] {
   // rrule library operates in UTC; we convert via luxon to project into the zone.
-  const rule = RRule.fromString("DTSTART:" + DateTime.fromJSDate(since).setZone(tz).toFormat("yyyyLLdd'T'HHmmss") + "\nRRULE:" + rrule);
+  const rule = RRule.fromString(
+    "DTSTART:" +
+      DateTime.fromJSDate(since).setZone(tz).toFormat("yyyyLLdd'T'HHmmss") +
+      "\nRRULE:" +
+      rrule,
+  );
   return rule.between(since, until, true);
 }
 ```
@@ -2749,6 +3241,7 @@ git commit -m "feat(rrule): next-occurrences helper"
 ### Task 7.4: Occurrence generator cron
 
 **Files:**
+
 - Create: `app/api/cron/generate-occurrences/route.ts`
 
 - [ ] **Step 1: Endpoint**
@@ -2760,20 +3253,29 @@ import { nextOccurrences } from "@/lib/rrule/next-occurrences";
 import { pickNextHost } from "@/lib/rotation/pick-next-host";
 
 export async function POST(req: NextRequest) {
-  if (req.headers.get("x-cron-secret") !== process.env.CRON_SECRET) return NextResponse.json({ ok: false }, { status: 401 });
-  const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
-  const now = new Date(); const until = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
+  if (req.headers.get("x-cron-secret") !== process.env.CRON_SECRET)
+    return NextResponse.json({ ok: false }, { status: 401 });
+  const svc = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+  const now = new Date();
+  const until = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
   const { data: series } = await svc.from("meeting_series").select("*");
   for (const s of series ?? []) {
     const times = nextOccurrences(s.rrule, s.timezone, now, until);
     for (const t of times) {
       // idempotency: unique (series_id, scheduled_start)
-      const { count } = await svc.from("meetings").select("id", { count: "exact", head: true })
-        .eq("series_id", s.id).eq("scheduled_start", t.toISOString());
+      const { count } = await svc
+        .from("meetings")
+        .select("id", { count: "exact", head: true })
+        .eq("series_id", s.id)
+        .eq("scheduled_start", t.toISOString());
       if ((count ?? 0) > 0) continue;
 
       // pick host
-      const day = t.toISOString().slice(0,10);
+      const day = t.toISOString().slice(0, 10);
       async function isUnavail(uid: string) {
         const { data } = await svc.rpc("atlas_is_unavailable_on", { uid, day });
         return !!data;
@@ -2781,31 +3283,57 @@ export async function POST(req: NextRequest) {
       const order: string[] = s.rotation_order;
       const pick = await (async () => {
         // sequential because rpc calls; small N
-        const skipped: string[] = []; const n = order.length;
+        const skipped: string[] = [];
+        const n = order.length;
         for (let step = 0; step < n; step++) {
           const idx = (s.rotation_cursor + step) % n;
-          if (!(await isUnavail(order[idx]))) return { host: order[idx], nextCursor: (idx+1)%n, skipped };
+          if (!(await isUnavail(order[idx])))
+            return { host: order[idx], nextCursor: (idx + 1) % n, skipped };
           skipped.push(order[idx]);
         }
         return { host: null, nextCursor: s.rotation_cursor % n, skipped };
       })();
 
       await svc.from("meetings").insert({
-        series_id: s.id, title: s.name, scheduled_start: t.toISOString(), timezone: s.timezone,
-        host_user_id: pick.host, created_by: s.created_by,
+        series_id: s.id,
+        title: s.name,
+        scheduled_start: t.toISOString(),
+        timezone: s.timezone,
+        host_user_id: pick.host,
+        created_by: s.created_by,
         status: pick.host ? "scheduled" : "cancelled",
         participants_override: s.default_participant_ids ?? null,
       });
       // Materialise agenda template as agenda_items.
-      const { data: created } = await svc.from("meetings").select("id").eq("series_id", s.id).eq("scheduled_start", t.toISOString()).single();
-      const template = s.agenda_template as { title: string; kind: "discussion"|"prompt"|"picker" }[];
+      const { data: created } = await svc
+        .from("meetings")
+        .select("id")
+        .eq("series_id", s.id)
+        .eq("scheduled_start", t.toISOString())
+        .single();
+      const template = s.agenda_template as {
+        title: string;
+        kind: "discussion" | "prompt" | "picker";
+      }[];
       if (created && template.length) {
-        await svc.from("agenda_items").insert(template.map((it, i) => ({
-          meeting_id: created.id, ordinal: i, title: it.title, kind: it.kind, picker_config: it.kind === "picker" ? { mode: "shuffle", scope: "meeting_participants" } : null,
-        })));
+        await svc.from("agenda_items").insert(
+          template.map((it, i) => ({
+            meeting_id: created.id,
+            ordinal: i,
+            title: it.title,
+            kind: it.kind,
+            picker_config:
+              it.kind === "picker"
+                ? { mode: "shuffle", scope: "meeting_participants" }
+                : null,
+          })),
+        );
       }
       if (pick.host) {
-        await svc.from("meeting_series").update({ rotation_cursor: pick.nextCursor }).eq("id", s.id);
+        await svc
+          .from("meeting_series")
+          .update({ rotation_cursor: pick.nextCursor })
+          .eq("id", s.id);
       }
     }
   }
@@ -2816,20 +3344,21 @@ export async function POST(req: NextRequest) {
 Add uniqueness in a migration to make idempotency airtight:
 
 ```sql
--- db/migrations/0019_series_uniqueness.sql
+-- db/supabase/supabase/migrations/0019_series_uniqueness.sql
 alter table public.meetings add constraint meetings_series_start_unique unique (series_id, scheduled_start);
 ```
 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add app/api/cron/generate-occurrences db/migrations/0019_series_uniqueness.sql
+git add app/api/cron/generate-occurrences db/supabase/supabase/migrations/0019_series_uniqueness.sql
 git commit -m "feat(cron): generate occurrences with rotation pick"
 ```
 
 ### Task 7.5: Series CRUD + UI
 
 **Files:**
+
 - Create: `lib/zod/series.ts`, `lib/actions/series.ts`, `app/(app)/series/*`, `components/series/*`
 
 - [ ] **Step 1: Schemas + actions**
@@ -2866,6 +3395,7 @@ Branch: `atlas/08-postpone-state` (off `atlas/07-series-rotation`)
 **Goal:** The full postpone state machine. Host can manually postpone. Cron ticks every minute; after 15 minutes past `scheduled_start` with no action, auto-postpone to +1 day same time. On the fourth no-show, cancel and advance the series cursor.
 
 **Files touched:**
+
 - Create: `lib/postpone/state-machine.ts` (pure), `tests/postpone/state-machine.test.ts`
 - Create: `lib/actions/postpone.ts`
 - Create: `app/api/cron/tick/route.ts`
@@ -2873,6 +3403,7 @@ Branch: `atlas/08-postpone-state` (off `atlas/07-series-rotation`)
 - Create: `vercel.json`
 
 **Interfaces produced:**
+
 - Pure: `nextPostponeAction({ now, scheduled_start, status, auto_postpone_count })` returns `"none" | "cancel" | { kind: "auto_postpone", nextStart }`.
 - Server action: `meeting.postponeManual({ meeting_id, new_start })`.
 - Cron endpoint `POST /api/cron/tick` (every minute).
@@ -2880,30 +3411,60 @@ Branch: `atlas/08-postpone-state` (off `atlas/07-series-rotation`)
 ### Task 8.1: Postpone state machine pure
 
 **Files:**
+
 - Create: `lib/postpone/state-machine.ts`, `tests/postpone/state-machine.test.ts`
 
 - [ ] **Step 1: Failing tests**
 
 ```ts
 import { expect, test } from "vitest";
-import { nextPostponeAction, GRACE_MIN, MAX_AUTO_POSTPONES } from "@/lib/postpone/state-machine";
+import {
+  nextPostponeAction,
+  GRACE_MIN,
+  MAX_AUTO_POSTPONES,
+} from "@/lib/postpone/state-machine";
 
 const t0 = new Date("2026-07-24T10:00:00Z");
 test("no action before grace window", () => {
-  expect(nextPostponeAction({ now: new Date("2026-07-24T10:05:00Z"), scheduled_start: t0, status: "scheduled", auto_postpone_count: 0 })).toEqual({ kind: "none" });
+  expect(
+    nextPostponeAction({
+      now: new Date("2026-07-24T10:05:00Z"),
+      scheduled_start: t0,
+      status: "scheduled",
+      auto_postpone_count: 0,
+    }),
+  ).toEqual({ kind: "none" });
 });
 test("auto-postpone after grace when < max", () => {
-  const r = nextPostponeAction({ now: new Date("2026-07-24T10:16:00Z"), scheduled_start: t0, status: "scheduled", auto_postpone_count: 2 });
+  const r = nextPostponeAction({
+    now: new Date("2026-07-24T10:16:00Z"),
+    scheduled_start: t0,
+    status: "scheduled",
+    auto_postpone_count: 2,
+  });
   expect(r.kind).toBe("auto_postpone");
-  if (r.kind === "auto_postpone") expect(r.nextStart.toISOString()).toBe("2026-07-25T10:00:00.000Z");
+  if (r.kind === "auto_postpone")
+    expect(r.nextStart.toISOString()).toBe("2026-07-25T10:00:00.000Z");
 });
 test("cancel on the fourth strike", () => {
-  const r = nextPostponeAction({ now: new Date("2026-07-24T10:16:00Z"), scheduled_start: t0, status: "scheduled", auto_postpone_count: 3 });
+  const r = nextPostponeAction({
+    now: new Date("2026-07-24T10:16:00Z"),
+    scheduled_start: t0,
+    status: "scheduled",
+    auto_postpone_count: 3,
+  });
   expect(r).toEqual({ kind: "cancel" });
 });
 test("no action if already live/ended/postponed/cancelled", () => {
-  for (const s of ["live","ended","postponed","cancelled"] as const)
-    expect(nextPostponeAction({ now: new Date("2026-07-24T10:20:00Z"), scheduled_start: t0, status: s, auto_postpone_count: 0 })).toEqual({ kind: "none" });
+  for (const s of ["live", "ended", "postponed", "cancelled"] as const)
+    expect(
+      nextPostponeAction({
+        now: new Date("2026-07-24T10:20:00Z"),
+        scheduled_start: t0,
+        status: s,
+        auto_postpone_count: 0,
+      }),
+    ).toEqual({ kind: "none" });
 });
 ```
 
@@ -2913,13 +3474,18 @@ test("no action if already live/ended/postponed/cancelled", () => {
 export const GRACE_MIN = 15;
 export const MAX_AUTO_POSTPONES = 3;
 
-export type Status = "scheduled"|"live"|"ended"|"postponed"|"cancelled";
+export type Status = "scheduled" | "live" | "ended" | "postponed" | "cancelled";
 export type Action =
   | { kind: "none" }
   | { kind: "auto_postpone"; nextStart: Date }
   | { kind: "cancel" };
 
-export function nextPostponeAction(inp: { now: Date; scheduled_start: Date; status: Status; auto_postpone_count: number; }): Action {
+export function nextPostponeAction(inp: {
+  now: Date;
+  scheduled_start: Date;
+  status: Status;
+  auto_postpone_count: number;
+}): Action {
   if (inp.status !== "scheduled") return { kind: "none" };
   const graceEnd = new Date(inp.scheduled_start.getTime() + GRACE_MIN * 60_000);
   if (inp.now < graceEnd) return { kind: "none" };
@@ -2942,6 +3508,7 @@ git commit -m "feat(postpone): state machine pure"
 ### Task 8.2: Manual postpone action
 
 **Files:**
+
 - Create: `lib/actions/postpone.ts`
 
 - [ ] **Step 1: Action**
@@ -2953,26 +3520,59 @@ import { requireUser } from "@/lib/auth/require";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import { createClient } from "@supabase/supabase-js";
 
-const input = z.object({ meeting_id: z.string().uuid(), new_start: z.string().datetime() });
+const input = z.object({
+  meeting_id: z.string().uuid(),
+  new_start: z.string().datetime(),
+});
 
-export async function postponeManual(raw: unknown): Promise<ActionResult<{ new_meeting_id: string }>> {
-  const parsed = input.safeParse(raw); if (!parsed.success) return err("invalid_input", parsed.error.message);
+export async function postponeManual(
+  raw: unknown,
+): Promise<ActionResult<{ new_meeting_id: string }>> {
+  const parsed = input.safeParse(raw);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { user, supabase } = await requireUser();
-  const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const svc = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
   // 1. Read the current meeting, verify host.
-  const { data: m } = await supabase.from("meetings").select("*").eq("id", parsed.data.meeting_id).single();
-  if (!m || m.host_user_id !== user.id) return err("forbidden", "host required");
-  if (m.status !== "scheduled") return err("bad_state", "only scheduled meetings can be postponed");
+  const { data: m } = await supabase
+    .from("meetings")
+    .select("*")
+    .eq("id", parsed.data.meeting_id)
+    .single();
+  if (!m || m.host_user_id !== user.id)
+    return err("forbidden", "host required");
+  if (m.status !== "scheduled")
+    return err("bad_state", "only scheduled meetings can be postponed");
   // 2. Insert successor (service role bypasses the "insert self as host" RLS check).
-  const { data: created, error } = await svc.from("meetings").insert({
-    series_id: m.series_id, title: m.title, scheduled_start: parsed.data.new_start, timezone: m.timezone,
-    host_user_id: m.host_user_id, created_by: m.created_by, status: "scheduled",
-    auto_postpone_count: 0, participants_override: m.participants_override,
-  }).select("id").single();
+  const { data: created, error } = await svc
+    .from("meetings")
+    .insert({
+      series_id: m.series_id,
+      title: m.title,
+      scheduled_start: parsed.data.new_start,
+      timezone: m.timezone,
+      host_user_id: m.host_user_id,
+      created_by: m.created_by,
+      status: "scheduled",
+      auto_postpone_count: 0,
+      participants_override: m.participants_override,
+    })
+    .select("id")
+    .single();
   if (error || !created) return err("db_error", error?.message ?? "unknown");
   // 3. Copy agenda_items.
-  const { data: items } = await svc.from("agenda_items").select("ordinal,title,kind,prompt_id,picker_config").eq("meeting_id", m.id).order("ordinal");
-  if (items?.length) await svc.from("agenda_items").insert(items.map(it => ({ meeting_id: created.id, ...it })));
+  const { data: items } = await svc
+    .from("agenda_items")
+    .select("ordinal,title,kind,prompt_id,picker_config")
+    .eq("meeting_id", m.id)
+    .order("ordinal");
+  if (items?.length)
+    await svc
+      .from("agenda_items")
+      .insert(items.map((it) => ({ meeting_id: created.id, ...it })));
   // 4. Close old meeting.
   await svc.from("meetings").update({ status: "postponed" }).eq("id", m.id);
   return ok({ new_meeting_id: created.id });
@@ -2989,6 +3589,7 @@ git commit -m "feat(actions): manual postpone"
 ### Task 8.3: Cron tick endpoint
 
 **Files:**
+
 - Create: `app/api/cron/tick/route.ts`, `vercel.json`
 
 - [ ] **Step 1: Endpoint**
@@ -2999,17 +3600,29 @@ import { createClient } from "@supabase/supabase-js";
 import { nextPostponeAction } from "@/lib/postpone/state-machine";
 
 export async function POST(req: NextRequest) {
-  if (req.headers.get("x-cron-secret") !== process.env.CRON_SECRET) return NextResponse.json({ ok: false }, { status: 401 });
-  const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  if (req.headers.get("x-cron-secret") !== process.env.CRON_SECRET)
+    return NextResponse.json({ ok: false }, { status: 401 });
+  const svc = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
   const now = new Date();
 
-  const { data: pending } = await svc.from("meetings")
-    .select("id,series_id,title,timezone,host_user_id,created_by,scheduled_start,status,auto_postpone_count,participants_override")
-    .eq("status", "scheduled").lt("scheduled_start", new Date(now.getTime() - 14 * 60_000).toISOString()); // >14 min old
+  const { data: pending } = await svc
+    .from("meetings")
+    .select(
+      "id,series_id,title,timezone,host_user_id,created_by,scheduled_start,status,auto_postpone_count,participants_override",
+    )
+    .eq("status", "scheduled")
+    .lt("scheduled_start", new Date(now.getTime() - 14 * 60_000).toISOString()); // >14 min old
 
   for (const m of pending ?? []) {
     const action = nextPostponeAction({
-      now, scheduled_start: new Date(m.scheduled_start), status: m.status as any, auto_postpone_count: m.auto_postpone_count,
+      now,
+      scheduled_start: new Date(m.scheduled_start),
+      status: m.status as any,
+      auto_postpone_count: m.auto_postpone_count,
     });
     if (action.kind === "none") continue;
 
@@ -3017,25 +3630,49 @@ export async function POST(req: NextRequest) {
       await svc.from("meetings").update({ status: "cancelled" }).eq("id", m.id);
       if (m.series_id) {
         // advance series cursor by 1
-        const { data: s } = await svc.from("meeting_series").select("rotation_order,rotation_cursor").eq("id", m.series_id).single();
+        const { data: s } = await svc
+          .from("meeting_series")
+          .select("rotation_order,rotation_cursor")
+          .eq("id", m.series_id)
+          .single();
         if (s) {
-          const nextCursor = (s.rotation_cursor + 1) % (s.rotation_order as string[]).length;
-          await svc.from("meeting_series").update({ rotation_cursor: nextCursor }).eq("id", m.series_id);
+          const nextCursor =
+            (s.rotation_cursor + 1) % (s.rotation_order as string[]).length;
+          await svc
+            .from("meeting_series")
+            .update({ rotation_cursor: nextCursor })
+            .eq("id", m.series_id);
         }
       }
       continue;
     }
 
     // auto_postpone
-    const { data: created } = await svc.from("meetings").insert({
-      series_id: m.series_id, title: m.title, scheduled_start: action.nextStart.toISOString(), timezone: m.timezone,
-      host_user_id: m.host_user_id, created_by: m.created_by,
-      status: "scheduled", auto_postpone_count: m.auto_postpone_count + 1,
-      participants_override: m.participants_override,
-    }).select("id").single();
+    const { data: created } = await svc
+      .from("meetings")
+      .insert({
+        series_id: m.series_id,
+        title: m.title,
+        scheduled_start: action.nextStart.toISOString(),
+        timezone: m.timezone,
+        host_user_id: m.host_user_id,
+        created_by: m.created_by,
+        status: "scheduled",
+        auto_postpone_count: m.auto_postpone_count + 1,
+        participants_override: m.participants_override,
+      })
+      .select("id")
+      .single();
     if (created) {
-      const { data: items } = await svc.from("agenda_items").select("ordinal,title,kind,prompt_id,picker_config").eq("meeting_id", m.id).order("ordinal");
-      if (items?.length) await svc.from("agenda_items").insert(items.map(it => ({ meeting_id: created.id, ...it })));
+      const { data: items } = await svc
+        .from("agenda_items")
+        .select("ordinal,title,kind,prompt_id,picker_config")
+        .eq("meeting_id", m.id)
+        .order("ordinal");
+      if (items?.length)
+        await svc
+          .from("agenda_items")
+          .insert(items.map((it) => ({ meeting_id: created.id, ...it })));
     }
     await svc.from("meetings").update({ status: "postponed" }).eq("id", m.id);
   }
@@ -3049,8 +3686,8 @@ export async function POST(req: NextRequest) {
 ```json
 {
   "crons": [
-    { "path": "/api/cron/tick",                   "schedule": "*/1 * * * *" },
-    { "path": "/api/cron/generate-occurrences",   "schedule": "0 3 * * *" }
+    { "path": "/api/cron/tick", "schedule": "*/1 * * * *" },
+    { "path": "/api/cron/generate-occurrences", "schedule": "0 3 * * *" }
   ]
 }
 ```
@@ -3075,6 +3712,7 @@ git commit -m "feat(cron): auto-postpone tick"
 ### Task 8.4: UI — Start / Postpone controls
 
 **Files:**
+
 - Modify: `components/meetings/meeting-live-view.tsx`
 
 - [ ] **Step 1: Add controls**
@@ -3109,7 +3747,8 @@ Branch: `atlas/09-notifications` (off `atlas/08-postpone-state`)
 **Goal:** In-app bell + feed powered by Realtime. Email pipeline via Resend + React Email for all 7 kinds. Email preferences per-user, idempotent sends.
 
 **Files touched:**
-- Create: `db/migrations/0020_notifications.sql`, `db/migrations/0021_email_events.sql`, `db/tests/notifications_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0020_notifications.sql`, `db/supabase/supabase/migrations/0021_email_events.sql`, `db/supabase/supabase/tests/notifications_rls.sql`
 - Create: `lib/email/render.ts`, `lib/email/send.ts`
 - Create: `emails/*` (React Email templates, one per kind)
 - Create: `lib/notify/emit.ts` (single entry point for both in-app + email)
@@ -3119,6 +3758,7 @@ Branch: `atlas/09-notifications` (off `atlas/08-postpone-state`)
 - Create: `app/api/cron/send-emails/route.ts`
 
 **Interfaces produced:**
+
 - Tables: `notifications`, `email_events`.
 - Function: `notify.emit({ user_ids, kind, title, body, link, email? })` — writes in-app rows and enqueues email events.
 - Cron `POST /api/cron/send-emails` — drains pending `email_events` rows via Resend.
@@ -3126,7 +3766,8 @@ Branch: `atlas/09-notifications` (off `atlas/08-postpone-state`)
 ### Task 9.1: Migrations
 
 **Files:**
-- Create: `db/migrations/0020_notifications.sql`, `db/migrations/0021_email_events.sql`, `db/tests/notifications_rls.sql`
+
+- Create: `db/supabase/supabase/migrations/0020_notifications.sql`, `db/supabase/supabase/migrations/0021_email_events.sql`, `db/supabase/supabase/tests/notifications_rls.sql`
 
 - [ ] **Step 1: `notifications`**
 
@@ -3181,13 +3822,14 @@ SELECT * FROM finish(); ROLLBACK;
 ```bash
 pnpm supabase db reset && pnpm supabase db test
 git checkout -b atlas/09-notifications
-git add db/migrations/0020_notifications.sql db/migrations/0021_email_events.sql db/tests/notifications_rls.sql
+git add db/supabase/supabase/migrations/0020_notifications.sql db/supabase/supabase/migrations/0021_email_events.sql db/supabase/supabase/tests/notifications_rls.sql
 git commit -m "feat(db): notifications + email_events"
 ```
 
 ### Task 9.2: React Email templates
 
 **Files:**
+
 - Create: `emails/meeting-scheduled.tsx`, `emails/async-prompts-pending.tsx`, `emails/meeting-starts-soon.tsx`, `emails/meeting-postponed.tsx`, `emails/meeting-cancelled.tsx`, `emails/poll-created.tsx`, `emails/poll-revealed.tsx`
 - Create: `lib/email/render.ts`
 
@@ -3201,16 +3843,33 @@ One React Email component per kind, all sharing a small `Layout` component that 
 
 ```tsx
 // emails/meeting-starts-soon.tsx
-import { Html, Body, Container, Heading, Text, Button } from "@react-email/components";
-export default function MeetingStartsSoon({ meetingTitle, when, url }: { meetingTitle: string; when: string; url: string }) {
+import {
+  Html,
+  Body,
+  Container,
+  Heading,
+  Text,
+  Button,
+} from "@react-email/components";
+export default function MeetingStartsSoon({
+  meetingTitle,
+  when,
+  url,
+}: {
+  meetingTitle: string;
+  when: string;
+  url: string;
+}) {
   return (
-    <Html><Body>
-      <Container>
-        <Heading>{meetingTitle} starts in 10 minutes</Heading>
-        <Text>Scheduled for {when}.</Text>
-        <Button href={url}>Open Atlas</Button>
-      </Container>
-    </Body></Html>
+    <Html>
+      <Body>
+        <Container>
+          <Heading>{meetingTitle} starts in 10 minutes</Heading>
+          <Text>Scheduled for {when}.</Text>
+          <Button href={url}>Open Atlas</Button>
+        </Container>
+      </Body>
+    </Html>
   );
 }
 ```
@@ -3235,6 +3894,7 @@ git commit -m "feat(email): react-email templates"
 ### Task 9.3: `notify.emit` + email cron
 
 **Files:**
+
 - Create: `lib/notify/emit.ts`, `lib/email/send.ts`, `app/api/cron/send-emails/route.ts`
 
 - [ ] **Step 1: `emit`**
@@ -3249,21 +3909,38 @@ type EmitInput = {
   title: string;
   body: string;
   link: string;
-  email?: { dedupeKey: (uid: string) => string; payload: Record<string, unknown> };
+  email?: {
+    dedupeKey: (uid: string) => string;
+    payload: Record<string, unknown>;
+  };
 };
 
 export async function emit(input: EmitInput) {
-  const svc = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const svc = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
   if (input.user_ids.length) {
-    await svc.from("notifications").insert(input.user_ids.map(uid => ({
-      user_id: uid, kind: input.kind, title: input.title, body: input.body, link: input.link,
-    })));
+    await svc.from("notifications").insert(
+      input.user_ids.map((uid) => ({
+        user_id: uid,
+        kind: input.kind,
+        title: input.title,
+        body: input.body,
+        link: input.link,
+      })),
+    );
   }
   if (input.email) {
-    const rows = input.user_ids.map(uid => ({
-      user_id: uid, kind: input.kind, dedupe_key: input.email!.dedupeKey(uid), payload: input.email!.payload,
+    const rows = input.user_ids.map((uid) => ({
+      user_id: uid,
+      kind: input.kind,
+      dedupe_key: input.email!.dedupeKey(uid),
+      payload: input.email!.payload,
     }));
-    if (rows.length) await svc.from("email_events").upsert(rows, { onConflict: "dedupe_key" });
+    if (rows.length)
+      await svc.from("email_events").upsert(rows, { onConflict: "dedupe_key" });
   }
 }
 ```
@@ -3330,6 +4007,7 @@ git commit -m "feat(notify): emit + email cron + wiring"
 ### Task 9.4: In-app UI
 
 **Files:**
+
 - Create: `app/(app)/notifications/page.tsx`, `components/app/notifications-bell.tsx`
 - Modify: `components/app/nav.tsx` (embed bell), `app/(app)/settings/page.tsx` (add prefs section)
 
@@ -3371,6 +4049,7 @@ Branch: `atlas/10-history-polish` (off `atlas/09-notifications`)
 **Goal:** Past meetings + past polls sections. Consolidated Home dashboard. Accessibility pass. Smoke E2E covering the full happy path. README + deploy docs. First deploy.
 
 **Files touched:**
+
 - Create: `app/(app)/meetings/past/page.tsx`, `app/(app)/polls/past/page.tsx`
 - Modify: `app/(app)/page.tsx` (Home dashboard)
 - Create: `docs/deploy.md`, `docs/qa/atlas.md`
@@ -3402,6 +4081,7 @@ git commit -m "feat(ui): past meetings + past polls"
 - [ ] **Step 1: Home layout**
 
 Three cards:
+
 1. **Your next meeting** — soonest `scheduled` or `live` meeting where you're a participant. Includes Start/Postpone buttons if you're the host and it's within +/- 5 min of `scheduled_start`.
 2. **Awaiting your response** — list of open prompts you haven't answered (async standalone + async meeting-scoped that have opened).
 3. **Quick tools** — Pick someone, Shuffle roster.
@@ -3433,6 +4113,7 @@ git commit -m "test(a11y): axe scan on key pages"
 ### Task 10.4: Happy-path E2E + QA checklist
 
 **Files:**
+
 - Create: `e2e/happy-path.spec.ts`, `docs/qa/atlas.md`
 
 - [ ] **Step 1: E2E**
@@ -3453,6 +4134,7 @@ git commit -m "test(e2e): happy-path + manual qa checklist"
 ### Task 10.5: Deploy docs + first deploy
 
 **Files:**
+
 - Create: `docs/deploy.md`
 - Modify: `README.md`
 
@@ -3491,41 +4173,42 @@ Ran the checklist on the spec:
 
 **Spec coverage.** Every section of the spec maps to a task or phase:
 
-| Spec section | Where handled |
-|---|---|
-| §3 Personas | Phases 2 (roles) and 7 (series admin) |
-| §4 Surfaces | Home (10), Roster (2), Meetings (5,7,8), Series (7), Polls (3,4), Notifications (9), Settings (2,9) |
-| §5.1–5.2 profiles + unavailability | Phase 2 |
-| §5.3 meeting_series | Phase 7 |
-| §5.4 meetings | Phase 5 (schema) + 7 (series link) + 8 (postpone) |
-| §5.5 agenda_items | Phase 5 |
-| §5.6 prompts | Phase 3 (schema) + 4 (anonymity fields) + 5 (meeting fk) |
-| §5.7 responses_attributed | Phase 3 |
-| §5.8 responses_anonymous | Phase 4 |
-| §5.9 participation | Phase 3 |
-| §5.10 shuffle_sessions | Phase 6 |
-| §5.11 notifications | Phase 9 |
-| §5.12 email_events | Phase 9 |
-| §6 Response shapes | Phase 3 (validator) |
-| §7 Anonymity mechanics | Phase 4 (all of it) |
-| §7.4 Counter denominator (standalone) | Phase 3 |
-| §7.4 Counter denominator (meeting) | Phase 5 (replaces denominator) |
-| §8 Rotation + postpone | Phases 7 + 8 |
-| §9 Random tools | Phase 6 |
-| §10 Realtime | Phases 3, 5, 6, 9 (progressive) |
-| §11 Notifications | Phase 9 |
-| §12 Auth + RLS | Every migration |
-| §13 Server actions | Every phase; matched by name |
-| §14 Error handling | `ActionResult` set up in Phase 2, used throughout |
-| §15 Testing | Vitest/Playwright/pgTAP harness in Phase 1; per-phase tests thereafter |
-| §16 Rollout | Phase list mirrors it (split M3 → 5+6; split M4 → 7+8) |
-| §17 Assumed defaults | Enforced by schema and RLS; #4 (live prompts mid-meeting) supported because prompt.create requires only author + meeting membership; #10 grace = `GRACE_MIN = 15`; #11 first admin = auth trigger |
+| Spec section                          | Where handled                                                                                                                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §3 Personas                           | Phases 2 (roles) and 7 (series admin)                                                                                                                                                             |
+| §4 Surfaces                           | Home (10), Roster (2), Meetings (5,7,8), Series (7), Polls (3,4), Notifications (9), Settings (2,9)                                                                                               |
+| §5.1–5.2 profiles + unavailability    | Phase 2                                                                                                                                                                                           |
+| §5.3 meeting_series                   | Phase 7                                                                                                                                                                                           |
+| §5.4 meetings                         | Phase 5 (schema) + 7 (series link) + 8 (postpone)                                                                                                                                                 |
+| §5.5 agenda_items                     | Phase 5                                                                                                                                                                                           |
+| §5.6 prompts                          | Phase 3 (schema) + 4 (anonymity fields) + 5 (meeting fk)                                                                                                                                          |
+| §5.7 responses_attributed             | Phase 3                                                                                                                                                                                           |
+| §5.8 responses_anonymous              | Phase 4                                                                                                                                                                                           |
+| §5.9 participation                    | Phase 3                                                                                                                                                                                           |
+| §5.10 shuffle_sessions                | Phase 6                                                                                                                                                                                           |
+| §5.11 notifications                   | Phase 9                                                                                                                                                                                           |
+| §5.12 email_events                    | Phase 9                                                                                                                                                                                           |
+| §6 Response shapes                    | Phase 3 (validator)                                                                                                                                                                               |
+| §7 Anonymity mechanics                | Phase 4 (all of it)                                                                                                                                                                               |
+| §7.4 Counter denominator (standalone) | Phase 3                                                                                                                                                                                           |
+| §7.4 Counter denominator (meeting)    | Phase 5 (replaces denominator)                                                                                                                                                                    |
+| §8 Rotation + postpone                | Phases 7 + 8                                                                                                                                                                                      |
+| §9 Random tools                       | Phase 6                                                                                                                                                                                           |
+| §10 Realtime                          | Phases 3, 5, 6, 9 (progressive)                                                                                                                                                                   |
+| §11 Notifications                     | Phase 9                                                                                                                                                                                           |
+| §12 Auth + RLS                        | Every migration                                                                                                                                                                                   |
+| §13 Server actions                    | Every phase; matched by name                                                                                                                                                                      |
+| §14 Error handling                    | `ActionResult` set up in Phase 2, used throughout                                                                                                                                                 |
+| §15 Testing                           | Vitest/Playwright/pgTAP harness in Phase 1; per-phase tests thereafter                                                                                                                            |
+| §16 Rollout                           | Phase list mirrors it (split M3 → 5+6; split M4 → 7+8)                                                                                                                                            |
+| §17 Assumed defaults                  | Enforced by schema and RLS; #4 (live prompts mid-meeting) supported because prompt.create requires only author + meeting membership; #10 grace = `GRACE_MIN = 15`; #11 first admin = auth trigger |
 
 No gaps.
 
 **Placeholder scan.** No TBDs. Every code step has actual code. E2E skeletons that depend on auth fixtures are explicitly marked `test.skip(...)` with a comment — those are acknowledged deferrals, not placeholders in shipping code.
 
 **Type consistency.**
+
 - `atlas_prompt_denominator(uuid)` — same signature in Phase 3 (creates) and Phase 5 (replaces).
 - `atlas_submit_attributed(uuid, jsonb)` — matches between migration and `submitResponse`.
 - `atlas_submit_anonymous(uuid, jsonb)` — same.

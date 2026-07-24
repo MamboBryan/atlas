@@ -41,11 +41,11 @@ Explicit list of things Atlas will **not** do — to keep scope honest.
 
 ## 3. Personas & permissions
 
-| Persona | How they get it | What they can do |
-|---|---|---|
-| **Admin** | Set by another admin. The first user (seeded) is admin by default. | Everything a member can + add/deactivate roster members, edit any recurring series' rotation order, transfer admin. |
-| **Member** | Added to the roster by an admin. Signs in via magic link or Google using the email the admin used. | Uses roster tools, hosts on rotation, answers prompts, creates standalone polls, sets own unavailability windows. |
-| **Host (per meeting)** | Auto-assigned by rotation for series occurrences; equals the creator for one-off meetings. | Everything a member can + Start/Postpone a meeting, add/edit agenda items on their occurrence, advance the agenda, open/close prompts, reveal results. |
+| Persona                | How they get it                                                                                    | What they can do                                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Admin**              | Set by another admin. The first user (seeded) is admin by default.                                 | Everything a member can + add/deactivate roster members, edit any recurring series' rotation order, transfer admin.                                    |
+| **Member**             | Added to the roster by an admin. Signs in via magic link or Google using the email the admin used. | Uses roster tools, hosts on rotation, answers prompts, creates standalone polls, sets own unavailability windows.                                      |
+| **Host (per meeting)** | Auto-assigned by rotation for series occurrences; equals the creator for one-off meetings.         | Everything a member can + Start/Postpone a meeting, add/edit agenda items on their occurrence, advance the agenda, open/close prompts, reveal results. |
 
 **Auth gate**: sign-in requires that `auth.users.email` matches a row in `profiles.email` where `is_active = true`. Otherwise sign-in is denied. Admins pre-provision emails; users self-serve their first login.
 
@@ -72,168 +72,174 @@ Each screen is designed to be understandable in one screenshot. If a screen need
 Column types are Postgres; timestamps are `timestamptz`; ids are `uuid` unless noted.
 
 ### 5.1 `profiles`
+
 Extends `auth.users`.
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | = `auth.users.id` |
-| `email` | text unique | pre-provisioned by admin |
-| `display_name` | text | |
-| `avatar_url` | text nullable | |
-| `role` | enum(`admin`, `member`) | |
-| `is_active` | bool default true | admin toggles to remove from roster |
-| `email_prefs` | jsonb | per-kind opt-out flags |
-| `created_at`, `updated_at` | | |
+| column                     | type                    | notes                               |
+| -------------------------- | ----------------------- | ----------------------------------- |
+| `id`                       | uuid PK                 | = `auth.users.id`                   |
+| `email`                    | text unique             | pre-provisioned by admin            |
+| `display_name`             | text                    |                                     |
+| `avatar_url`               | text nullable           |                                     |
+| `role`                     | enum(`admin`, `member`) |                                     |
+| `is_active`                | bool default true       | admin toggles to remove from roster |
+| `email_prefs`              | jsonb                   | per-kind opt-out flags              |
+| `created_at`, `updated_at` |                         |                                     |
 
 ### 5.2 `unavailability_windows`
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `user_id` | uuid FK profiles | |
-| `starts_on` | date | inclusive |
-| `ends_on` | date | inclusive |
-| `note` | text nullable | |
+| column      | type             | notes     |
+| ----------- | ---------------- | --------- |
+| `id`        | uuid PK          |           |
+| `user_id`   | uuid FK profiles |           |
+| `starts_on` | date             | inclusive |
+| `ends_on`   | date             | inclusive |
+| `note`      | text nullable    |           |
 
-A user is *unavailable* on a given date if any window contains it. Unavailability excludes the user from:
+A user is _unavailable_ on a given date if any window contains it. Unavailability excludes the user from:
+
 - Host rotation for occurrences whose `scheduled_start::date` falls inside a window.
 - Participation denominator for prompts opened while inside a window.
 
 ### 5.3 `meeting_series`
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `name`, `description` | text | |
-| `rrule` | text | RFC 5545 recurrence rule |
-| `timezone` | text | IANA (e.g. `Africa/Nairobi`) |
-| `rotation_order` | jsonb `uuid[]` | ordered user ids in the rotation |
-| `rotation_cursor` | int default 0 | next-to-host index into `rotation_order` |
-| `default_participant_ids` | jsonb `uuid[]` nullable | null = whole active roster |
-| `agenda_template` | jsonb | ordered array of item templates (see §7) |
-| `created_by` | uuid FK profiles | |
-| `created_at`, `updated_at` | | |
+| column                     | type                    | notes                                    |
+| -------------------------- | ----------------------- | ---------------------------------------- |
+| `id`                       | uuid PK                 |                                          |
+| `name`, `description`      | text                    |                                          |
+| `rrule`                    | text                    | RFC 5545 recurrence rule                 |
+| `timezone`                 | text                    | IANA (e.g. `Africa/Nairobi`)             |
+| `rotation_order`           | jsonb `uuid[]`          | ordered user ids in the rotation         |
+| `rotation_cursor`          | int default 0           | next-to-host index into `rotation_order` |
+| `default_participant_ids`  | jsonb `uuid[]` nullable | null = whole active roster               |
+| `agenda_template`          | jsonb                   | ordered array of item templates (see §7) |
+| `created_by`               | uuid FK profiles        |                                          |
+| `created_at`, `updated_at` |                         |                                          |
 
 ### 5.4 `meetings` (occurrences + one-offs)
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `series_id` | uuid FK meeting_series nullable | null = one-off |
-| `title` | text | |
-| `scheduled_start` | timestamptz | |
-| `timezone` | text | |
-| `host_user_id` | uuid FK profiles nullable | null only for cancelled occurrences that couldn't find any available host (see §8.1) |
-| `status` | enum(`scheduled`, `live`, `ended`, `postponed`, `cancelled`) | |
-| `auto_postpone_count` | int default 0 | resets when host clicks Start or Postpone manually |
-| `current_agenda_item_id` | uuid FK agenda_items nullable | live pointer |
-| `participants_override` | jsonb `uuid[]` nullable | null = whole active roster minus unavailable |
-| `created_by` | uuid FK profiles | |
-| `started_at`, `ended_at` | timestamptz nullable | |
-| `created_at`, `updated_at` | | |
+| column                     | type                                                         | notes                                                                                |
+| -------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `id`                       | uuid PK                                                      |                                                                                      |
+| `series_id`                | uuid FK meeting_series nullable                              | null = one-off                                                                       |
+| `title`                    | text                                                         |                                                                                      |
+| `scheduled_start`          | timestamptz                                                  |                                                                                      |
+| `timezone`                 | text                                                         |                                                                                      |
+| `host_user_id`             | uuid FK profiles nullable                                    | null only for cancelled occurrences that couldn't find any available host (see §8.1) |
+| `status`                   | enum(`scheduled`, `live`, `ended`, `postponed`, `cancelled`) |                                                                                      |
+| `auto_postpone_count`      | int default 0                                                | resets when host clicks Start or Postpone manually                                   |
+| `current_agenda_item_id`   | uuid FK agenda_items nullable                                | live pointer                                                                         |
+| `participants_override`    | jsonb `uuid[]` nullable                                      | null = whole active roster minus unavailable                                         |
+| `created_by`               | uuid FK profiles                                             |                                                                                      |
+| `started_at`, `ended_at`   | timestamptz nullable                                         |                                                                                      |
+| `created_at`, `updated_at` |                                                              |                                                                                      |
 
 ### 5.5 `agenda_items`
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `meeting_id` | uuid FK meetings | |
-| `ordinal` | int | position |
-| `title` | text | |
-| `kind` | enum(`discussion`, `prompt`, `picker`) | |
-| `prompt_id` | uuid FK prompts nullable | set iff kind=prompt |
-| `picker_config` | jsonb nullable | set iff kind=picker: `{ mode: 'oneshot' \| 'shuffle', scope: 'whole_roster' \| 'meeting_participants' }` |
-| `picker_result` | jsonb nullable | for oneshot: `{ user_id }`. For shuffle: shuffle_session_id ref. |
-| `created_at`, `updated_at` | | |
+| column                     | type                                   | notes                                                                                                    |
+| -------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `id`                       | uuid PK                                |                                                                                                          |
+| `meeting_id`               | uuid FK meetings                       |                                                                                                          |
+| `ordinal`                  | int                                    | position                                                                                                 |
+| `title`                    | text                                   |                                                                                                          |
+| `kind`                     | enum(`discussion`, `prompt`, `picker`) |                                                                                                          |
+| `prompt_id`                | uuid FK prompts nullable               | set iff kind=prompt                                                                                      |
+| `picker_config`            | jsonb nullable                         | set iff kind=picker: `{ mode: 'oneshot' \| 'shuffle', scope: 'whole_roster' \| 'meeting_participants' }` |
+| `picker_result`            | jsonb nullable                         | for oneshot: `{ user_id }`. For shuffle: shuffle_session_id ref.                                         |
+| `created_at`, `updated_at` |                                        |                                                                                                          |
 
 ### 5.6 `prompts` (unified Q&A + polls)
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `meeting_id` | uuid FK meetings nullable | null = standalone poll |
-| `author_user_id` | uuid FK profiles | |
-| `question` | text | plain text, ≤ 500 chars |
-| `response_type` | enum(`text`, `single_choice`, `multi_choice`, `yes_no`, `rating`) | |
-| `options` | jsonb nullable | array of `{ id, label }` for single/multi. Yes/no auto-populated. |
-| `rating_min`, `rating_max` | int nullable | default 1 and 5; alternative 1 and 10 |
-| `anonymity` | enum(`attributed`, `hard_anonymous`) | **locked at creation** |
-| `timing` | enum(`async`, `live`) | |
-| `opens_at`, `closes_at` | timestamptz nullable | async and standalone polls only |
-| `is_open` | bool | for live prompts: host toggles during meeting. For async / standalone: system-derived from `opens_at`/`closes_at` and creator's close action. |
-| `is_revealed` | bool | one-way toggle |
-| `revealed_at` | timestamptz nullable | |
-| `created_at`, `updated_at` | | |
+| column                     | type                                                              | notes                                                                                                                                         |
+| -------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                       | uuid PK                                                           |                                                                                                                                               |
+| `meeting_id`               | uuid FK meetings nullable                                         | null = standalone poll                                                                                                                        |
+| `author_user_id`           | uuid FK profiles                                                  |                                                                                                                                               |
+| `question`                 | text                                                              | plain text, ≤ 500 chars                                                                                                                       |
+| `response_type`            | enum(`text`, `single_choice`, `multi_choice`, `yes_no`, `rating`) |                                                                                                                                               |
+| `options`                  | jsonb nullable                                                    | array of `{ id, label }` for single/multi. Yes/no auto-populated.                                                                             |
+| `rating_min`, `rating_max` | int nullable                                                      | default 1 and 5; alternative 1 and 10                                                                                                         |
+| `anonymity`                | enum(`attributed`, `hard_anonymous`)                              | **locked at creation**                                                                                                                        |
+| `timing`                   | enum(`async`, `live`)                                             |                                                                                                                                               |
+| `opens_at`, `closes_at`    | timestamptz nullable                                              | async and standalone polls only                                                                                                               |
+| `is_open`                  | bool                                                              | for live prompts: host toggles during meeting. For async / standalone: system-derived from `opens_at`/`closes_at` and creator's close action. |
+| `is_revealed`              | bool                                                              | one-way toggle                                                                                                                                |
+| `revealed_at`              | timestamptz nullable                                              |                                                                                                                                               |
+| `created_at`, `updated_at` |                                                                   |                                                                                                                                               |
 
 ### 5.7 `responses_attributed`
+
 Used only when `prompts.anonymity = 'attributed'`.
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `prompt_id` | uuid FK prompts | |
-| `user_id` | uuid FK profiles | |
-| `response` | jsonb | shape depends on response_type (see §6) |
-| `created_at`, `updated_at` | | |
-| UNIQUE(prompt_id, user_id) | | |
+| column                     | type             | notes                                   |
+| -------------------------- | ---------------- | --------------------------------------- |
+| `id`                       | uuid PK          |                                         |
+| `prompt_id`                | uuid FK prompts  |                                         |
+| `user_id`                  | uuid FK profiles |                                         |
+| `response`                 | jsonb            | shape depends on response_type (see §6) |
+| `created_at`, `updated_at` |                  |                                         |
+| UNIQUE(prompt_id, user_id) |                  |                                         |
 
 ### 5.8 `responses_anonymous`
+
 Used only when `prompts.anonymity = 'hard_anonymous'`. **Deliberately has no user_id column.**
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `prompt_id` | uuid FK prompts | |
-| `response` | jsonb | shape depends on response_type |
-| `created_at` | | |
+| column       | type            | notes                          |
+| ------------ | --------------- | ------------------------------ |
+| `id`         | uuid PK         |                                |
+| `prompt_id`  | uuid FK prompts |                                |
+| `response`   | jsonb           | shape depends on response_type |
+| `created_at` |                 |                                |
 
 ### 5.9 `participation`
-Populated for *both* anonymity modes. Powers the "N of M responded" counter and prevents double-submission.
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `prompt_id` | uuid FK prompts | |
-| `user_id` | uuid FK profiles | |
-| `responded_at` | timestamptz | |
-| UNIQUE(prompt_id, user_id) | | |
+Populated for _both_ anonymity modes. Powers the "N of M responded" counter and prevents double-submission.
+
+| column                     | type             | notes |
+| -------------------------- | ---------------- | ----- |
+| `id`                       | uuid PK          |       |
+| `prompt_id`                | uuid FK prompts  |       |
+| `user_id`                  | uuid FK profiles |       |
+| `responded_at`             | timestamptz      |       |
+| UNIQUE(prompt_id, user_id) |                  |       |
 
 ### 5.10 `shuffle_sessions`
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `owner_user_id` | uuid FK profiles | |
-| `meeting_id` | uuid FK meetings nullable | null = private/standalone |
-| `roster_snapshot` | jsonb `uuid[]` | shuffled once at creation |
-| `current_index` | int default 0 | |
-| `status` | enum(`active`, `finished`) | |
-| `created_at`, `updated_at` | | |
+| column                     | type                       | notes                     |
+| -------------------------- | -------------------------- | ------------------------- |
+| `id`                       | uuid PK                    |                           |
+| `owner_user_id`            | uuid FK profiles           |                           |
+| `meeting_id`               | uuid FK meetings nullable  | null = private/standalone |
+| `roster_snapshot`          | jsonb `uuid[]`             | shuffled once at creation |
+| `current_index`            | int default 0              |                           |
+| `status`                   | enum(`active`, `finished`) |                           |
+| `created_at`, `updated_at` |                            |                           |
 
 ### 5.11 `notifications`
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `user_id` | uuid FK profiles | recipient |
-| `kind` | text | see §11 |
-| `title`, `body` | text | |
-| `link` | text | in-app path |
-| `read_at` | timestamptz nullable | |
-| `created_at` | | |
+| column          | type                 | notes       |
+| --------------- | -------------------- | ----------- |
+| `id`            | uuid PK              |             |
+| `user_id`       | uuid FK profiles     | recipient   |
+| `kind`          | text                 | see §11     |
+| `title`, `body` | text                 |             |
+| `link`          | text                 | in-app path |
+| `read_at`       | timestamptz nullable |             |
+| `created_at`    |                      |             |
 
 ### 5.12 `email_events`
+
 Idempotency for the cron-driven mail pipeline.
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid PK | |
-| `user_id` | uuid FK profiles | |
-| `kind` | text | |
-| `dedupe_key` | text unique | e.g. `meeting:<id>:starts_soon` |
-| `resend_id` | text nullable | provider id |
-| `sent_at` | timestamptz | |
-| `error` | text nullable | |
+| column       | type             | notes                           |
+| ------------ | ---------------- | ------------------------------- |
+| `id`         | uuid PK          |                                 |
+| `user_id`    | uuid FK profiles |                                 |
+| `kind`       | text             |                                 |
+| `dedupe_key` | text unique      | e.g. `meeting:<id>:starts_soon` |
+| `resend_id`  | text nullable    | provider id                     |
+| `sent_at`    | timestamptz      |                                 |
+| `error`      | text nullable    |                                 |
 
 ---
 
@@ -254,15 +260,17 @@ Server-side validation on write (Zod schema per response_type). Client validates
 ## 7. Anonymity mechanics (the delicate part)
 
 ### 7.1 Attributed prompts
+
 Standard row-level model. Writes go into `responses_attributed` with the caller's `user_id`. RLS allows a user to read their own row at any time and to read all rows for the prompt once `is_revealed = true`.
 
 Users may edit their own attributed response any time until `is_revealed` flips. After reveal, responses are immutable.
 
 ### 7.2 Hard-anonymous prompts
+
 Two guarantees:
 
 1. **No user_id ever lands in `responses_anonymous`.** The column doesn't exist. There is no way for a Server Action, an admin, or a database inspection to attribute a specific response to a specific person.
-2. **Aggregation is server-side only.** Clients cannot `SELECT` individual anonymous rows. Results are exposed via a `security definer` Postgres function (`get_prompt_results(prompt_id)`) that returns tallies (`{ option_id: count }`, distribution buckets for rating, or the *shuffled* list of text answers for text prompts) — never per-row data.
+2. **Aggregation is server-side only.** Clients cannot `SELECT` individual anonymous rows. Results are exposed via a `security definer` Postgres function (`get_prompt_results(prompt_id)`) that returns tallies (`{ option_id: count }`, distribution buckets for rating, or the _shuffled_ list of text answers for text prompts) — never per-row data.
 
 Submission flow for a hard-anonymous prompt:
 
@@ -278,10 +286,13 @@ Server Action `submit_response(prompt_id, response)`:
 ```
 
 ### 7.3 Editing anonymous responses
+
 Not allowed. Once submitted, an anonymous response cannot be edited or deleted by the submitter — because verifying "this is your row" requires linking it back, which we don't allow. This is called out clearly in the UI on submit ("Anonymous — final. Take a moment.").
 
 ### 7.4 The participation counter
+
 Denominator, in priority order:
+
 1. If the prompt belongs to a meeting and that meeting has `participants_override`, use that set.
 2. Else if the prompt belongs to a meeting (no override), use the whole active roster minus users in unavailability windows overlapping `now()`.
 3. Else (standalone poll), use the whole active roster minus users in unavailability windows overlapping `now()`.
@@ -291,7 +302,7 @@ Numerator = `count(participation) where prompt_id = X`. Displayed as `8 of 12 re
 Two distinct things — the **count** and the **identity of the stragglers** — get treated differently:
 
 - **Count**: always shown to everyone. This is the "how many are left" feature and applies equally to attributed and hard-anonymous prompts. (Yes, at N−1 the identity of the last respondent becomes inferable to anyone who knows the full roster. That's an accepted design tradeoff — see §7.5.)
-- **Identity list of who-hasn't-responded**: shown *only* to the host of an *attributed* prompt (for gentle nudging). Never shown for hard-anonymous prompts.
+- **Identity list of who-hasn't-responded**: shown _only_ to the host of an _attributed_ prompt (for gentle nudging). Never shown for hard-anonymous prompts.
 
 ### 7.5 Accepted risks (documented, not solved)
 
@@ -300,26 +311,30 @@ Atlas's hard-anonymous mode defends against DB-level attribution. It does **not*
 - **Writing style** — a five-word text answer in an eight-person team is often identifiable.
 - **Real-time timing** — an observer who can watch the counter tick up while watching who's typing in a video call can link submissions to submitters.
 
-Both are noted on the anonymous-submission UI: *"Truly anonymous in the database. Style and timing can still give you away in a small group."*
+Both are noted on the anonymous-submission UI: _"Truly anonymous in the database. Style and timing can still give you away in a small group."_
 
 ---
 
 ## 8. Rotation, Start/Postpone, and cancellation
 
 ### 8.1 Selecting the next host (series occurrence creation)
+
 When a series creates a new occurrence:
+
 1. Read `rotation_cursor`. Candidate = `rotation_order[cursor]`.
 2. If candidate is inactive or in an unavailability window overlapping `scheduled_start::date`, advance the cursor (modulo length) and retry. Log skips to the meeting's audit trail.
 3. If a full loop returns no available user, the occurrence is created with `host_user_id = null` and `status = cancelled`, notifying admins.
-4. On success, persist the candidate as host, then advance `rotation_cursor` by 1 (so the *next* occurrence picks the *next* person).
+4. On success, persist the candidate as host, then advance `rotation_cursor` by 1 (so the _next_ occurrence picks the _next_ person).
 
 ### 8.2 Start / Postpone (host actions)
+
 At `scheduled_start` the meeting enters `status = scheduled` with UI showing two buttons: **Start** and **Postpone**.
 
 - **Start** → `status = live`, `started_at = now()`, `auto_postpone_count = 0`. Broadcasts to all participants.
 - **Postpone (manual)** → host picks a new datetime (default: +1 day, same time). The current meeting → `status = postponed`. A new meeting row is inserted with the new `scheduled_start`, same host, `auto_postpone_count = 0`, agenda copied.
 
 ### 8.3 Auto-postpone
+
 Cron runs every minute. For each `status = scheduled` meeting where `now() > scheduled_start + 15min` and host has taken no action:
 
 - If `auto_postpone_count < 3`: mark current as `status = postponed`, insert new meeting +1 day same time same host, `auto_postpone_count += 1`. Notify host + participants.
@@ -328,6 +343,7 @@ Cron runs every minute. For each `status = scheduled` meeting where `now() > sch
 Grace window is 15 minutes to avoid punishing a host who's a few minutes late.
 
 ### 8.4 Occurrence pipeline
+
 A daily cron generates the next 14 days of occurrences for each series. That way the host-24h-in-advance email always fires, and the rotation cursor advances predictably even when nobody's opened the app.
 
 ---
@@ -335,16 +351,19 @@ A daily cron generates the next 14 days of occurrences for each series. That way
 ## 9. Random tools
 
 ### 9.1 One-shot pick
+
 Button on Home. Server picks uniformly at random from `profiles WHERE is_active AND user_id NOT IN (unavailable today)`. Result animates onto a card. No persistence — refreshing re-rolls.
 
 Inside a meeting: an agenda item with `kind = picker`, `picker_config.mode = oneshot`. When the host advances to it, the server picks and writes `picker_result`. All participants see the same animation via Realtime.
 
 ### 9.2 Shuffle session (Next / Next / Next)
+
 Standalone: user clicks "Shuffle". Server creates a `shuffle_sessions` row with a randomised `roster_snapshot` of active users (respecting today's unavailability). Session persists on the user's account — they can leave and resume. Navigate with Next / Back. "Restart" wipes and reshuffles.
 
 Meeting-embedded: agenda item with `kind = picker`, `picker_config.mode = shuffle`. On host-advance, a `shuffle_sessions` row is created bound to the meeting. All participants subscribe to Realtime updates on `shuffle_sessions.id`. Only the host advances.
 
 Boundaries:
+
 - `scope: 'whole_roster'` uses all active users.
 - `scope: 'meeting_participants'` uses `meeting.participants_override ?? whole_roster`.
 
@@ -354,13 +373,13 @@ Boundaries:
 
 Supabase Realtime subscriptions, driven directly off table changefeeds:
 
-| What changes | Who subscribes | What they render |
-|---|---|---|
-| `meetings.current_agenda_item_id` | Meeting participants | Advance the agenda view |
-| `prompts.is_revealed`, `prompts.is_open` | Meeting participants (or standalone poll audience) | Flip reveal UI, open/close submission |
-| `participation` inserts, filtered `prompt_id` | Meeting participants viewing that prompt | Increment "N of M" counter |
-| `shuffle_sessions.current_index` | Meeting participants | Animate to next person |
-| `notifications` inserts, filtered `user_id = auth.uid()` | The recipient | Bell badge |
+| What changes                                             | Who subscribes                                     | What they render                      |
+| -------------------------------------------------------- | -------------------------------------------------- | ------------------------------------- |
+| `meetings.current_agenda_item_id`                        | Meeting participants                               | Advance the agenda view               |
+| `prompts.is_revealed`, `prompts.is_open`                 | Meeting participants (or standalone poll audience) | Flip reveal UI, open/close submission |
+| `participation` inserts, filtered `prompt_id`            | Meeting participants viewing that prompt           | Increment "N of M" counter            |
+| `shuffle_sessions.current_index`                         | Meeting participants                               | Animate to next person                |
+| `notifications` inserts, filtered `user_id = auth.uid()` | The recipient                                      | Bell badge                            |
 
 TanStack Query holds cache; Realtime events trigger `invalidateQueries` for the relevant key. A 30-second background refetch is the safety net if Realtime disconnects.
 
@@ -369,19 +388,20 @@ TanStack Query holds cache; Realtime events trigger `invalidateQueries` for the 
 ## 11. Notifications
 
 ### 11.1 In-app
+
 Bell in the header. `notifications` table drives the feed. Realtime updates the badge. Marking-read on click.
 
 ### 11.2 Email (Resend + React Email templates)
 
-| Kind | Trigger | Recipient(s) |
-|---|---|---|
-| `meeting_scheduled` | Occurrence created (series or one-off) | All participants (body mentions host) |
-| `async_prompts_pending` | Async prompt opens | All participants of the prompt's meeting |
-| `meeting_starts_soon` | 10 minutes before `scheduled_start` | Host + participants |
-| `meeting_postponed` | Manual or auto postpone | Host + participants |
-| `meeting_cancelled` | 3-strike auto-cancel | Host + admins |
-| `poll_created` | Standalone poll opens | All active users (except author) |
-| `poll_revealed` | Standalone poll creator reveals | Everyone who responded |
+| Kind                    | Trigger                                | Recipient(s)                             |
+| ----------------------- | -------------------------------------- | ---------------------------------------- |
+| `meeting_scheduled`     | Occurrence created (series or one-off) | All participants (body mentions host)    |
+| `async_prompts_pending` | Async prompt opens                     | All participants of the prompt's meeting |
+| `meeting_starts_soon`   | 10 minutes before `scheduled_start`    | Host + participants                      |
+| `meeting_postponed`     | Manual or auto postpone                | Host + participants                      |
+| `meeting_cancelled`     | 3-strike auto-cancel                   | Host + admins                            |
+| `poll_created`          | Standalone poll opens                  | All active users (except author)         |
+| `poll_revealed`         | Standalone poll creator reveals        | Everyone who responded                   |
 
 Users toggle each kind on/off in Settings. In-app is always on.
 
@@ -408,7 +428,7 @@ RLS in one paragraph per table:
 - **notifications** — read+write: self only.
 - **email_events** — read: admin only. Write: service role only.
 
-The `get_prompt_results` function does the type-appropriate aggregation and returns *only* aggregate results, never row-level. For text prompts, it returns responses in shuffled order to further blur ordering signals.
+The `get_prompt_results` function does the type-appropriate aggregation and returns _only_ aggregate results, never row-level. For text prompts, it returns responses in shuffled order to further blur ordering signals.
 
 ---
 
@@ -464,15 +484,15 @@ CI: unit + RLS on every PR. Playwright runs against a Supabase branch spun up pe
 
 ## 16. Rollout (milestones)
 
-| # | Milestone | Contents |
-|---|---|---|
-| M1 | Foundation | Next.js app scaffold, Supabase project, auth, profiles, roster CRUD, home shell |
-| M2 | Standalone polls | prompts + both response tables + participation + reveal + counter + all 5 response types |
-| M3 | One-off meetings | meetings + agenda_items + host = creator + live reveal + real-time agenda |
-| M4 | Series + rotation | meeting_series + rotation cursor + occurrence generator + Start/Postpone + auto-postpone cron |
-| M5 | Random tools | one-shot picker + shuffle sessions (standalone + meeting-embedded, real-time synced) |
-| M6 | Notifications | in-app feed + email pipeline (Resend + React Email) + settings toggles |
-| M7 | History & polish | Past meetings/polls, admin views, small design pass, accessibility check |
+| #   | Milestone         | Contents                                                                                      |
+| --- | ----------------- | --------------------------------------------------------------------------------------------- |
+| M1  | Foundation        | Next.js app scaffold, Supabase project, auth, profiles, roster CRUD, home shell               |
+| M2  | Standalone polls  | prompts + both response tables + participation + reveal + counter + all 5 response types      |
+| M3  | One-off meetings  | meetings + agenda_items + host = creator + live reveal + real-time agenda                     |
+| M4  | Series + rotation | meeting_series + rotation cursor + occurrence generator + Start/Postpone + auto-postpone cron |
+| M5  | Random tools      | one-shot picker + shuffle sessions (standalone + meeting-embedded, real-time synced)          |
+| M6  | Notifications     | in-app feed + email pipeline (Resend + React Email) + settings toggles                        |
+| M7  | History & polish  | Past meetings/polls, admin views, small design pass, accessibility check                      |
 
 Each milestone ends with a deployed, testable slice.
 

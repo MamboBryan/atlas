@@ -13,6 +13,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec prettier --check .
 
   rls:
     runs-on: ubuntu-latest

@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="20" y="40" width="160" height="140" rx="16" fill="var(--sticker-fill)"/>
-  <line x1="20" y1="80" x2="180" y2="80"/>
-  <line x1="60" y1="20" x2="60" y2="60"/>
-  <line x1="140" y1="20" x2="140" y2="60"/>
-  <path d="M100 110 l12 24 26 4 -19 18 5 26 -24 -13 -24 13 5 -26 -19 -18 26 -4z" fill="#FFD84A"/>
-</svg>

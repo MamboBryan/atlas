@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
-  <!-- box body -->
-  <rect x="30" y="100" width="140" height="80" rx="8" fill="var(--sticker-fill)"/>
-  <!-- left flap open/flared outward -->
-  <path d="M30 100 L10 62 L100 62 L100 100" fill="var(--sticker-fill)" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/>
-  <!-- right flap open/flared outward -->
-  <path d="M170 100 L190 62 L100 62 L100 100" fill="var(--sticker-fill)" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/>
-</svg>

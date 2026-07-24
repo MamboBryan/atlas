@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { stickerRegistry } from "./sticker-svgs";
 
 export type StickerName =
   | "calendar"
@@ -30,14 +31,14 @@ export function Sticker({
   rotate?: number;
   className?: string;
 }) {
+  const StickerSVG = stickerRegistry[name];
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- SVG stickers use currentColor; next/image does not support it
-    <img
-      src={`/stickers/${name}.svg`}
-      alt=""
+    <span
       aria-hidden="true"
-      className={cn(sizeMap[size], "inline-block text-ink", className)}
+      className={cn("inline-block text-ink", sizeMap[size], className)}
       style={{ transform: rotate ? `rotate(${rotate}deg)` : undefined }}
-    />
+    >
+      <StickerSVG width="100%" height="100%" />
+    </span>
   );
 }

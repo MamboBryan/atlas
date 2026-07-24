@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { nextOccurrences } from "@/lib/rrule/next-occurrences";
+import { emit } from "@/lib/notify/emit";
+import { resolveMeetingParticipants } from "@/lib/notify/participants";
 
 type Series = {
   id: string;
@@ -96,6 +98,37 @@ export async function POST(req: NextRequest) {
 
       if (insertErr || !inserted) continue;
       created += 1;
+
+      if (host) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+        const participants = await resolveMeetingParticipants(svc, {
+          participants_override: s.default_participant_ids,
+        });
+        try {
+          await emit(
+            {
+              user_ids: participants,
+              kind: "meeting_scheduled",
+              title: `${s.name} scheduled`,
+              body: `Scheduled for ${iso}.`,
+              link: `/meetings/${inserted.id}`,
+              email: {
+                dedupeKey: (uid) =>
+                  `meeting:${inserted.id}:scheduled:user:${uid}`,
+                payload: {
+                  subject: `${s.name} scheduled`,
+                  meetingTitle: s.name,
+                  when: iso,
+                  url: `${appUrl}/meetings/${inserted.id}`,
+                },
+              },
+            },
+            svc,
+          );
+        } catch {
+          // notification failure non-fatal
+        }
+      }
 
       const template = s.agenda_template ?? [];
       if (template.length > 0) {

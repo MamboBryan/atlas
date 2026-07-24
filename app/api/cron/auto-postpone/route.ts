@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { decidePostponeAction } from "@/lib/postpone/decide";
+import { emit } from "@/lib/notify/emit";
+import { resolveMeetingParticipants } from "@/lib/notify/participants";
 
 type Meeting = {
   id: string;
@@ -79,6 +81,31 @@ export async function POST(req: NextRequest) {
         .eq("status", "scheduled");
       if (cancelErr) continue;
 
+      const cancelParticipants = await resolveMeetingParticipants(svc, m);
+      try {
+        await emit(
+          {
+            user_ids: cancelParticipants,
+            kind: "meeting_cancelled",
+            title: `${m.title} cancelled`,
+            body: `Cancelled after ${m.auto_postpone_count} auto-postponements.`,
+            link: `/meetings/${m.id}`,
+            email: {
+              dedupeKey: (uid) => `meeting:${m.id}:cancelled:user:${uid}`,
+              payload: {
+                subject: `${m.title} cancelled`,
+                meetingTitle: m.title,
+                when: m.scheduled_start,
+                reason: `Reached ${MAX_AUTO_POSTPONES} auto-postponements without starting`,
+              },
+            },
+          },
+          svc,
+        );
+      } catch {
+        // notification failure non-fatal
+      }
+
       if (m.series_id) {
         const { data: series } = await svc
           .from("meeting_series")
@@ -144,6 +171,35 @@ export async function POST(req: NextRequest) {
       await svc.from("meetings").delete().eq("id", inserted.id);
       continue;
     }
+
+    const postponeParticipants = await resolveMeetingParticipants(svc, m);
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+      await emit(
+        {
+          user_ids: postponeParticipants,
+          kind: "meeting_postponed",
+          title: `${m.title} postponed`,
+          body: `Now scheduled for ${decision.newScheduledStart}.`,
+          link: `/meetings/${inserted.id}`,
+          email: {
+            dedupeKey: (uid) =>
+              `meeting:${m.id}:auto_postponed:${decision.newScheduledStart}:user:${uid}`,
+            payload: {
+              subject: `${m.title} postponed`,
+              meetingTitle: m.title,
+              newWhen: decision.newScheduledStart,
+              reason: "Auto-postponed — did not start on time",
+              url: `${appUrl}/meetings/${inserted.id}`,
+            },
+          },
+        },
+        svc,
+      );
+    } catch {
+      // notification failure non-fatal
+    }
+
     postponed += 1;
   }
 

@@ -1,8 +1,23 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth/require";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import { createOneOff, advanceTo, postponeManual } from "@/lib/zod/meeting";
+import { emit } from "@/lib/notify/emit";
+import { resolveMeetingParticipants } from "@/lib/notify/participants";
+
+function serviceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
+
+function appUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL ?? "";
+}
 
 export async function createOneOffMeeting(
   input: unknown,
@@ -25,6 +40,34 @@ export async function createOneOffMeeting(
     .select("id")
     .single();
   if (error || !data) return err("db_error", error?.message ?? "unknown");
+
+  const svc = serviceClient();
+  const participants = await resolveMeetingParticipants(svc, {
+    participants_override: parsed.data.participants_override ?? null,
+  });
+  try {
+    await emit(
+      {
+        user_ids: participants,
+        kind: "meeting_scheduled",
+        title: `${parsed.data.title} scheduled`,
+        body: `Scheduled for ${parsed.data.scheduled_start}.`,
+        link: `/meetings/${data.id}`,
+        email: {
+          dedupeKey: (uid) => `meeting:${data.id}:scheduled:user:${uid}`,
+          payload: {
+            subject: `${parsed.data.title} scheduled`,
+            meetingTitle: parsed.data.title,
+            when: parsed.data.scheduled_start,
+            url: `${appUrl()}/meetings/${data.id}`,
+          },
+        },
+      },
+      svc,
+    );
+  } catch {
+    // notification failure is non-fatal for meeting creation
+  }
 
   revalidatePath("/meetings");
   return ok({ id: data.id });
@@ -130,6 +173,36 @@ export async function postponeMeetingManual(
     .eq("id", meeting.id)
     .eq("host_user_id", user.id);
   if (updateErr) return err("db_error", updateErr.message);
+
+  const svc = serviceClient();
+  const participants = await resolveMeetingParticipants(svc, {
+    participants_override: meeting.participants_override as string[] | null,
+  });
+  try {
+    await emit(
+      {
+        user_ids: participants,
+        kind: "meeting_postponed",
+        title: `${meeting.title} postponed`,
+        body: `Now scheduled for ${parsed.data.new_scheduled_start}.`,
+        link: `/meetings/${inserted.id}`,
+        email: {
+          dedupeKey: (uid) =>
+            `meeting:${meeting.id}:postponed:${parsed.data.new_scheduled_start}:user:${uid}`,
+          payload: {
+            subject: `${meeting.title} postponed`,
+            meetingTitle: meeting.title,
+            newWhen: parsed.data.new_scheduled_start,
+            reason: "Manually postponed by host",
+            url: `${appUrl()}/meetings/${inserted.id}`,
+          },
+        },
+      },
+      svc,
+    );
+  } catch {
+    // notification failure non-fatal
+  }
 
   revalidatePath(`/meetings/${meeting.id}`);
   revalidatePath("/meetings");

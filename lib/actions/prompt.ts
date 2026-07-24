@@ -1,8 +1,23 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth/require";
 import { createPromptInput } from "@/lib/zod/prompt";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
+import { emit } from "@/lib/notify/emit";
+import { resolveAllActiveUserIds } from "@/lib/notify/participants";
+
+function serviceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
+
+function appUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL ?? "";
+}
 
 const YES_NO_OPTIONS = [
   { id: "yes", label: "Yes" },
@@ -40,6 +55,40 @@ export async function createPrompt(
     .select("id")
     .single();
   if (error || !data) return err("db_error", error?.message ?? "unknown");
+
+  const svc = serviceClient();
+  const recipients = (await resolveAllActiveUserIds(svc)).filter(
+    (id) => id !== user.id,
+  );
+  const { data: creator } = await svc
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .single<{ display_name: string }>();
+  try {
+    await emit(
+      {
+        user_ids: recipients,
+        kind: "poll_created",
+        title: `New poll: ${p.question}`,
+        body: `${creator?.display_name ?? "Someone"} opened a poll.`,
+        link: `/polls/${data.id}`,
+        email: {
+          dedupeKey: (uid) => `poll:${data.id}:created:user:${uid}`,
+          payload: {
+            subject: `New poll: ${p.question}`,
+            pollTitle: p.question,
+            createdBy: creator?.display_name ?? "Someone",
+            url: `${appUrl()}/polls/${data.id}`,
+          },
+        },
+      },
+      svc,
+    );
+  } catch {
+    // notification failure non-fatal
+  }
+
   revalidatePath("/polls");
   return ok({ id: data.id });
 }
@@ -58,6 +107,45 @@ export async function revealPrompt(
     .eq("id", prompt_id)
     .eq("owner_user_id", user.id);
   if (error) return err("db_error", error.message);
+
+  const svc = serviceClient();
+  const { data: prompt } = await svc
+    .from("prompts")
+    .select("question")
+    .eq("id", prompt_id)
+    .single<{ question: string }>();
+  const { data: responders } = await svc
+    .from("responses_attributed")
+    .select("user_id")
+    .eq("prompt_id", prompt_id);
+  const respIds = Array.from(
+    new Set(
+      (responders ?? []).map((r: { user_id: string }) => r.user_id),
+    ),
+  );
+  try {
+    await emit(
+      {
+        user_ids: respIds,
+        kind: "poll_revealed",
+        title: `Results are in`,
+        body: `${prompt?.question ?? "A poll"} results are visible.`,
+        link: `/polls/${prompt_id}`,
+        email: {
+          dedupeKey: (uid) => `poll:${prompt_id}:revealed:user:${uid}`,
+          payload: {
+            subject: `Results are in: ${prompt?.question ?? "poll"}`,
+            pollTitle: prompt?.question ?? "poll",
+            url: `${appUrl()}/polls/${prompt_id}`,
+          },
+        },
+      },
+      svc,
+    );
+  } catch {
+    // notification failure non-fatal
+  }
+
   revalidatePath(`/polls/${prompt_id}`);
   return ok(null);
 }

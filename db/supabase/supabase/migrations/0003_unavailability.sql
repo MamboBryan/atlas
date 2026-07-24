@@ -30,3 +30,6 @@ returns boolean language sql stable as $$
     where w.user_id = uid and day between w.starts_on and w.ends_on
   );
 $$;
+
+grant select, insert, update, delete on public.unavailability_windows to authenticated;
+grant select, insert, update, delete on public.unavailability_windows to service_role;

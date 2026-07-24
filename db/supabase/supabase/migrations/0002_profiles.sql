@@ -51,3 +51,6 @@ create policy profiles_admin_write on public.profiles
 
 create trigger profiles_touch before update on public.profiles
   for each row execute function public.atlas_touch_updated_at();
+
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.profiles to service_role;

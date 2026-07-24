@@ -29,6 +29,28 @@ _Every task inherits these. Do not restate them per task; check compliance at ta
 
 ---
 
+## Role model
+
+Two orthogonal concepts. Never overload the word "admin" without saying which one you mean.
+
+**Team roles** — `profiles.role = 'admin' | 'member'`. Static per user. Set on invite (first signed-in user is `admin`, everyone else defaults to `member`). Team admins manage the roster, see everyone's unavailability, and can override any resource. Team members do everything else.
+
+**Resource roles** — for each meeting, prompt, question, shuffle session, series, etc., two columns are always present:
+
+- `created_by uuid not null references public.profiles(id) on delete restrict` — **immutable audit trail**. Who first made this thing. Never mutated.
+- `owner_user_id uuid not null references public.profiles(id) on delete restrict` — **mutable current admin of the resource**. Starts equal to `created_by` on insert. Can be transferred (hand-off), reassigned by a team admin, or renamed to a domain-specific label where it reads better in the UI:
+  - Meetings: `owner_user_id` is exposed as `host_user_id` (same idea, meeting-specific noun).
+  - Series: same — the owner of a series is its host-of-record before the rotation cursor takes over.
+  - Prompts/shuffles: keep the generic `owner_user_id`.
+
+Everyone else with visibility is a **resource member** — no row, just an implicit set derived from the resource's visibility rules (RLS `select` policy).
+
+All resource-write RLS policies must be `using (auth.uid() = owner_user_id or public.atlas_is_admin(auth.uid()))`, i.e., the current owner OR a team admin. `created_by` is never used for permission checks — only for display ("created by …", historical filters). This lets ownership move without rewriting history.
+
+Server actions live above RLS: they read `owner_user_id` for the "am I admin of this?" UI badge and reject writes with a `not_owner` error before hitting Postgres.
+
+---
+
 ## Phase Overview
 
 | #   | Branch                        | Title                                 | Deliverable                                                                           |
@@ -1379,7 +1401,8 @@ create type public.prompt_timing as enum ('async','live');
 create table public.prompts (
   id             uuid primary key default gen_random_uuid(),
   meeting_id     uuid, -- FK added in phase 5; nullable stays nullable for standalone polls
-  author_user_id uuid not null references public.profiles(id) on delete restrict,
+  created_by     uuid not null references public.profiles(id) on delete restrict,   -- immutable audit trail
+  owner_user_id  uuid not null references public.profiles(id) on delete restrict,   -- mutable resource admin; defaults to created_by on insert
   question       text not null check (char_length(question) between 1 and 500),
   response_type  public.response_type not null,
   options        jsonb, -- array of {id,label} for single/multi; auto-populated for yes_no
@@ -1399,7 +1422,8 @@ create table public.prompts (
 );
 
 create index on public.prompts(meeting_id);
-create index on public.prompts(author_user_id);
+create index on public.prompts(owner_user_id);
+create index on public.prompts(created_by);
 
 create table public.responses_attributed (
   id         uuid primary key default gen_random_uuid(),
@@ -1415,9 +1439,14 @@ alter table public.prompts               enable row level security;
 alter table public.responses_attributed  enable row level security;
 
 -- prompts policies
-create policy prompts_read_all       on public.prompts for select using (auth.uid() is not null);
-create policy prompts_insert_author  on public.prompts for insert with check (auth.uid() = author_user_id);
-create policy prompts_update_author  on public.prompts for update using  (auth.uid() = author_user_id) with check (auth.uid() = author_user_id);
+create policy prompts_read_all      on public.prompts for select using (auth.uid() is not null);
+-- On insert: caller must be both the historical creator and the initial owner.
+create policy prompts_insert_self   on public.prompts for insert
+  with check (auth.uid() = created_by and auth.uid() = owner_user_id);
+-- On update: current owner OR any team admin. created_by is never a permission check.
+create policy prompts_update_owner  on public.prompts for update
+  using      (auth.uid() = owner_user_id or public.atlas_is_admin(auth.uid()))
+  with check (auth.uid() = owner_user_id or public.atlas_is_admin(auth.uid()));
 
 -- responses_attributed policies (attributed prompts only)
 create policy ra_read_self on public.responses_attributed for select
@@ -1733,7 +1762,8 @@ export async function createPrompt(
   const { user, supabase } = await requireUser();
   const p = parsed.data;
   const row: Record<string, unknown> = {
-    author_user_id: user.id,
+    created_by: user.id,
+    owner_user_id: user.id, // creator = owner on insert; can be transferred later
     question: p.question,
     response_type: p.response_type,
     anonymity: p.anonymity,
@@ -1771,7 +1801,7 @@ export async function revealPrompt(
       is_open: false,
     })
     .eq("id", prompt_id)
-    .eq("author_user_id", user.id);
+    .eq("owner_user_id", user.id); // RLS also allows team admins; owner check is a UX guard
   if (error) return err("db_error", error.message);
   revalidatePath(`/polls/${prompt_id}`);
   return ok(null);
@@ -1785,7 +1815,7 @@ export async function closePrompt(
     .from("prompts")
     .update({ is_open: false })
     .eq("id", prompt_id)
-    .eq("author_user_id", user.id);
+    .eq("owner_user_id", user.id);
   if (error) return err("db_error", error.message);
   revalidatePath(`/polls/${prompt_id}`);
   return ok(null);
@@ -1878,7 +1908,8 @@ test("attributed single_choice: submit + reveal + read back", async () => {
   const prompt = await admin
     .from("prompts")
     .insert({
-      author_user_id: u1!.user!.id,
+      created_by: u1!.user!.id,
+      owner_user_id: u1!.user!.id,
       question: "Which color?",
       response_type: "single_choice",
       options: [
@@ -1924,7 +1955,7 @@ git commit -m "feat(actions): prompt + submitResponse (attributed) + reveal"
 
 - [ ] **Step 1: Polls list page (RSC)**
 
-Shows two lists: **Open for me** (any prompt where `is_open` and no participation row for me), and **Mine** (author = me). Simple links to `/polls/[id]`.
+Shows two lists: **Open for me** (any prompt where `is_open` and no participation row for me), and **Mine** (owner = me). Simple links to `/polls/[id]`.
 
 - [ ] **Step 2: `prompt-form.tsx`**
 
@@ -1991,7 +2022,8 @@ For attributed prompts after `is_revealed = true`, fetches `responses_attributed
 ```tsx
 // app/(app)/polls/[id]/page.tsx (sketch)
 // RSC fetch prompt + is_revealed. If revealed → <RevealView/>. Else if is_open →
-// <ResponseInput/> + <ParticipationCounter/>. If author → Reveal + Close buttons.
+// <ResponseInput/> + <ParticipationCounter/>. If owner (or team admin) → Reveal + Close buttons.
+// Show "created by <name>" in the header; if owner != created_by, show "owned by <name>" too.
 ```
 
 - [ ] **Step 7: E2E — attributed poll happy path**
@@ -2359,7 +2391,7 @@ create table public.meetings (
   title                     text not null,
   scheduled_start           timestamptz not null,
   timezone                  text not null default 'UTC',
-  host_user_id              uuid references public.profiles(id) on delete set null,
+  host_user_id              uuid references public.profiles(id) on delete set null, -- meeting's owner (see Role model); defaults to created_by on insert
   status                    public.meeting_status not null default 'scheduled',
   auto_postpone_count       int  not null default 0,
   current_agenda_item_id    uuid,
@@ -2724,7 +2756,8 @@ create type public.shuffle_status as enum ('active','finished');
 
 create table public.shuffle_sessions (
   id               uuid primary key default gen_random_uuid(),
-  owner_user_id    uuid not null references public.profiles(id) on delete cascade,
+  created_by       uuid not null references public.profiles(id) on delete restrict, -- immutable audit trail
+  owner_user_id    uuid not null references public.profiles(id) on delete cascade,  -- mutable resource admin; defaults to created_by on insert
   meeting_id       uuid references public.meetings(id) on delete cascade,
   roster_snapshot  jsonb not null,               -- uuid[]
   current_index    int not null default 0,
@@ -2905,7 +2938,8 @@ export async function startShuffle(
   const { data, error } = await supabase
     .from("shuffle_sessions")
     .insert({
-      owner_user_id: user.id,
+      created_by: user.id,
+      owner_user_id: user.id, // creator = owner on insert
       meeting_id: meetingId,
       roster_snapshot: shuffle(ids),
       current_index: 0,
@@ -3076,7 +3110,8 @@ create table public.meeting_series (
   rotation_cursor           int  not null default 0,
   default_participant_ids   jsonb,           -- uuid[] or null
   agenda_template           jsonb not null default '[]'::jsonb, -- array of { title, kind, prompt_template? }
-  created_by                uuid not null references public.profiles(id) on delete restrict,
+  created_by                uuid not null references public.profiles(id) on delete restrict, -- immutable audit trail
+  owner_user_id             uuid not null references public.profiles(id) on delete restrict, -- mutable resource admin; defaults to created_by on insert
   created_at                timestamptz not null default now(),
   updated_at                timestamptz not null default now(),
   check (jsonb_array_length(rotation_order) > 0),
@@ -3084,9 +3119,10 @@ create table public.meeting_series (
 );
 
 alter table public.meeting_series enable row level security;
-create policy ms_read       on public.meeting_series for select using (auth.uid() is not null);
-create policy ms_write_admin on public.meeting_series for all
-  using (public.atlas_is_admin(auth.uid())) with check (public.atlas_is_admin(auth.uid()));
+create policy ms_read              on public.meeting_series for select using (auth.uid() is not null);
+create policy ms_write_owner_admin on public.meeting_series for all
+  using      (auth.uid() = owner_user_id or public.atlas_is_admin(auth.uid()))
+  with check (auth.uid() = owner_user_id or public.atlas_is_admin(auth.uid()));
 
 alter table public.meetings
   add constraint meetings_series_fk foreign key (series_id) references public.meeting_series(id) on delete set null;
@@ -4173,35 +4209,35 @@ Ran the checklist on the spec:
 
 **Spec coverage.** Every section of the spec maps to a task or phase:
 
-| Spec section                          | Where handled                                                                                                                                                                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| §3 Personas                           | Phases 2 (roles) and 7 (series admin)                                                                                                                                                             |
-| §4 Surfaces                           | Home (10), Roster (2), Meetings (5,7,8), Series (7), Polls (3,4), Notifications (9), Settings (2,9)                                                                                               |
-| §5.1–5.2 profiles + unavailability    | Phase 2                                                                                                                                                                                           |
-| §5.3 meeting_series                   | Phase 7                                                                                                                                                                                           |
-| §5.4 meetings                         | Phase 5 (schema) + 7 (series link) + 8 (postpone)                                                                                                                                                 |
-| §5.5 agenda_items                     | Phase 5                                                                                                                                                                                           |
-| §5.6 prompts                          | Phase 3 (schema) + 4 (anonymity fields) + 5 (meeting fk)                                                                                                                                          |
-| §5.7 responses_attributed             | Phase 3                                                                                                                                                                                           |
-| §5.8 responses_anonymous              | Phase 4                                                                                                                                                                                           |
-| §5.9 participation                    | Phase 3                                                                                                                                                                                           |
-| §5.10 shuffle_sessions                | Phase 6                                                                                                                                                                                           |
-| §5.11 notifications                   | Phase 9                                                                                                                                                                                           |
-| §5.12 email_events                    | Phase 9                                                                                                                                                                                           |
-| §6 Response shapes                    | Phase 3 (validator)                                                                                                                                                                               |
-| §7 Anonymity mechanics                | Phase 4 (all of it)                                                                                                                                                                               |
-| §7.4 Counter denominator (standalone) | Phase 3                                                                                                                                                                                           |
-| §7.4 Counter denominator (meeting)    | Phase 5 (replaces denominator)                                                                                                                                                                    |
-| §8 Rotation + postpone                | Phases 7 + 8                                                                                                                                                                                      |
-| §9 Random tools                       | Phase 6                                                                                                                                                                                           |
-| §10 Realtime                          | Phases 3, 5, 6, 9 (progressive)                                                                                                                                                                   |
-| §11 Notifications                     | Phase 9                                                                                                                                                                                           |
-| §12 Auth + RLS                        | Every migration                                                                                                                                                                                   |
-| §13 Server actions                    | Every phase; matched by name                                                                                                                                                                      |
-| §14 Error handling                    | `ActionResult` set up in Phase 2, used throughout                                                                                                                                                 |
-| §15 Testing                           | Vitest/Playwright/pgTAP harness in Phase 1; per-phase tests thereafter                                                                                                                            |
-| §16 Rollout                           | Phase list mirrors it (split M3 → 5+6; split M4 → 7+8)                                                                                                                                            |
-| §17 Assumed defaults                  | Enforced by schema and RLS; #4 (live prompts mid-meeting) supported because prompt.create requires only author + meeting membership; #10 grace = `GRACE_MIN = 15`; #11 first admin = auth trigger |
+| Spec section                          | Where handled                                                                                                                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| §3 Personas                           | Phases 2 (roles) and 7 (series admin)                                                                                                                                                            |
+| §4 Surfaces                           | Home (10), Roster (2), Meetings (5,7,8), Series (7), Polls (3,4), Notifications (9), Settings (2,9)                                                                                              |
+| §5.1–5.2 profiles + unavailability    | Phase 2                                                                                                                                                                                          |
+| §5.3 meeting_series                   | Phase 7                                                                                                                                                                                          |
+| §5.4 meetings                         | Phase 5 (schema) + 7 (series link) + 8 (postpone)                                                                                                                                                |
+| §5.5 agenda_items                     | Phase 5                                                                                                                                                                                          |
+| §5.6 prompts                          | Phase 3 (schema) + 4 (anonymity fields) + 5 (meeting fk)                                                                                                                                         |
+| §5.7 responses_attributed             | Phase 3                                                                                                                                                                                          |
+| §5.8 responses_anonymous              | Phase 4                                                                                                                                                                                          |
+| §5.9 participation                    | Phase 3                                                                                                                                                                                          |
+| §5.10 shuffle_sessions                | Phase 6                                                                                                                                                                                          |
+| §5.11 notifications                   | Phase 9                                                                                                                                                                                          |
+| §5.12 email_events                    | Phase 9                                                                                                                                                                                          |
+| §6 Response shapes                    | Phase 3 (validator)                                                                                                                                                                              |
+| §7 Anonymity mechanics                | Phase 4 (all of it)                                                                                                                                                                              |
+| §7.4 Counter denominator (standalone) | Phase 3                                                                                                                                                                                          |
+| §7.4 Counter denominator (meeting)    | Phase 5 (replaces denominator)                                                                                                                                                                   |
+| §8 Rotation + postpone                | Phases 7 + 8                                                                                                                                                                                     |
+| §9 Random tools                       | Phase 6                                                                                                                                                                                          |
+| §10 Realtime                          | Phases 3, 5, 6, 9 (progressive)                                                                                                                                                                  |
+| §11 Notifications                     | Phase 9                                                                                                                                                                                          |
+| §12 Auth + RLS                        | Every migration                                                                                                                                                                                  |
+| §13 Server actions                    | Every phase; matched by name                                                                                                                                                                     |
+| §14 Error handling                    | `ActionResult` set up in Phase 2, used throughout                                                                                                                                                |
+| §15 Testing                           | Vitest/Playwright/pgTAP harness in Phase 1; per-phase tests thereafter                                                                                                                           |
+| §16 Rollout                           | Phase list mirrors it (split M3 → 5+6; split M4 → 7+8)                                                                                                                                           |
+| §17 Assumed defaults                  | Enforced by schema and RLS; #4 (live prompts mid-meeting) supported because prompt.create requires only owner + meeting membership; #10 grace = `GRACE_MIN = 15`; #11 first admin = auth trigger |
 
 No gaps.
 

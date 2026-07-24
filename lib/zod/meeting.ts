@@ -52,3 +52,9 @@ export const advanceTo = z.object({
   item_id: z.string().uuid().nullable(),
 });
 export type AdvanceToInput = z.infer<typeof advanceTo>;
+
+export const postponeManual = z.object({
+  meeting_id: z.string().uuid(),
+  new_scheduled_start: z.string().datetime(),
+});
+export type PostponeManualInput = z.infer<typeof postponeManual>;

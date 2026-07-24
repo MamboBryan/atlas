@@ -1,12 +1,23 @@
 "use client";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   advanceMeetingAgenda,
   endMeeting,
+  postponeMeetingManual,
   startMeeting,
 } from "@/lib/actions/meeting";
 import { AgendaRunner } from "@/components/meetings/agenda-runner";
@@ -18,13 +29,31 @@ type MeetingRow = {
   current_agenda_item_id: string | null;
 };
 
+function toLocalInputValue(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    d.getFullYear() +
+    "-" +
+    pad(d.getMonth() + 1) +
+    "-" +
+    pad(d.getDate()) +
+    "T" +
+    pad(d.getHours()) +
+    ":" +
+    pad(d.getMinutes())
+  );
+}
+
 export function MeetingLiveView({
   meetingId,
+  scheduledStart,
   initialMeeting,
   initialItems,
   isHost,
 }: {
   meetingId: string;
+  scheduledStart: string;
   initialMeeting: MeetingRow;
   initialItems: AgendaItem[];
   isHost: boolean;
@@ -34,6 +63,15 @@ export function MeetingLiveView({
   const [err, setErr] = useState<string | null>(null);
   const [meeting, setMeeting] = useState<MeetingRow>(initialMeeting);
   const [items, setItems] = useState<AgendaItem[]>(initialItems);
+  const [postponeOpen, setPostponeOpen] = useState(false);
+  const defaultPostponeLocal = useMemo(() => {
+    const d = new Date(scheduledStart);
+    d.setDate(d.getDate() + 1);
+    return toLocalInputValue(d.toISOString());
+  }, [scheduledStart]);
+  const [newStartLocal, setNewStartLocal] = useState<string>(
+    defaultPostponeLocal,
+  );
 
   const refreshMeeting = useCallback(async () => {
     const s = createSupabaseBrowserClient();
@@ -139,6 +177,27 @@ export function MeetingLiveView({
     advanceTo(next ? next.id : null);
   }
 
+  function doPostpone() {
+    setErr(null);
+    if (!newStartLocal) {
+      setErr("Pick a new date and time");
+      return;
+    }
+    const iso = new Date(newStartLocal).toISOString();
+    start(async () => {
+      const res = await postponeMeetingManual({
+        meeting_id: meetingId,
+        new_scheduled_start: iso,
+      });
+      if (!res.ok) {
+        setErr(res.error.message);
+        return;
+      }
+      setPostponeOpen(false);
+      router.push(`/meetings/${res.data.id}`);
+    });
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <section className="space-y-3">
@@ -214,9 +273,57 @@ export function MeetingLiveView({
             <div className="text-sm font-medium">Host controls</div>
             <div className="flex flex-wrap gap-2">
               {meeting.status === "scheduled" && (
-                <Button onClick={doStart} disabled={pending}>
-                  {pending ? "…" : "Start meeting"}
-                </Button>
+                <>
+                  <Button onClick={doStart} disabled={pending}>
+                    {pending ? "…" : "Start meeting"}
+                  </Button>
+                  <Dialog open={postponeOpen} onOpenChange={setPostponeOpen}>
+                    <DialogTrigger
+                      render={
+                        <Button variant="outline" disabled={pending}>
+                          Postpone
+                        </Button>
+                      }
+                    />
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Postpone meeting</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="new-start">New date & time</Label>
+                          <Input
+                            id="new-start"
+                            type="datetime-local"
+                            value={newStartLocal}
+                            onChange={(e) => setNewStartLocal(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            The current meeting will be marked postponed and a
+                            new one created with the same agenda and host.
+                          </p>
+                        </div>
+                        {err && (
+                          <p className="text-sm text-destructive" role="alert">
+                            {err}
+                          </p>
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          variant="secondary"
+                          onClick={() => setPostponeOpen(false)}
+                          disabled={pending}
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={doPostpone} disabled={pending}>
+                          {pending ? "…" : "Postpone"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
               )}
               {meeting.status === "live" && (
                 <>

@@ -145,6 +145,7 @@ export default async function MeetingDetailPage({
 
       <MeetingLiveView
         meetingId={m.id}
+        scheduledStart={m.scheduled_start}
         initialMeeting={{
           id: m.id,
           status: m.status,

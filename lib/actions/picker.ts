@@ -126,7 +126,7 @@ export async function restartShuffle(id: string): Promise<ActionResult<null>> {
 
 export async function setAgendaPickerResult(
   itemId: string,
-  pickerResult: { user_id: string },
+  pickerResult: { user_id: string } | { shuffle_session_id: string },
 ): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
   const { data: item } = await supabase

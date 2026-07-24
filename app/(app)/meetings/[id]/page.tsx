@@ -65,7 +65,7 @@ export default async function MeetingDetailPage({
       : Promise.resolve({ data: null }),
     supabase
       .from("agenda_items")
-      .select("id,ordinal,title,kind,prompt_id")
+      .select("id,ordinal,title,kind,prompt_id,picker_config,picker_result")
       .eq("meeting_id", id)
       .order("ordinal", { ascending: true }),
   ]);

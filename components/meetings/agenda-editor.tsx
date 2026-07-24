@@ -10,12 +10,21 @@ import {
   reorderAgendaAction,
 } from "@/lib/actions/agenda";
 
+export type PickerConfig = {
+  mode: "oneshot" | "shuffle";
+  scope: "meeting_participants" | "whole_roster";
+};
+
+export type PickerResult = { user_id: string } | { shuffle_session_id: string };
+
 export type AgendaItem = {
   id: string;
   ordinal: number;
   title: string;
   kind: "discussion" | "prompt" | "picker";
   prompt_id: string | null;
+  picker_config: PickerConfig | null;
+  picker_result: PickerResult | null;
 };
 
 export type PromptOption = {
@@ -219,7 +228,7 @@ export function AgendaEditor({
             </select>
             <p className="text-xs text-muted-foreground">
               Only shows standalone prompts you own. Meeting-scoped prompts
-              land in Phase 6.
+              land in a later phase.
             </p>
           </div>
         )}

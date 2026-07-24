@@ -49,7 +49,7 @@ export function MeetingLiveView({
     const s = createSupabaseBrowserClient();
     const { data } = await s
       .from("agenda_items")
-      .select("id,ordinal,title,kind,prompt_id")
+      .select("id,ordinal,title,kind,prompt_id,picker_config,picker_result")
       .eq("meeting_id", meetingId)
       .order("ordinal", { ascending: true });
     if (data) setItems(data as AgendaItem[]);
@@ -202,7 +202,11 @@ export function MeetingLiveView({
             Meeting ended.
           </div>
         ) : (
-          <AgendaRunner current={current} />
+          <AgendaRunner
+            current={current}
+            meetingId={meetingId}
+            isHost={isHost}
+          />
         )}
 
         {isHost && (

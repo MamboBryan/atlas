@@ -1,23 +1,16 @@
-// app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
-import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
-
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+import { geist, nunito } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: "Atlas",
   description: "Team meeting rituals",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={cn("font-sans", geist.variable, nunito.variable)}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
       </body>

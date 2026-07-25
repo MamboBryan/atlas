@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth/require";
+import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
+import { Badge, LiveBadge } from "@/components/ui/badge";
+import { NewMeetingTrigger } from "./_ui/new-meeting-trigger";
 
 type MeetingRow = {
   id: string;
@@ -33,15 +34,14 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 }
 
 function StatusBadge({ status }: { status: MeetingRow["status"] }) {
-  if (status === "live") return <Badge>Live</Badge>;
-  if (status === "scheduled") return <Badge variant="outline">Scheduled</Badge>;
-  if (status === "ended") return <Badge variant="secondary">Ended</Badge>;
-  if (status === "postponed")
-    return <Badge variant="outline">Postponed</Badge>;
+  if (status === "live") return <LiveBadge />;
+  if (status === "scheduled") return <Badge variant="scheduled">Scheduled</Badge>;
+  if (status === "ended") return <Badge variant="ended">Ended</Badge>;
+  if (status === "postponed") return <Badge variant="postponed">Postponed</Badge>;
   return <Badge variant="outline">Cancelled</Badge>;
 }
 
-function Row({
+function MeetingCard({
   m,
   host,
   viewerTz,
@@ -53,25 +53,20 @@ function Row({
   participantCount: number;
 }) {
   return (
-    <Link
-      href={`/meetings/${m.id}` as never}
-      className="block rounded-lg border p-4 hover:bg-muted transition-colors"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-medium truncate">{m.title}</div>
-          <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
-            <span>{fmtWhen(m.scheduled_start, m.timezone, viewerTz)}</span>
-            <span>·</span>
-            <span>host {host}</span>
-            <span>·</span>
-            <span>{participantCount} participants</span>
-          </div>
-        </div>
-        <div className="shrink-0 flex flex-wrap gap-1.5 justify-end">
-          <StatusBadge status={m.status} />
-        </div>
-      </div>
+    <Link href={`/meetings/${m.id}` as never} className="block no-underline">
+      <Card interactive size="sm">
+        <CardHeader>
+          <CardTitle className="truncate">{m.title}</CardTitle>
+          <CardDescription>
+            {fmtWhen(m.scheduled_start, m.timezone, viewerTz)}
+            {" · "}host {host}
+            {" · "}{participantCount} participants
+          </CardDescription>
+          <CardAction>
+            <StatusBadge status={m.status} />
+          </CardAction>
+        </CardHeader>
+      </Card>
     </Link>
   );
 }
@@ -127,66 +122,58 @@ export default async function MeetingsPage() {
     (m) => m.status === "ended" || m.status === "cancelled",
   );
 
-  const viewerTz =
-    Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+  const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
   return (
     <div className="space-y-8 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Meetings</h1>
-        <div className="flex items-center gap-2">
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-extrabold text-ink">Meetings</h1>
+          <p className="text-sm text-ink-soft">Upcoming rituals for your team.</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           <Link
             href={"/meetings/past" as never}
-            className={buttonVariants({ variant: "outline" })}
+            className="inline-flex h-10 items-center rounded-md border border-ink bg-surface-raised px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface"
           >
             Past
           </Link>
-          <Link href={"/meetings/new" as never} className={buttonVariants()}>
-            New meeting
-          </Link>
+          <NewMeetingTrigger defaultTimezone={viewerTz} />
         </div>
-      </div>
+      </header>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Live now ({live.length})
-        </h2>
-        {live.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing live.</p>
-        ) : (
+      {live.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
+            Live now ({live.length})
+          </h2>
           <div className="space-y-2">
             {live.map((m) => (
-              <Row
+              <MeetingCard
                 key={m.id}
                 m={m}
-                host={
-                  m.host_user_id ? nameById.get(m.host_user_id) ?? "?" : "?"
-                }
+                host={m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"}
                 viewerTz={viewerTz}
                 participantCount={pc(m)}
               />
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
           Upcoming ({upcoming.length})
         </h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No upcoming meetings.
-          </p>
+          <p className="text-sm text-ink-soft">No upcoming meetings. Schedule one!</p>
         ) : (
           <div className="space-y-2">
             {upcoming.map((m) => (
-              <Row
+              <MeetingCard
                 key={m.id}
                 m={m}
-                host={
-                  m.host_user_id ? nameById.get(m.host_user_id) ?? "?" : "?"
-                }
+                host={m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"}
                 viewerTz={viewerTz}
                 participantCount={pc(m)}
               />
@@ -196,20 +183,18 @@ export default async function MeetingsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Past ({past.length})
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
+          Recent past ({past.length})
         </h2>
         {past.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No past meetings.</p>
+          <p className="text-sm text-ink-soft">No past meetings yet.</p>
         ) : (
           <div className="space-y-2">
             {past.map((m) => (
-              <Row
+              <MeetingCard
                 key={m.id}
                 m={m}
-                host={
-                  m.host_user_id ? nameById.get(m.host_user_id) ?? "?" : "?"
-                }
+                host={m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"}
                 viewerTz={viewerTz}
                 participantCount={pc(m)}
               />

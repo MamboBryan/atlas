@@ -1,6 +1,5 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/require";
-import { RosterTable } from "@/components/app/roster-table";
+import { RosterGrid } from "@/components/app/roster-grid";
 
 export default async function RosterPage() {
   const { user, supabase } = await requireUser();
@@ -16,7 +15,7 @@ export default async function RosterPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Roster</h1>
-      <RosterTable
+      <RosterGrid
         rows={data ?? []}
         isAdmin={mine?.role === "admin"}
         currentUserId={user.id}

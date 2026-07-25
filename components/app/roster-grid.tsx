@@ -1,10 +1,17 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -13,13 +20,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   addMemberAction,
   deactivateAction,
@@ -34,7 +34,7 @@ type Row = {
   is_active: boolean;
 };
 
-export function RosterTable({
+export function RosterGrid({
   rows,
   isAdmin,
   currentUserId,
@@ -83,7 +83,7 @@ export function RosterTable({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {isAdmin && (
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger render={<Button>Add member</Button>} />
@@ -130,83 +130,64 @@ export function RosterTable({
         </Dialog>
       )}
 
-      <div className="rounded border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left">
-            <tr>
-              <th className="p-2">Name</th>
-              <th className="p-2">Email</th>
-              <th className="p-2">Role</th>
-              <th className="p-2">Status</th>
-              {isAdmin && <th className="p-2 w-8" />}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td
-                  colSpan={isAdmin ? 5 : 4}
-                  className="p-4 text-center text-muted-foreground"
-                >
-                  No members yet.
-                </td>
-              </tr>
-            )}
-            {rows.map((r) => (
-              <tr
-                key={r.id}
-                className={
-                  r.id === currentUserId ? "border-t bg-muted/40" : "border-t"
-                }
-              >
-                <td className="p-2 font-medium">
-                  {r.display_name}
-                  {r.id === currentUserId && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      (you)
-                    </span>
+      {rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-ink-soft">No members yet.</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {rows.map((m) => (
+            <Card key={m.id} interactive>
+              <CardHeader>
+                <CardTitle>
+                  <Link
+                    href={`/roster/${m.id}` as never}
+                    className="hover:underline"
+                  >
+                    {m.display_name}
+                    {m.id === currentUserId && (
+                      <span className="ml-2 text-xs font-normal text-ink-soft">
+                        (you)
+                      </span>
+                    )}
+                  </Link>
+                </CardTitle>
+                <CardDescription>
+                  {m.role}
+                  {!m.is_active && (
+                    <span className="ml-2 text-ink-faint">&middot; inactive</span>
                   )}
-                </td>
-                <td className="p-2 text-muted-foreground">{r.email}</td>
-                <td className="p-2">
-                  <Badge variant={r.role === "admin" ? "default" : "secondary"}>
-                    {r.role}
-                  </Badge>
-                </td>
-                <td className="p-2">
-                  {r.is_active ? (
-                    <Badge variant="secondary">active</Badge>
-                  ) : (
-                    <Badge variant="outline">inactive</Badge>
+                </CardDescription>
+                <CardAction>
+                  <div className="grid size-12 place-items-center rounded-full bg-primary text-primary-ink font-display font-extrabold text-sm">
+                    {m.display_name.slice(0, 2).toUpperCase()}
+                  </div>
+                </CardAction>
+              </CardHeader>
+              {isAdmin && m.id !== currentUserId && (
+                <div className="flex gap-2 px-5 pb-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleRole(m)}
+                    disabled={pending}
+                  >
+                    Make {m.role === "admin" ? "member" : "admin"}
+                  </Button>
+                  {m.is_active && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deactivate(m)}
+                      disabled={pending}
+                    >
+                      Deactivate
+                    </Button>
                   )}
-                </td>
-                {isAdmin && (
-                  <td className="p-2 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button variant="ghost" size="sm">
-                            …
-                          </Button>
-                        }
-                      />
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => toggleRole(r)}>
-                          Make {r.role === "admin" ? "member" : "admin"}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => deactivate(r)}>
-                          Deactivate
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

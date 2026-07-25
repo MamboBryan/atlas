@@ -4,7 +4,6 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { fireConfettiFrom } from "@/components/ui/confetti-burst";
 import { createMeetingAction } from "@/app/(app)/meetings/actions";
@@ -55,11 +54,6 @@ export function NewMeetingForm({
           <label className="block space-y-1">
             <span className="text-sm font-medium text-ink">Timezone</span>
             <Input name="timezone" defaultValue={defaultTimezone} required placeholder="UTC" />
-          </label>
-
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-ink">Notes (optional)</span>
-            <Textarea name="notes" placeholder="Anything the team should know…" />
           </label>
 
           {error && (

@@ -78,6 +78,10 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to:   { opacity: "1", transform: "translateY(0)" },
         },
+        "rise-out": {
+          from: { opacity: "1", transform: "translateY(0)" },
+          to:   { opacity: "0", transform: "translateY(8px)" },
+        },
         "pulse-dot": {
           "0%, 100%": { transform: "scale(1)", opacity: "1" },
           "50%":      { transform: "scale(1.3)", opacity: "0.6" },

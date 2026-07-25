@@ -43,6 +43,25 @@ export async function oneShotPick(
   return ok({ user_id: pickOne(ids) });
 }
 
+export async function listEligibleNames(
+  meetingId?: string | null,
+): Promise<ActionResult<Array<{ id: string; display_name: string }>>> {
+  const { supabase } = await requireUser();
+  const ids = await eligibleUserIds(supabase, meetingId);
+  if (ids.length === 0) return err("empty_roster", "no eligible users");
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,display_name")
+    .in("id", ids);
+  if (error) return err("db_error", error.message);
+  return ok(
+    (data ?? []).map((p: { id: string; display_name: string }) => ({
+      id: p.id,
+      display_name: p.display_name,
+    })),
+  );
+}
+
 export async function startShuffle(
   meetingId: string | null,
 ): Promise<ActionResult<{ id: string }>> {

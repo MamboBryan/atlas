@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { RandomPickCard } from "@/components/tools/random-pick-card";
+import { PickRunner } from "@/components/tools/pick-runner";
 
 export default function ToolsPickPage() {
   return (
@@ -16,7 +16,7 @@ export default function ToolsPickPage() {
       <p className="text-sm text-muted-foreground">
         Picks a random active roster member who&apos;s available today.
       </p>
-      <RandomPickCard />
+      <PickRunner />
     </div>
   );
 }

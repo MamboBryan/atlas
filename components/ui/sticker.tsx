@@ -1,3 +1,5 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { stickerRegistry } from "./sticker-svgs";
 

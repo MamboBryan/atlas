@@ -115,3 +115,72 @@ signed in as different users. All timestamps in your local timezone.
 - [ ] Timezones: create a meeting in a non-viewer timezone; viewer sees both
       local and source times
 - [ ] Sign-out clears session and redirects to `/sign-in`
+
+## Keyboard navigation manual pass
+
+Run after each UI rebuild. Use keyboard only — no mouse allowed during this
+pass. A visible focus ring must be present at every step.
+
+### Sign-in page (`/sign-in`)
+
+- [ ] Tab once → focus lands on the Email input (autofocus)
+- [ ] Type an address, Tab → focus moves to "Send magic link" button
+- [ ] Enter → button activates (sends magic link)
+- [ ] Tab again → focus moves to "Continue with Google" button
+- [ ] Enter → Google OAuth redirect begins
+- [ ] Shift+Tab cycles back through the two buttons and then the input
+
+### Nav sidebar / top bar
+
+- [ ] Tab from page body → focus enters the nav
+- [ ] Arrow keys or Tab move through all nav links in DOM order
+- [ ] Each nav link shows a clearly visible focus ring (not just a colour shift)
+- [ ] Enter on a nav link navigates to that page
+- [ ] Notification bell is reachable and activates with Enter/Space
+- [ ] User-avatar / sign-out button is reachable and activates with Enter/Space
+
+### Home page (`/`)
+
+- [ ] Tab through "Your next meeting" card → link inside is focusable and
+      activates with Enter
+- [ ] "Open" / "Postpone or view" button is focusable and activates
+- [ ] "Awaiting your response" poll cards are each focusable; Enter navigates
+      to the poll
+- [ ] "Pick someone" and "Shuffle roster" buttons are reachable and activate
+      with Space/Enter
+- [ ] "New meeting" empty-state action button is reachable when no meeting exists
+
+### Meetings list (`/meetings`)
+
+- [ ] "Past" link is focusable and activates
+- [ ] "New meeting" button is focusable; Enter opens the new-meeting sheet
+- [ ] Each meeting card link is focusable and activates with Enter
+
+### New meeting sheet (`/meetings?new=meeting`)
+
+- [ ] Sheet opens — focus moves automatically to the first form field (Title)
+- [ ] Tab cycles through all form inputs: Title → Date → Time → Timezone →
+      submit button
+- [ ] Esc closes the sheet; focus returns to the "New meeting" trigger button
+- [ ] All form labels are visually associated with their inputs (no orphan
+      labels)
+
+### Poll detail (`/polls/[id]`)
+
+- [ ] Option buttons / radio inputs are Tab-reachable and toggle with
+      Space/Enter
+- [ ] "Submit" button is reachable; Enter activates it
+- [ ] Confirmation dialog (if present) traps focus inside: Tab cycles only
+      within the dialog; Esc closes it
+- [ ] After dialog closes, focus returns to the submit button or a sensible
+      landmark
+- [ ] "Reveal" button (owner only) is reachable and activates
+
+### General rules
+
+- [ ] No focus traps outside of modal dialogs / sheets
+- [ ] Skip-to-main-content link appears on first Tab keypress (if implemented)
+- [ ] No interactive element is reachable only by mouse (hover menus etc.)
+- [ ] Focus order matches visual reading order (top-left → bottom-right)
+- [ ] All icon-only buttons have an accessible label (`aria-label` or
+      visually-hidden text)

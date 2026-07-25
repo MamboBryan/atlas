@@ -4,6 +4,6 @@ test("unauthenticated → sign-in", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(
-    page.getByRole("heading", { name: "Sign in to Atlas" }),
+    page.getByRole("heading", { name: "Welcome to Atlas" }),
   ).toBeVisible();
 });

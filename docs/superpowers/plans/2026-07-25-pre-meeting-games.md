@@ -1638,7 +1638,9 @@ export async function getLeaderboardAction(): Promise<
 - [ ] **Step 2: Typecheck**
 
 Run: `pnpm typecheck`
-Expected: no errors. If the `profiles.display_name` field is named differently in your Supabase types, adjust the join columns above to match (`grep -n "display_name\|full_name" lib/zod/profile.ts db/supabase/supabase/migrations/0002_profiles.sql`).
+Expected: no errors.
+
+**Note on the join syntax:** the `game_rounds!inner(...)` and `profiles!inner(...)` embeds require postgrest to recognize the FK relationships (`game_submissions.round_id → game_rounds.id`, `game_submissions.player_id → profiles.id`). Both are declared in `0022_pre_meeting_games.sql` so this should just work. If postgrest doesn't pick them up (rare but happens if the schema cache is stale), restart the local Supabase (`pnpm supabase stop && pnpm supabase start`) or fall back to two sequential queries: first `select id, player_id, points from game_submissions … where points is not null`, then hydrate `display_name`s via `select id, display_name from profiles where id in (…)`.
 
 - [ ] **Step 3: Commit**
 
@@ -2423,23 +2425,23 @@ function formatDisplay(
 
 - [ ] **Step 2: Mount the panel on the meeting page**
 
-Inspect the current page shell:
-
-Run: `grep -n "status\|agenda" app/(app)/meetings/\[id\]/page.tsx | head -30`
-
-Then add the panel above the agenda section. In `app/(app)/meetings/[id]/page.tsx`, import and render:
+The page already fetches `status,scheduled_start` (see `app/(app)/meetings/[id]/page.tsx` line 63) and casts to a local `Meeting` type. The panel needs to render for **every participant**, not just the host, so mount it **outside** the `isHost` gate. Insert it after the `<header>` block and before the `{(m.status === "live" || m.status === "ended") && <MeetingLiveView ...>` block (~line 208):
 
 ```tsx
+// at the top of the file, alongside the other imports:
 import { GameLobbyPanel } from "@/components/games/game-lobby-panel";
-// …inside the JSX, before the agenda block:
-<GameLobbyPanel
-  meetingId={meeting.id}
-  scheduledStart={meeting.scheduled_start}
-  status={meeting.status}
-/>
+
+// inside the JSX, immediately before the MeetingLiveView block:
+{m.status === "scheduled" && (
+  <GameLobbyPanel
+    meetingId={m.id}
+    scheduledStart={m.scheduled_start}
+    status={m.status}
+  />
+)}
 ```
 
-Ensure `meeting.scheduled_start` and `meeting.status` are already fetched by the page's server component; if not, add them to the existing `.select(...)`.
+The `m.status === "scheduled"` guard is redundant with the panel's own guard but keeps the render tree clean (no wasted server-component render + `ensureRoundAction` call during live/ended meetings).
 
 - [ ] **Step 3: Manual smoke test**
 
@@ -2458,43 +2460,70 @@ git commit -m "feat(games): mount pre-meeting game panel above meeting agenda"
 ## Task 15: Hook finalize into the start-meeting flow
 
 **Files:**
-- Modify: whatever file dispatches the "Start meeting" server action (locate with `grep -rn "status.*live\|startMeeting\|start_meeting" lib/actions components`).
-- Add: a call to `finalizeRoundAction({ round_id })` when a `game_rounds` row exists for the meeting and is `active`.
+- Modify: `lib/actions/meeting.ts` — extend `startMeeting(meeting_id: string)` (currently at ~line 76) to finalize the game round before flipping status to `'live'`.
 
 **Interfaces:**
 - Consumes: `finalizeRoundAction`.
 - Produces: none new — extends existing meeting-start behaviour.
 
-- [ ] **Step 1: Locate the start-meeting action**
+**Why the server action, not the button:** `components/meetings/meeting-header-actions.tsx:75` is the current caller, but wiring finalize on the server-action side guarantees it runs no matter which caller invokes `startMeeting` (button now, API in the future). It also means the finalize happens with the caller's session on the request boundary, which is what the RLS + SECURITY DEFINER contract expects.
 
-Run: `grep -rn "status.*'live'\|from(\"meetings\").update" lib/actions | head`
-Expected: find the action that transitions `meetings.status` from `scheduled` to `live`.
+- [ ] **Step 1: Add the finalize call inside `startMeeting`**
 
-- [ ] **Step 2: Add finalize call**
-
-Inside that action, before the `status → 'live'` update:
+Modify `lib/actions/meeting.ts` — locate the `startMeeting` export (~line 76) and update it:
 
 ```ts
 import { finalizeRoundAction } from "@/lib/actions/game";
-// …
-const round = await supabase
-  .from("game_rounds")
-  .select("id, status")
-  .eq("meeting_id", meetingId)
-  .maybeSingle();
-if (round.data && round.data.status === "active") {
-  await finalizeRoundAction({ round_id: round.data.id });
+
+export async function startMeeting(
+  meeting_id: string,
+): Promise<ActionResult<null>> {
+  const { user, supabase } = await requireUser();
+
+  // If there's an active pre-meeting game round, finalize it first so its
+  // scoreboard is written before the meeting transitions to 'live' (which
+  // hides the lobby panel).
+  const { data: round } = await supabase
+    .from("game_rounds")
+    .select("id, status")
+    .eq("meeting_id", meeting_id)
+    .maybeSingle();
+  if (round?.status === "active") {
+    await finalizeRoundAction({ round_id: round.id });
+  }
+
+  const { error } = await supabase
+    .from("meetings")
+    .update({
+      status: "live",
+      started_at: new Date().toISOString(),
+      auto_postpone_count: 0,
+    })
+    .eq("id", meeting_id)
+    .eq("host_user_id", user.id);
+  if (error) return err("db_error", error.message);
+
+  revalidatePath(`/meetings/${meeting_id}`);
+  return ok(null);
 }
 ```
 
+- [ ] **Step 2: Typecheck**
+
+Run: `pnpm typecheck`
+Expected: no errors.
+
 - [ ] **Step 3: Manual test**
 
-Start a scheduled meeting via the UI. Confirm the round transitions to `finished`, `game_submissions.points` are populated, and the scoreboard renders.
+Start a scheduled meeting via the UI (host clicks the Start button in `MeetingHeaderActions`). Verify:
+- `select id, status, finalized_at from game_rounds order by created_at desc limit 1;` shows `status='finished'`, `finalized_at` populated.
+- `select player_id, points from game_submissions where round_id = '…';` shows non-null points for every submission.
+- The lobby panel disappears from the page (meeting is now live).
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add lib/actions/<start-meeting-file>.ts
+git add lib/actions/meeting.ts
 git commit -m "feat(games): finalize active round when meeting starts"
 ```
 

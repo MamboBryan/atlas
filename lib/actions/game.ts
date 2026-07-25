@@ -31,7 +31,8 @@ export const LOBBY_OPEN_WINDOW_MS = 10 * 60_000;
 
 type PublicPuzzle =
   | { kind: "target_number"; target: number; bases: number[] }
-  | { kind: "zero_in" }; // secret hidden until finished
+  | { kind: "zero_in" }            // active: secret hidden
+  | { kind: "zero_in"; secret: number }; // finished: secret revealed
 
 export type EnsureRoundResult = {
   round_id: string;
@@ -128,6 +129,18 @@ function publicize(row: RoundRow): EnsureRoundResult {
       round_id: row.id,
       kind: "target_number",
       puzzle: { kind: "target_number", target: p.target, bases: p.bases },
+      started_at: row.started_at,
+      ends_at: row.ends_at,
+      status: row.status,
+    };
+  }
+  // Reveal the secret only after the round is finished.
+  const p = row.puzzle as { secret: number };
+  if (row.status === "finished") {
+    return {
+      round_id: row.id,
+      kind: "zero_in",
+      puzzle: { kind: "zero_in", secret: p.secret },
       started_at: row.started_at,
       ends_at: row.ends_at,
       status: row.status,

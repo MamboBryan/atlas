@@ -73,8 +73,19 @@ export async function GameLobbyPanel({
       points: s.points ?? 0,
       display: formatDisplay(round.kind, s.payload, s.profiles.display_name),
     }));
+    // For Zero In, the round result reveals the secret number.
+    const revealedSecret =
+      round.kind === "zero_in" && round.puzzle.kind === "zero_in" && "secret" in round.puzzle
+        ? round.puzzle.secret
+        : undefined;
     return (
       <section className="space-y-4 rounded-lg border p-4">
+        {revealedSecret !== undefined && (
+          <div className="rounded-md bg-muted px-4 py-3 text-center">
+            <span className="text-sm text-muted-foreground uppercase tracking-wide">The secret was</span>
+            <div className="text-4xl font-bold tabular-nums">{revealedSecret}</div>
+          </div>
+        )}
         <RoundScoreboard
           roundId={round.round_id}
           kind={round.kind}

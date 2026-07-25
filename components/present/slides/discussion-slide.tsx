@@ -29,7 +29,7 @@ export function DiscussionSlide({
 
   return (
     <div className="flex h-full flex-col p-10">
-      <header className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
+      <div className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
         <span>
           Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}
         </span>
@@ -40,7 +40,7 @@ export function DiscussionSlide({
           <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
           Discussion
         </span>
-      </header>
+      </div>
 
       <div className="flex-1 flex items-center">
         <h1

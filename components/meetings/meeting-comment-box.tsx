@@ -79,8 +79,10 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
       if (commentId && !knownCommentIds.current.has(commentId)) return;
       load();
     };
+    // Per-mount unique name so StrictMode's remount doesn't hit the cached
+    // (already-subscribed) channel that Supabase keeps by name.
     const ch = s
-      .channel(`meeting-comments:${meetingId}`)
+      .channel(`meeting-comments:${meetingId}:${crypto.randomUUID()}`)
       .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comments", filter: `meeting_id=eq.${meetingId}` }, load)
       .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comment_reactions" }, loadIfKnown)
       .subscribe();

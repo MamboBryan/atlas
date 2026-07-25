@@ -28,7 +28,7 @@ export function StandbySlide({
 
   return (
     <div className="flex h-full flex-col p-10">
-      <header className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
+      <div className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
         <span>{meetingTitle} · standby</span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
@@ -40,7 +40,7 @@ export function StandbySlide({
           />
           Waiting
         </span>
-      </header>
+      </div>
 
       <div className="flex-1 flex flex-col justify-center max-w-3xl">
         <h1 className="font-display font-black leading-none tracking-tight" style={{ fontSize: 64 }}>

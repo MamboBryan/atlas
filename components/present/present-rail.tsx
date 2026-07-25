@@ -14,6 +14,7 @@ export function PresentRail({
   currentAgendaItemId,
   comments,
   reactionsByComment,
+  showComposer = true,
 }: {
   palette: Palette;
   viewerId: string;
@@ -21,6 +22,7 @@ export function PresentRail({
   currentAgendaItemId: string | null;
   comments: PresentComment[];
   reactionsByComment: Record<string, { emoji: string; user_id: string }[]>;
+  showComposer?: boolean;
 }) {
   const [body, setBody] = useState("");
   const [pending, start] = useTransition();
@@ -39,7 +41,7 @@ export function PresentRail({
   }, [body, meetingId, currentAgendaItemId]);
 
   return (
-    <aside className="flex flex-col bg-white text-black border-l-2 border-dashed border-black/40">
+    <aside className="flex flex-col bg-white text-black border-l-2 border-solid border-black/40">
       <div className="px-4 pt-4 text-[11px] uppercase tracking-widest font-black text-neutral-500">
         Comments · live
       </div>
@@ -57,25 +59,27 @@ export function PresentRail({
           />
         ))}
       </ol>
-      <form
-        className="border-t-2 border-dashed border-black/40 p-3 flex gap-2"
-        onSubmit={(e) => { e.preventDefault(); submit(); }}
-      >
-        <input
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Comment as host…"
-          className="flex-1 rounded-xl border-2 border-black/60 px-3 py-2 text-sm"
-          maxLength={500}
-        />
-        <button
-          type="submit"
-          disabled={pending || body.trim().length === 0}
-          className="rounded-xl border-2 border-black bg-black px-3 py-2 text-sm text-white font-extrabold disabled:opacity-50"
+      {showComposer && (
+        <form
+          className="border-t-2 border-solid border-black/40 p-3 flex gap-2"
+          onSubmit={(e) => { e.preventDefault(); submit(); }}
         >
-          Send
-        </button>
-      </form>
+          <input
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Comment as host…"
+            className="flex-1 rounded-xl border-2 border-black/60 px-3 py-2 text-sm"
+            maxLength={500}
+          />
+          <button
+            type="submit"
+            disabled={pending || body.trim().length === 0}
+            className="rounded-xl border-2 border-black bg-black px-3 py-2 text-sm text-white font-extrabold disabled:opacity-50"
+          >
+            Send
+          </button>
+        </form>
+      )}
     </aside>
   );
 }

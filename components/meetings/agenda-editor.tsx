@@ -35,11 +35,13 @@ export type PromptOption = {
 export function AgendaEditor({
   meetingId,
   items,
+  readOnly = false,
 }: {
   meetingId: string;
   items: AgendaItem[];
   /** Kept for API compatibility with existing callers. */
   availablePrompts?: PromptOption[];
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -82,8 +84,30 @@ export function AgendaEditor({
       <EmptyState
         icon={MeetingRoomIcon}
         headline="No agenda items yet"
-        body="Add one from the panel on the right to keep the meeting on track."
+        body={
+          readOnly
+            ? "The host hasn't added any items."
+            : "Add one from the panel on the right to keep the meeting on track."
+        }
       />
+    );
+  }
+
+  if (readOnly) {
+    return (
+      <div className="space-y-3">
+        {items.map((it, i) => (
+          <Card key={it.id} size="sm" className="!py-3">
+            <CardContent className="flex items-center gap-3 !px-4">
+              <div className="w-6 text-xs text-ink-soft">{i + 1}.</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-ink">{it.title}</div>
+                <div className="text-xs text-ink-soft capitalize">{it.kind}</div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     );
   }
 

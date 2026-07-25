@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { AgendaItem } from "@/components/meetings/agenda-editor";
 
@@ -24,18 +25,20 @@ export function AgendaSummary({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
-        {label} — no agenda items.
-      </div>
+      <Card size="sm">
+        <CardContent className="text-center text-sm text-ink-soft">
+          {label} — no agenda items.
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+      <div className="text-xs font-display font-extrabold uppercase tracking-widest text-ink-soft">
         {label} — final state
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {items.map((it, i) => (
           <SummaryCard key={it.id} item={it} index={i} />
         ))}
@@ -46,23 +49,23 @@ export function AgendaSummary({
 
 function SummaryCard({ item, index }: { item: AgendaItem; index: number }) {
   return (
-    <div className="rounded-lg border p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xs text-muted-foreground">
-            {index + 1}. {item.kind}
-          </div>
-          <div className="text-sm font-medium truncate">{item.title}</div>
+    <Card size="sm">
+      <CardContent className="space-y-2">
+        <div className="text-xs text-ink-soft capitalize">
+          {index + 1}. {item.kind}
         </div>
-      </div>
-      <div className="mt-2">
-        {item.kind === "discussion" && (
-          <p className="text-xs text-muted-foreground">Open discussion.</p>
-        )}
-        {item.kind === "prompt" && <PromptFinal promptId={item.prompt_id} />}
-        {item.kind === "picker" && <PickerFinal item={item} />}
-      </div>
-    </div>
+        <div className="text-sm font-extrabold text-ink truncate">
+          {item.title}
+        </div>
+        <div>
+          {item.kind === "discussion" && (
+            <p className="text-xs text-ink-soft">Open discussion.</p>
+          )}
+          {item.kind === "prompt" && <PromptFinal promptId={item.prompt_id} />}
+          {item.kind === "picker" && <PickerFinal item={item} />}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

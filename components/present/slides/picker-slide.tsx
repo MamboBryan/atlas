@@ -118,7 +118,7 @@ export function PickerSlide({
     void load();
     const s = createSupabaseBrowserClient();
     const ch = s
-      .channel(`shuffle:${shuffleSessionId}`)
+      .channel(`shuffle:${shuffleSessionId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as never,
         { event: "UPDATE", schema: "public", table: "shuffle_sessions", filter: `id=eq.${shuffleSessionId}` },
@@ -148,7 +148,7 @@ export function PickerSlide({
     <div className="relative flex h-full flex-col p-10">
       <Confetti trigger={oneshotUserId ?? shuffleState?.current?.id ?? null} />
 
-      <header className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
+      <div className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
         <span>Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}</span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
@@ -157,7 +157,7 @@ export function PickerSlide({
           <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
           Picker · {state.startsWith("oneshot") ? "oneshot" : "shuffle"}
         </span>
-      </header>
+      </div>
 
       <div className="flex-1 flex flex-col items-center justify-center gap-6">
         {state === "oneshot-idle" && (

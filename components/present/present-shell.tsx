@@ -99,7 +99,7 @@ export function PresentShell(props: PresentShellProps) {
   useEffect(() => {
     const s = createSupabaseBrowserClient();
     const ch = s
-      .channel(`meeting:${props.meetingId}`)
+      .channel(`meeting:${props.meetingId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as never,
         { event: "UPDATE", schema: "public", table: "meetings", filter: `id=eq.${props.meetingId}` },
@@ -170,7 +170,7 @@ export function PresentShell(props: PresentShellProps) {
       refreshComments();
     };
     const ch = s
-      .channel(`meeting-comments:${props.meetingId}`)
+      .channel(`meeting-comments:${props.meetingId}:${crypto.randomUUID()}`)
       .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comments", filter: `meeting_id=eq.${props.meetingId}` }, refreshComments)
       .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comment_reactions" }, refreshReactionsIfKnown)
       .subscribe();
@@ -242,10 +242,13 @@ export function PresentShell(props: PresentShellProps) {
   const total = items.length;
   const index = currentItem ? items.findIndex((i) => i.id === currentItem.id) + 1 : 0;
 
+  const [showComments, setShowComments] = useState(true);
+  const [showComposer, setShowComposer] = useState(true);
+
   return (
     <div
       className="grid h-full w-full"
-      style={{ gridTemplateColumns: "1fr 320px" }}
+      style={{ gridTemplateColumns: showComments ? "1fr 320px" : "1fr" }}
     >
       <div
         className="relative overflow-hidden flex flex-col"
@@ -308,16 +311,42 @@ export function PresentShell(props: PresentShellProps) {
             meetingTitle={props.meetingTitle}
           />
         )}
+
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowComposer((v) => !v)}
+            className="rounded-full border-2 px-3 py-1 text-[11px] uppercase tracking-widest font-black opacity-70 hover:opacity-100"
+            style={{ borderColor: palette.ink, color: palette.ink }}
+            aria-pressed={showComposer}
+            title={showComposer ? "Hide composer" : "Show composer"}
+          >
+            {showComposer ? "Hide composer" : "Show composer"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowComments((v) => !v)}
+            className="rounded-full border-2 px-3 py-1 text-[11px] uppercase tracking-widest font-black opacity-70 hover:opacity-100"
+            style={{ borderColor: palette.ink, color: palette.ink }}
+            aria-pressed={showComments}
+            title={showComments ? "Hide comments" : "Show comments"}
+          >
+            {showComments ? "Hide comments" : "Show comments"}
+          </button>
+        </div>
       </div>
 
-      <PresentRail
-        palette={palette}
-        viewerId={props.viewerId}
-        meetingId={props.meetingId}
-        currentAgendaItemId={meeting.current_agenda_item_id}
-        comments={comments}
-        reactionsByComment={reactionsByComment}
-      />
+      {showComments && (
+        <PresentRail
+          palette={palette}
+          viewerId={props.viewerId}
+          meetingId={props.meetingId}
+          currentAgendaItemId={meeting.current_agenda_item_id}
+          comments={comments}
+          reactionsByComment={reactionsByComment}
+          showComposer={showComposer}
+        />
+      )}
     </div>
   );
 }

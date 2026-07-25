@@ -1,9 +1,9 @@
 import { expect, test } from "vitest";
 import { jokes, pickJoke } from "@/lib/present/jokes";
 
-test("jokes pool has 20 unique entries", () => {
-  expect(jokes.length).toBe(20);
-  expect(new Set(jokes).size).toBe(20);
+test("jokes pool has 25 unique entries", () => {
+  expect(jokes.length).toBe(25);
+  expect(new Set(jokes).size).toBe(25);
 });
 
 test("pickJoke is deterministic for a given meeting id", () => {

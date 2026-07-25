@@ -17,9 +17,9 @@ export const stagePalettes: readonly Palette[] = [
 
 export const standbyPalette: Palette = {
   key: "standby",
-  bg: "#0B1220",
-  ink: "#F6F4EE",
-  accent: "#FFE84D",
+  bg: "#FFF8EC",
+  ink: "#111111",
+  accent: "#FFD84A",
   accentInk: "#111111",
 };
 

@@ -73,7 +73,7 @@ export function PromptSlide({
 
   return (
     <div className="flex h-full flex-col p-10">
-      <header className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
+      <div className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
         <span>Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}</span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
@@ -82,7 +82,7 @@ export function PromptSlide({
           <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
           Prompt · {state}
         </span>
-      </header>
+      </div>
 
       {state === "open" ? (
         <div className="flex-1 flex items-center gap-10">

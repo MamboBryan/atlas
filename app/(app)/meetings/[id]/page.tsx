@@ -232,6 +232,19 @@ export default async function MeetingDetailPage({
           />
         </section>
       )}
+
+      {!isHost && m.status === "scheduled" && (
+        <section className="space-y-3">
+          <h2 className="font-display text-xl font-extrabold text-ink">
+            Agenda
+          </h2>
+          <AgendaEditor
+            meetingId={m.id}
+            items={agendaItems}
+            readOnly
+          />
+        </section>
+      )}
     </div>
   );
 }

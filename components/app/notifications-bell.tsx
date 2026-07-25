@@ -43,7 +43,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
     load();
 
     const ch = s
-      .channel(`notif:${userId}`)
+      .channel(`notif:${userId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as never,
         {

@@ -81,7 +81,7 @@ export function ShuffleRunner({
     if (!sessionId) return;
     const s = createSupabaseBrowserClient();
     const ch = s
-      .channel(`shuffle:${sessionId}`)
+      .channel(`shuffle:${sessionId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as never,
         {

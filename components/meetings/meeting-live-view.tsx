@@ -66,7 +66,7 @@ export function MeetingLiveView({
   useEffect(() => {
     const s = createSupabaseBrowserClient();
     const ch = s
-      .channel(`meeting:${meetingId}`)
+      .channel(`meeting:${meetingId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as never,
         {

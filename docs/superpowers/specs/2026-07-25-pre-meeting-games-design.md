@@ -2,7 +2,9 @@
 
 **Date:** 2026-07-25
 **Status:** Draft, awaiting review
-**Scope:** Add a lightweight competitive game system that runs in the meeting lobby (before the meeting starts) with per-meeting scoreboards and a workspace-wide all-time leaderboard. Two game modes ship in v1.
+**Scope:** Add a lightweight competitive game system that runs in the meeting lobby (before the meeting starts) with per-meeting scoreboards and an instance-wide all-time leaderboard. Two game modes ship in v1.
+
+> **Tenancy note:** Atlas is single-tenant per deployment — there is no workspace concept. "Instance-wide" means all authenticated Atlas users share one leaderboard. Wherever this spec previously referenced `workspace_id`, read it as "no additional scoping column needed."
 
 ## Goals
 
@@ -23,7 +25,7 @@
 
 ## Overview
 
-The meeting detail page (`/meetings/[id]`) gets a new **Lobby panel** shown above the agenda whenever the meeting hasn't started yet. When the first player lands in the lobby within 10 minutes of the scheduled start, the server picks one random enabled game and generates the puzzle. Everyone in the lobby sees the same puzzle simultaneously, plays their own round, and results reveal at the end. Points from every round flow into a single workspace-wide **all-time leaderboard**.
+The meeting detail page (`/meetings/[id]`) gets a new **Lobby panel** shown above the agenda whenever the meeting hasn't started yet. When the first player lands in the lobby within 10 minutes of the scheduled start, the server picks one random enabled game and generates the puzzle. Everyone in the lobby sees the same puzzle simultaneously, plays their own round, and results reveal at the end. Points from every round flow into a single instance-wide **all-time leaderboard**.
 
 Two games ship together in v1: **Target Number** (Countdown-style math dash) and **Zero In** (bounded number guess with 3 attempts and hi/lo feedback). Both were chosen because they need zero shipped content — puzzles are pure RNG.
 
@@ -123,14 +125,14 @@ Tiebreak for "closest player": earliest submission time of the winning guess.
 
 ### Game selection
 
-- Each round, the server picks one game uniformly at random from the pool of workspace-enabled games.
-- Workspace admins can enable/disable games in workspace settings. Both games are enabled by default. If all games are disabled, the lobby panel is hidden.
+- Each round, the server picks one game uniformly at random from the pool of enabled games.
+- The enabled pool is a plain constant list in `lib/games/select.ts` for v1 — both games are always on. No admin UI, no per-instance toggle. If we later want an admin toggle, it slots in without changing the round shape.
 - No host override in v1 — random keeps things fresh and removes a decision from the host.
 
 ### Leaderboards
 
 - **Per-round scoreboard:** shown in the lobby immediately after the round finishes; lists every player, their result, points earned, and rank.
-- **All-time workspace leaderboard:** shown as a toggle in the post-round panel and also at a dedicated `/leaderboard` route. Sum of all points ever earned by each player within the workspace, sorted descending.
+- **All-time leaderboard:** shown as a toggle in the post-round panel and also at a dedicated `/leaderboard` route. Sum of all points ever earned by each player across the whole Atlas instance, sorted descending.
 - Both games contribute to the same all-time leaderboard — points are points.
 - Score caps are balanced (~45 both games) so neither game dominates the leaderboard by playing more often.
 
@@ -143,13 +145,12 @@ Tiebreak for "closest player": earliest submission time of the winning guess.
 
 ## Data model
 
-Three new tables, all workspace-scoped.
+Two new tables. No `workspace_id` — Atlas is single-tenant.
 
 ```
 game_rounds
   id              uuid pk
   meeting_id      uuid fk → meetings          (UNIQUE — one round per meeting)
-  workspace_id    uuid fk → workspaces         (denormalized for leaderboard queries)
   kind            text ('target_number' | 'zero_in')
   puzzle          jsonb                        (schema depends on kind, see below)
   started_at      timestamptz not null
@@ -207,11 +208,11 @@ game_submissions
 Start with an on-the-fly aggregate:
 
 ```sql
-select player_id, sum(points) as total_points, count(*) as rounds_played, max(finalized_at) as last_played_at
+select s.player_id, sum(s.points) as total_points, count(*) as rounds_played, max(r.finalized_at) as last_played_at
 from game_submissions s
 join game_rounds r on r.id = s.round_id
-where r.workspace_id = $1 and r.status = 'finished'
-group by player_id
+where r.status = 'finished' and s.points is not null
+group by s.player_id
 order by total_points desc;
 ```
 
@@ -219,8 +220,10 @@ Promote to a materialized view only if this becomes a hot path.
 
 ### RLS
 
-- `game_rounds`: readable by any member of `workspace_id`. Insert allowed only via the `ensureRound` server action (server role or a permissive workspace-membership check). Update to `finished` allowed only via the `finalizeRound` server action.
-- `game_submissions`: readable by any member of the round's workspace. Insert/update allowed only by the row's `player_id` and only while `round.status = 'active'` and `now() < round.ends_at`. Points column not writable by clients.
+Meeting visibility already gates access to related rows via the meetings table's participants/host/creator predicates (see `0014_agenda_items.sql` for the reference pattern). Games apply the same gate.
+
+- `game_rounds`: readable by any authenticated user who can already read the parent meeting (same predicate as agenda_items). Insert/update via server actions run with the caller's session; the RLS write policy accepts inserts from anyone who can read the meeting (so the first player through the lobby can ensure the round). Direct client updates to `status` are blocked by policy — only the `atlas_finalize_game_round` SQL function (SECURITY DEFINER) can flip it.
+- `game_submissions`: readable by anyone who can read the parent round. Insert/update allowed only when `player_id = auth.uid()`, `round.status = 'active'`, and `now() < round.ends_at`. The `points` column is not writable through the API — it's only set by `atlas_finalize_game_round`.
 
 ## Round lifecycle
 
@@ -263,7 +266,7 @@ Modified:
 
 - `app/(app)/meetings/[id]/page.tsx` — mount `<GameLobbyPanel meetingId={...} />` above the agenda when the meeting hasn't started.
 - `components/meetings/meeting-live-view.tsx` — ensure "Start meeting" flow calls `finalizeRound` before transitioning.
-- Workspace settings screen — add an "Enabled games" section with toggles for Target Number and Zero In (defaults on). If the workspace settings surface does not yet exist for other reasons, this section defines its first workspace-scoped preference.
+- No settings UI in v1. Both games are always enabled; the enabled pool is a hardcoded array in `lib/games/select.ts`.
 
 Untouched:
 
@@ -272,9 +275,8 @@ Untouched:
 
 ## Rollout
 
-- Ship both games together behind a workspace-level "Pre-meeting games" toggle (off by default for existing workspaces, on by default for new ones).
+- Ship both games together — no feature flag in v1. If either game shows problems, remove it from the enabled array in `lib/games/select.ts` and ship a patch.
 - No migration of historical data needed — leaderboard is empty at launch.
-- If either game shows problems in production, disable it in workspace settings; the other continues to run.
 
 ## Open questions
 

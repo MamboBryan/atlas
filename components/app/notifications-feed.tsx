@@ -4,6 +4,9 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Sticker, type StickerName } from "@/components/ui/sticker";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import {
   markAllNotificationsRead,
@@ -19,6 +22,13 @@ type NotificationRow = {
   read_at: string | null;
   created_at: string;
 };
+
+function stickerForKind(kind: string): StickerName {
+  if (kind.startsWith("meeting_")) return "calendar";
+  if (kind.startsWith("poll_")) return "speech-bubble";
+  if (kind.startsWith("reveal_")) return "eyes";
+  return "bell";
+}
 
 export function NotificationsFeed({
   items,
@@ -62,42 +72,49 @@ export function NotificationsFeed({
           Mark all read
         </Button>
       </div>
+
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nothing here yet.</p>
+        <EmptyState sticker="bell" headline="No notifications yet" />
       ) : (
-        <ul className="border rounded divide-y">
+        <ul className="space-y-2">
           {items.map((n) => (
-            <li
-              key={n.id}
-              className={n.read_at ? "" : "bg-muted/30"}
-            >
-              <div className="flex items-start justify-between gap-3 p-3">
-                <Link
-                  href={n.link as Route}
-                  onClick={() => !n.read_at && markOne(n.id)}
-                  className="flex-1 space-y-1"
-                >
-                  <div className="text-sm font-medium">{n.title}</div>
-                  <div className="text-xs text-muted-foreground">{n.body}</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {new Date(n.created_at).toLocaleString()} · {n.kind}
-                  </div>
-                </Link>
-                {!n.read_at && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={pending}
-                    onClick={() => markOne(n.id)}
+            <li key={n.id}>
+              <Card interactive className={n.read_at ? "" : "bg-muted/30"}>
+                <CardContent className="flex items-start gap-3 py-3">
+                  <Sticker name={stickerForKind(n.kind)} size="sm" />
+                  <Link
+                    href={n.link as Route}
+                    onClick={() => !n.read_at && markOne(n.id)}
+                    className="flex-1 space-y-1 min-w-0"
                   >
-                    Mark read
-                  </Button>
-                )}
-              </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{n.title}</span>
+                      {!n.read_at && (
+                        <span className="ml-2 size-2 rounded-full bg-accent flex-shrink-0" />
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{n.body}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString()} · {n.kind}
+                    </div>
+                  </Link>
+                  {!n.read_at && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={pending}
+                      onClick={() => markOne(n.id)}
+                    >
+                      Mark read
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
             </li>
           ))}
         </ul>
       )}
+
       <div className="flex items-center justify-between">
         {hasPrev ? (
           <Link

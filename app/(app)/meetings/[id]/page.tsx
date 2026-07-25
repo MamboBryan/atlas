@@ -12,6 +12,7 @@ import {
   type AgendaItem,
   type PromptOption,
 } from "@/components/meetings/agenda-editor";
+import { GameLobbyPanel } from "@/components/games/game-lobby-panel";
 
 type Meeting = {
   id: string;
@@ -205,6 +206,14 @@ export default async function MeetingDetailPage({
           )}
         </div>
       </header>
+
+      {m.status === "scheduled" && (
+        <GameLobbyPanel
+          meetingId={m.id}
+          scheduledStart={m.scheduled_start}
+          status={m.status}
+        />
+      )}
 
       {(m.status === "live" || m.status === "ended") && (
         <MeetingLiveView

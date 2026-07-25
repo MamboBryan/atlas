@@ -11,6 +11,64 @@ signed in as different users. All timestamps in your local timezone.
       `user3@atlas.com`)
 - [ ] Sign in as `user1@atlas.com` in a second browser
 
+## Design system
+
+A reference for developers working with the playful UI rebuild. For the full spec,
+see `docs/superpowers/specs/2026-07-25-playful-ui-rebuild-design.md`.
+
+### Palette tokens
+
+- **Primary:** Atlas blue `#4B4DF7` (light) / `#8A8CFF` (dark) — buttons, links,
+  accents
+- **Accent:** Duo yellow `#FFD84A` (light) / `#FFE264` (dark) — highlights,
+  celebration, active nav state
+- **Surfaces:** Cream `#FFF8EC` (light) / deep navy `#0E1030` (dark) — page
+  backgrounds; raised surfaces are white (light) or `#171A3D` (dark)
+- **Ink:** `#111111` (light) / `#F3F1E8` (dark) — text and outlines
+- **Semantic:** green (`--success`), red (`--danger`), blue (`--info`) — refer to
+  `app/globals.css` for exact hex values both themes
+
+### Creating a new feature sheet
+
+Sheets open via URL query param: `?new=meeting|poll|series` (and any others added
+later). Router watches the param and mounts the corresponding form. To add a new
+sheet:
+
+1. Create a form component (e.g., `<NewFeatureForm />`) inside
+   `app/(app)/feature-area/`
+2. Add a `useSheetParam("feature-name")` hook call in the feature's list page to
+   manage `open` / `onOpenChange` state
+3. The sheet slides from the right with overlay, responds to ESC, Back button, and
+   form submission
+4. Successful creation triggers confetti, toast, and optimistic list update
+
+### Adding a sticker
+
+Stickers are used in empty states and throughout the UI. To add a new one:
+
+1. Create an SVG JSX component in `components/ui/sticker-svgs.tsx` — keep it
+   simple, use `stroke="currentColor"` for ink outlines, `fill="var(--sticker-fill)"`
+   for accent fills
+2. Add the sticker's name to the `StickerName` union type at the top of
+   `components/ui/sticker.tsx`
+3. Add it to the `stickerRegistry` object in `sticker-svgs.tsx`
+4. Use it anywhere with `<Sticker name="your-sticker" size="md" />`
+
+### Updating Playwright screenshot snapshots
+
+When intentional visual changes happen (new palette, layout tweaks, animation
+tuning), update the screenshot suite:
+
+```bash
+DESIGN_QA=1 pnpm test:e2e -- --grep design-qa --update-snapshots
+```
+
+This runs the design-qa tests in both light and dark mode and saves the new
+reference images. Commit them alongside your changes. CI runs the same tests in
+`--no-update-snapshots` mode to catch unintended visual regressions.
+
+---
+
 ## Phase 2 — Auth & roster
 
 - [ ] Unauthed `/` redirects to `/sign-in`

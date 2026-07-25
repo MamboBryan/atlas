@@ -43,7 +43,7 @@ export function Nav({
   return (
     <nav className="hidden md:flex flex-col gap-2 border-r-chunk border-ink bg-surface p-4">
       <Link href="/" className="flex items-center gap-2 px-2 py-3">
-        <AtlasLogo className="h-8 w-8 text-primary" />
+        <AtlasLogo className="h-8 w-8 text-accent" />
         <span className="font-display text-xl font-extrabold text-ink">
           Atlas
         </span>

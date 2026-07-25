@@ -33,7 +33,7 @@ export default function SignIn() {
       <Sticker name="clouds" size="xl" className="absolute top-0 left-0" />
       <Sticker name="clouds" size="xl" rotate={12} className="absolute top-4 right-0" />
       <main className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 px-6">
-        <AtlasLogo className="h-20 w-20 text-primary" />
+        <AtlasLogo className="h-20 w-20 text-accent" />
         <div className="text-center space-y-1">
           <h1 className="font-display text-4xl font-extrabold text-ink">Welcome to Atlas</h1>
           <p className="text-sm text-ink-soft">Team meeting rituals, made playful.</p>

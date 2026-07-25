@@ -1,6 +1,15 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
 import { Badge, LiveBadge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+} from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth/require";
 import { NextMeetingActions } from "@/components/app/next-meeting-actions";
 
@@ -114,121 +123,100 @@ export default async function HomePage() {
     inStartWindow;
 
   return (
-    <main className="max-w-4xl space-y-8">
-      <h1 className="text-2xl font-semibold">Home</h1>
+    <div className="space-y-8">
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-extrabold text-ink">Home</h1>
+          <p className="text-sm text-ink-soft">What&apos;s on your plate today.</p>
+        </div>
+      </header>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
           Your next meeting
         </h2>
         {nextMeeting ? (
-          <div className="rounded-lg border p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <Link
-                  href={`/meetings/${nextMeeting.id}` as never}
-                  className="font-medium hover:underline"
-                >
+          <Card className="px-1">
+            <CardHeader>
+              <CardTitle>
+                <Link href={`/meetings/${nextMeeting.id}` as never} className="hover:underline">
                   {nextMeeting.title}
                 </Link>
-                <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
-                  <span>
-                    {fmtWhen(
-                      nextMeeting.scheduled_start,
-                      nextMeeting.timezone,
-                      viewerTz,
-                    )}
-                  </span>
-                  <span>·</span>
-                  <span>
-                    host {hostRow?.display_name ?? "?"}
-                  </span>
-                </div>
-              </div>
-              <StatusBadge status={nextMeeting.status} />
-            </div>
-            <div className="flex items-center gap-2">
+              </CardTitle>
+              <CardDescription>
+                {fmtWhen(nextMeeting.scheduled_start, nextMeeting.timezone, viewerTz)}{" "}
+                · host {hostRow?.display_name ?? "?"}
+              </CardDescription>
+              <CardAction>
+                <StatusBadge status={nextMeeting.status} />
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-2 pt-2">
               {canStart && <NextMeetingActions meetingId={nextMeeting.id} />}
-              <Link
-                href={`/meetings/${nextMeeting.id}` as never}
-                className={buttonVariants({ variant: "outline", size: "sm" })}
+              <Button
+                variant="outline"
+                render={<Link href={`/meetings/${nextMeeting.id}` as never} />}
               >
                 {canStart ? "Postpone or view" : "Open"}
-              </Link>
-            </div>
-          </div>
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No upcoming meetings.{" "}
-            <Link
-              href={"/meetings/new" as never}
-              className="underline hover:text-foreground"
-            >
-              Schedule one
-            </Link>
-            .
-          </p>
+          <EmptyState
+            sticker="calendar"
+            headline="No meetings on the horizon"
+            body="Schedule your team's next ritual."
+            action={{ label: "New meeting", href: "/meetings?new=meeting" as never }}
+          />
         )}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-          Awaiting your response ({awaiting.length})
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
+            Awaiting your response
+          </h2>
+          {awaiting.length > 0 && <Badge variant="open">{awaiting.length}</Badge>}
+        </div>
         {awaiting.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nothing waiting on you.
-          </p>
+          <p className="text-sm text-ink-soft">Nothing waiting on you.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {awaiting.map((p) => (
-              <Link
-                key={p.id}
-                href={`/polls/${p.id}` as never}
-                className="block rounded-lg border p-4 hover:bg-muted transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{p.question}</div>
-                    <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
-                      <span>{p.response_type.replace("_", " ")}</span>
-                      <span>·</span>
-                      <span>{p.anonymity}</span>
-                      {p.meeting_id && (
-                        <>
-                          <span>·</span>
-                          <span>in meeting</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <Badge>Open</Badge>
-                </div>
-              </Link>
+              <Card key={p.id} interactive>
+                <CardHeader>
+                  <CardTitle>
+                    <Link href={`/polls/${p.id}` as never} className="hover:underline">
+                      {p.question}
+                    </Link>
+                  </CardTitle>
+                  <CardDescription>
+                    {p.response_type.replace("_", " ")} · {p.anonymity}
+                    {p.meeting_id ? " · in meeting" : ""}
+                  </CardDescription>
+                  <CardAction>
+                    <Badge variant="open">Open</Badge>
+                  </CardAction>
+                </CardHeader>
+              </Card>
             ))}
           </div>
         )}
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
           Quick tools
         </h2>
         <div className="flex flex-wrap gap-3">
-          <Link
-            href={"/tools/pick" as never}
-            className={buttonVariants({ variant: "default" })}
-          >
+          <Button variant="accent" render={<Link href="/tools/pick" />}>
             Pick someone
-          </Link>
-          <Link
-            href={"/tools/shuffle" as never}
-            className={buttonVariants({ variant: "outline" })}
-          >
+          </Button>
+          <Button variant="outline" render={<Link href="/tools/shuffle" />}>
             Shuffle roster
-          </Link>
+          </Button>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

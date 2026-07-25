@@ -7,6 +7,7 @@ export type MeetingLite = {
 export type AgendaItemLite = {
   id: string;
   ordinal: number;
+  title: string;
   kind: "discussion" | "prompt" | "picker";
   prompt_id: string | null;
   picker_config: { mode: "oneshot" | "shuffle" } | null;

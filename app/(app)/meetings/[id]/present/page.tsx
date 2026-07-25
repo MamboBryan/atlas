@@ -34,7 +34,7 @@ export default async function PresentPage({
   const { data: itemsRaw } = await supabase
     .from("agenda_items")
     .select(
-      "id,ordinal,kind,prompt_id,picker_config,picker_result,timer_ends_at",
+      "id,ordinal,title,kind,prompt_id,picker_config,picker_result,timer_ends_at",
     )
     .eq("meeting_id", id)
     .order("ordinal", { ascending: true });

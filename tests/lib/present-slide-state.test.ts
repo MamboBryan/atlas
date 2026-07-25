@@ -13,20 +13,20 @@ const baseMeeting: MeetingLite = {
 };
 
 const disc: AgendaItemLite = {
-  id: "d1", ordinal: 1, kind: "discussion",
+  id: "d1", ordinal: 1, title: "Discussion Item", kind: "discussion",
   prompt_id: null, picker_config: null, picker_result: null, timer_ends_at: null,
 };
 const pr: AgendaItemLite = {
-  id: "p1", ordinal: 2, kind: "prompt",
+  id: "p1", ordinal: 2, title: "Prompt Item", kind: "prompt",
   prompt_id: "q1", picker_config: null, picker_result: null, timer_ends_at: null,
 };
 const pkOne: AgendaItemLite = {
-  id: "k1", ordinal: 3, kind: "picker",
+  id: "k1", ordinal: 3, title: "Picker Oneshot", kind: "picker",
   prompt_id: null, picker_config: { mode: "oneshot" },
   picker_result: null, timer_ends_at: null,
 };
 const pkShuf: AgendaItemLite = {
-  id: "k2", ordinal: 4, kind: "picker",
+  id: "k2", ordinal: 4, title: "Picker Shuffle", kind: "picker",
   prompt_id: null, picker_config: { mode: "shuffle" },
   picker_result: null, timer_ends_at: null,
 };

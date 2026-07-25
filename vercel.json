@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/send-emails",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/starts-soon",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/auto-postpone",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/generate-occurrences",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

@@ -15,11 +15,11 @@ const badgeVariants = cva(
       variant: {
         default:     "bg-surface-raised text-ink",
         secondary:   "bg-surface-raised text-ink",
-        destructive: "bg-danger text-white",
+        destructive: "bg-danger text-danger-ink",
         outline:     "bg-transparent text-ink",
         ghost:       "border-transparent bg-transparent text-ink",
         link:        "border-transparent bg-transparent text-primary underline-offset-4 hover:underline",
-        live:        "bg-success text-white",
+        live:        "bg-success text-success-ink",
         scheduled:   "bg-surface text-ink",
         postponed:   "bg-accent text-accent-ink",
         ended:       "bg-surface-raised text-ink-soft",
@@ -51,7 +51,7 @@ function Badge({
 function LiveBadge() {
   return (
     <Badge variant="live">
-      <span className="size-1.5 rounded-full bg-white animate-pulse-dot" />
+      <span className="size-1.5 rounded-full bg-success-ink animate-pulse-dot" />
       Live
     </Badge>
   );

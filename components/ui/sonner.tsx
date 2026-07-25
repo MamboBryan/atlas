@@ -11,8 +11,8 @@ export function Toaster() {
       toastOptions={{
         classNames: {
           toast: "!rounded-md !border-thin !border-ink !shadow-flat !bg-surface-raised !text-ink !font-medium",
-          success: "!bg-success !text-white !border-ink",
-          error: "!bg-danger !text-white !border-ink",
+          success: "!bg-success !text-success-ink !border-ink",
+          error: "!bg-danger !text-danger-ink !border-ink",
         },
       }}
     />

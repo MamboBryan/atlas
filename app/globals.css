@@ -18,7 +18,9 @@
 
     /* State */
     --success: #58CC02;
+    --success-ink: #FFFFFF;
     --danger: #FF4B4B;
+    --danger-ink: #FFFFFF;
     --info: #1CB0F6;
 
     /* Semantic mappings kept for shadcn compatibility */
@@ -80,7 +82,9 @@
     --accent-ink: #111111;
 
     --success: #7EE84A;
+    --success-ink: #111111;
     --danger: #FF7070;
+    --danger-ink: #111111;
     --info: #6ED2FF;
 
     --sticker-fill: var(--surface);

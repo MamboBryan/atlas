@@ -25,7 +25,7 @@ const buttonVariants = cva(
         secondary: "bg-surface-raised text-ink", // alias for compat
         ghost:
           "border-transparent shadow-none bg-transparent text-ink hover:translate-y-0 hover:bg-ink/5 hover:shadow-none active:translate-y-0 active:shadow-none",
-        destructive: "bg-danger text-white",
+        destructive: "bg-danger text-danger-ink",
         link: "border-transparent shadow-none bg-transparent text-primary underline-offset-4 hover:underline hover:translate-y-0 hover:shadow-none active:translate-y-0 active:shadow-none",
       },
       size: {

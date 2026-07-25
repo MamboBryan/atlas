@@ -6,6 +6,7 @@ import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import { createOneOff, advanceTo, postponeManual } from "@/lib/zod/meeting";
 import { emit } from "@/lib/notify/emit";
 import { resolveMeetingParticipants } from "@/lib/notify/participants";
+import { finalizeRoundAction } from "@/lib/actions/game";
 
 function serviceClient() {
   return createClient(
@@ -77,6 +78,19 @@ export async function startMeeting(
   meeting_id: string,
 ): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
+
+  // If there's an active pre-meeting game round, finalize it first so its
+  // scoreboard is written before the meeting transitions to 'live' (which
+  // hides the lobby panel).
+  const { data: round } = await supabase
+    .from("game_rounds")
+    .select("id, status")
+    .eq("meeting_id", meeting_id)
+    .maybeSingle();
+  if (round?.status === "active") {
+    await finalizeRoundAction({ round_id: round.id });
+  }
+
   const { error } = await supabase
     .from("meetings")
     .update({

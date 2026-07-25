@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/require";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MeetingsTabs } from "@/components/app/meetings-tabs";
 import { NewSeriesTrigger } from "./_ui/new-series-trigger";
 
 type SeriesRow = {
@@ -111,6 +112,8 @@ export default async function SeriesListPage() {
           </div>
         )}
       </header>
+
+      <MeetingsTabs />
 
       {series.length === 0 ? (
         <EmptyState

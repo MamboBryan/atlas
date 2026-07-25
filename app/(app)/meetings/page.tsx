@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/require";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
 import { Badge, LiveBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MeetingsTabs } from "@/components/app/meetings-tabs";
 import { NewMeetingTrigger } from "./_ui/new-meeting-trigger";
 
 type MeetingRow = {
@@ -142,6 +143,8 @@ export default async function MeetingsPage() {
           <NewMeetingTrigger defaultTimezone={viewerTz} />
         </div>
       </header>
+
+      <MeetingsTabs />
 
       {live.length > 0 && (
         <section className="space-y-3">

@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/require";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
-import { ensureRoundInput, submitTargetNumberInput } from "@/lib/zod/game";
+import { ensureRoundInput, submitTargetNumberInput, submitZeroInInput } from "@/lib/zod/game";
 import { pickGame } from "@/lib/games/select";
 import {
   generateTargetNumberPuzzle,
@@ -12,8 +12,17 @@ import {
 import {
   generateZeroInPuzzle,
   ZERO_IN_DURATION_MS,
+  computeFeedback,
+  ZERO_IN_MAX_GUESSES,
 } from "@/lib/games/zero-in";
-import type { GameKind, TargetNumberOp, TargetNumberPayload } from "@/lib/games/types";
+import type {
+  GameKind,
+  TargetNumberOp,
+  TargetNumberPayload,
+  ZeroInFeedback,
+  ZeroInGuess,
+  ZeroInPayload,
+} from "@/lib/games/types";
 
 export const LOBBY_OPEN_WINDOW_MS = 10 * 60_000;
 
@@ -193,4 +202,88 @@ export async function submitTargetNumberAction(
 
   if (upsert.error) return err("db_error", upsert.error.message);
   return ok({ result: evalResult.result, better: true });
+}
+
+export async function submitZeroInGuessAction(
+  input: unknown,
+): Promise<
+  ActionResult<{
+    feedback: ZeroInFeedback;
+    guesses_left: number;
+    guess_count: number;
+  }>
+> {
+  const parsed = submitZeroInInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+
+  const { user, supabase } = await requireUser();
+
+  const { data: round } = await supabase
+    .from("game_rounds")
+    .select("id, kind, puzzle, ends_at, status")
+    .eq("id", parsed.data.round_id)
+    .single();
+  if (!round) return err("not_found", "round");
+  if (round.kind !== "zero_in") return err("wrong_kind", "not zero_in");
+  if (round.status !== "active") return err("round_closed", "round is finished");
+  if (new Date(round.ends_at).getTime() <= Date.now()) {
+    return err("round_closed", "past ends_at");
+  }
+
+  const puzzle = round.puzzle as { secret: number };
+  const feedback = computeFeedback(puzzle.secret, parsed.data.guess);
+
+  const { data: prior } = await supabase
+    .from("game_submissions")
+    .select("id, payload")
+    .eq("round_id", parsed.data.round_id)
+    .eq("player_id", user.id)
+    .maybeSingle();
+
+  const priorPayload = (prior?.payload as ZeroInPayload | undefined) ?? {
+    guesses: [],
+    best_guess: parsed.data.guess,
+  };
+
+  if (priorPayload.guesses.length >= ZERO_IN_MAX_GUESSES) {
+    return err("no_guesses_left", "3-guess limit reached");
+  }
+
+  const newGuess: ZeroInGuess = {
+    value: parsed.data.guess,
+    at: new Date().toISOString(),
+    feedback,
+  };
+  const nextGuesses = [...priorPayload.guesses, newGuess];
+  const bestGuess = nextGuesses.reduce((best, g) =>
+    Math.abs(puzzle.secret - g.value) < Math.abs(puzzle.secret - best)
+      ? g.value
+      : best,
+    nextGuesses[0].value,
+  );
+  const newPayload: ZeroInPayload = {
+    guesses: nextGuesses,
+    best_guess: bestGuess,
+  };
+
+  const nowIso = new Date().toISOString();
+  const written = prior
+    ? await supabase
+        .from("game_submissions")
+        .update({ payload: newPayload, submitted_at: nowIso })
+        .eq("id", prior.id)
+    : await supabase.from("game_submissions").insert({
+        round_id: parsed.data.round_id,
+        player_id: user.id,
+        payload: newPayload,
+        submitted_at: nowIso,
+      });
+
+  if (written.error) return err("db_error", written.error.message);
+
+  return ok({
+    feedback,
+    guesses_left: ZERO_IN_MAX_GUESSES - nextGuesses.length,
+    guess_count: nextGuesses.length,
+  });
 }

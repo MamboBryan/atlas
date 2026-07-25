@@ -246,6 +246,7 @@ export function PresentShell(props: PresentShellProps) {
             index={index}
             total={total}
             meetingTitle={props.meetingTitle}
+            onNext={advanceNext}
           />
         )}
         {(slideState.kind === "prompt-open" || slideState.kind === "prompt-closed") && (

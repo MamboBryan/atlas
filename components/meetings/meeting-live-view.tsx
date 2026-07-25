@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -212,7 +213,7 @@ export function MeetingLiveView({
         </div>
         <div className="space-y-1">
           {items.length === 0 && (
-            <p className="text-sm text-muted-foreground">No items yet.</p>
+            <EmptyState sticker="calendar" headline="No agenda items yet" />
           )}
           {items.map((it, i) => {
             const active = it.id === meeting.current_agenda_item_id;

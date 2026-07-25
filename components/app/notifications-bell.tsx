@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { markNotificationRead } from "@/lib/actions/notifications";
 
 type NotificationRow = {
@@ -93,7 +94,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
             <span className="relative flex items-center">
               <Bell className="size-4" />
               {unread > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] leading-none rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-1">
+                <span className="absolute -top-1 -right-1 bg-danger text-danger-ink text-[10px] leading-none rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-1">
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
@@ -118,9 +119,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
           </Link>
         </div>
         {items.length === 0 ? (
-          <div className="px-3 py-6 text-sm text-muted-foreground text-center">
-            No notifications yet.
-          </div>
+          <EmptyState sticker="bell" headline="No notifications yet" />
         ) : (
           <ul className="max-h-96 overflow-y-auto">
             {items.map((n) => (

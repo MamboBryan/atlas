@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/require";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SeriesForm } from "@/components/series/series-form";
 import type { AgendaTemplateItem } from "@/lib/zod/series";
 
@@ -148,6 +149,9 @@ export default async function SeriesDetailPage({
         <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
           Rotation
         </h2>
+        {series.rotation_order.length === 0 ? (
+          <EmptyState sticker="empty-box" headline="No members in rotation" body="Add members via the edit panel below." />
+        ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {series.rotation_order.map((uid) => {
             const isNext = uid === nextInRotation;
@@ -171,6 +175,7 @@ export default async function SeriesDetailPage({
             );
           })}
         </div>
+        )}
       </section>
 
       {/* Upcoming meetings */}
@@ -179,9 +184,7 @@ export default async function SeriesDetailPage({
           Upcoming
         </h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-ink-soft">
-            None yet. The cron generates the next 14 days each run.
-          </p>
+          <EmptyState sticker="calendar" headline="No upcoming meetings" body="The cron generates the next 14 days each run." />
         ) : (
           <div className="space-y-2">
             {upcoming.map((m) => (

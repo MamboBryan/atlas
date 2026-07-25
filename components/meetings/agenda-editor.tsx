@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   addAgendaItemAction,
   deleteAgendaItemAction,
@@ -122,9 +123,7 @@ export function AgendaEditor({
     <div className="space-y-4">
       <div className="space-y-2">
         {items.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            No agenda items yet. Add one below.
-          </p>
+          <EmptyState sticker="calendar" headline="No agenda items yet" body="Add one below to keep the meeting on track." />
         )}
         {items.map((it, i) => (
           <div

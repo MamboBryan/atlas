@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/require";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { NewSeriesTrigger } from "./_ui/new-series-trigger";
 
 type SeriesRow = {
@@ -112,11 +113,12 @@ export default async function SeriesListPage() {
       </header>
 
       {series.length === 0 ? (
-        <p className="text-sm text-ink-soft">
-          {isAdmin
-            ? "No series yet. Create one to auto-generate recurring meetings."
-            : "No series yet."}
-        </p>
+        <EmptyState
+          sticker="empty-box"
+          headline="No series yet"
+          body={isAdmin ? "Create one to auto-generate recurring meetings." : "Ask an admin to create a recurring series."}
+          action={isAdmin ? { label: "New series", href: "/series?new=series" as never } : undefined}
+        />
       ) : (
         <div className="space-y-2">
           {series.map((s) => (

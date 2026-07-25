@@ -179,7 +179,7 @@ export default async function HomePage() {
           {awaiting.length > 0 && <Badge variant="open">{awaiting.length}</Badge>}
         </div>
         {awaiting.length === 0 ? (
-          <p className="text-sm text-ink-soft">Nothing waiting on you.</p>
+          <EmptyState sticker="speech-bubble" headline="All caught up" body="No polls waiting on your response." />
         ) : (
           <div className="space-y-3">
             {awaiting.map((p) => (

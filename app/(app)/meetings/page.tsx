@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth/require";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
 import { Badge, LiveBadge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { NewMeetingTrigger } from "./_ui/new-meeting-trigger";
 
 type MeetingRow = {
@@ -187,7 +188,7 @@ export default async function MeetingsPage() {
           Recent past ({past.length})
         </h2>
         {past.length === 0 ? (
-          <p className="text-sm text-ink-soft">No past meetings yet.</p>
+          <EmptyState sticker="calendar" headline="No past meetings yet" body="Completed meetings will show up here." />
         ) : (
           <div className="space-y-2">
             {past.map((m) => (

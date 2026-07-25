@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardAction,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -131,7 +132,7 @@ export function RosterGrid({
       )}
 
       {rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-ink-soft">No members yet.</p>
+        <EmptyState sticker="empty-box" headline="No members yet" body="Add the first team member to get started." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((m) => (

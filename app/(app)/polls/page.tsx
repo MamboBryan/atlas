@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth/require";
 import { NewPollTrigger } from "@/app/(app)/polls/_ui/new-poll-trigger";
 
@@ -19,7 +20,7 @@ type PromptRow = {
 
 function pollStatusBadge(p: PromptRow) {
   if (p.is_revealed) return <Badge variant="secondary">Revealed</Badge>;
-  if (p.is_open) return <Badge variant="default">Open</Badge>;
+  if (p.is_open) return <Badge variant="open">Open</Badge>;
   return <Badge variant="outline">Closed</Badge>;
 }
 
@@ -104,9 +105,7 @@ export default async function PollsPage() {
           Needs your response ({needsMe.length})
         </h2>
         {needsMe.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nothing waiting on you.
-          </p>
+          <EmptyState sticker="speech-bubble" headline="All caught up" body="No polls waiting on your response." />
         ) : (
           <div className="space-y-2">
             {needsMe.map((p) => (
@@ -127,9 +126,7 @@ export default async function PollsPage() {
           All polls ({polls.length})
         </h2>
         {polls.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No polls yet. Create the first one.
-          </p>
+          <EmptyState sticker="speech-bubble" headline="No polls yet" body="Create the first one to get the team's pulse." action={{ label: "New poll", href: "/polls?new=poll" as never }} />
         ) : (
           <div className="space-y-2">
             {polls.map((p) => (

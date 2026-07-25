@@ -87,19 +87,35 @@ Responsibilities:
   state.
 - Renders `<PresentStage/>` (the palette-painted left column) and
   `<PresentRail/>` (the comments right column) side-by-side.
-- Handles the `Esc` key: navigates back to `/meetings/[id]`.
+- Handles keyboard shortcuts:
+  - `Esc` — navigate back to `/meetings/[id]`.
+  - `→` and `Space` — advance (equivalent to clicking the primary
+    Start / Next / Next person / Next item button on the current slide).
+    Ignored when focus is inside the host composer's textarea.
+  - `←` — no-op in v1 (no rewind). Reserved for future use.
+- Reload / late-join behavior: on any reload, the server render of
+  `/present` is the source of truth for `meeting`, `agenda_items`,
+  `prompts`, `picker_results`, and the last N comments. The client
+  realtime subscriptions then overlay subsequent changes. This means an
+  in-progress timer survives reload — the ring re-derives its countdown
+  from the persisted `timer_ends_at`. No client-only ephemeral state is
+  lost on reload.
 
 ### Slide state derivation
 
+The `prompts` table exposes lifecycle as two booleans (`is_open`,
+`is_revealed`) — there is no `status` enum. Present mode maps those to
+slide states as follows:
+
 ```
 if meeting.status !== "live" → shell redirects (should not render)
-if current_agenda_item_id === null AND no items completed → "standby"
-if current_agenda_item_id === null AND at least one item completed → "curtain"
+if current_agenda_item_id === null AND meeting.has_started === false → "standby"
+if current_agenda_item_id === null AND meeting.has_started === true  → "curtain"
 otherwise let item = items.find(id === current_agenda_item_id)
   match item.kind:
-    "discussion"                        → "discussion"
-    "prompt" + prompt.status === "open" → "prompt-open"
-    "prompt" + prompt.status === "closed" → "prompt-closed"
+    "discussion"                                     → "discussion"
+    "prompt" + prompt.is_open === true               → "prompt-open"
+    "prompt" + prompt.is_open === false              → "prompt-closed"
     "picker" + picker_config.mode === "oneshot":
       picker_result == null → "picker-oneshot-idle"
       else                  → "picker-oneshot-revealed"
@@ -108,12 +124,34 @@ otherwise let item = items.find(id === current_agenda_item_id)
       else                  → "picker-shuffle-revealed"
 ```
 
-The "curtain" trigger is: host clicked Next on the last item, which sets
-`current_agenda_item_id = null` (existing `advanceMeetingAgenda` behaviour). We
-distinguish standby-vs-curtain by whether any items have been visited. We track
-this via a `has_started` flag on the meeting row (default false, set true by
-`advanceMeetingAgenda` on first advance, never reset). Adding this column is
-cheaper than replaying the agenda history.
+Notes:
+
+- **"Closed" prompt in present mode.** A `prompt-closed` slide always shows
+  tallies. Present mode does not depend on `is_revealed`; if the host closes
+  the prompt via the slide button or the timer expires, the slide transitions
+  to `prompt-closed` and renders tallies immediately. `is_revealed` remains
+  the domain flag for the poll's own detail page and is not written by
+  present-mode actions.
+- **Curtain trigger.** Host clicking **Next item →** on the last item calls
+  `advanceMeetingAgenda({ meeting_id, item_id: null })` (existing behaviour —
+  `advanceNext` in `meeting-live-view.tsx` already advances to `null` past the
+  last item). To distinguish standby from curtain when
+  `current_agenda_item_id === null`, we add a `meetings.has_started boolean not
+  null default false` column. `advanceMeetingAgenda` sets it to `true`
+  unconditionally as part of its existing single UPDATE whenever `item_id`
+  is non-null:
+
+  ```sql
+  update meetings
+     set current_agenda_item_id = :item_id,
+         has_started = case when :item_id is not null then true else has_started end,
+         updated_at = now()
+   where id = :meeting_id;
+  ```
+
+  It is never reset. `endMeeting` also does not touch it — after ending, the
+  meeting no longer satisfies the shell's `status === "live"` guard, so the
+  standby/curtain distinction is moot.
 
 ## Slide components
 
@@ -143,28 +181,34 @@ tokens, present mode is intentionally its own visual world.
 
 Handles both open and closed states.
 
-**Open state:**
+**Open state (`prompt.is_open === true`):**
 
 - Top row: item counter + "Prompt · open" chip.
 - Center: title on left, timer ring on right showing `mm:ss` counting down
-  from `timer_ends_at` (or `--:--` if no timer set).
+  from `agenda_items.timer_ends_at` (or `--:--` if no timer set).
 - Bottom-left: timer chooser (30s / 1m / 2m / 5m). Clicking one sets
   `timer_ends_at = now() + duration` via
   `startPromptTimer({ agenda_item_id, seconds })`.
 - Bottom-right: **Close now** button →
-  `closePrompt({ agenda_item_id, prompt_id })`.
+  `expirePromptTimer({ agenda_item_id })`.
 - Auto-close: when the client observes `Date.now() >= timer_ends_at`, it calls
-  `closePrompt` idempotently. If two clients race, the DB-side `updated_at`
-  check no-ops the second call.
+  `expirePromptTimer` once. `expirePromptTimer` is idempotent — calling it
+  when the prompt is already closed is a no-op that still returns `ok(null)`.
 
-**Closed state:**
+**Closed state (`prompt.is_open === false`):**
 
 - Top row: item counter + "Prompt · closed" chip.
 - Top-center: question (smaller than in open state, ~40px).
-- Bottom-center: response tallies rendered by a `PromptResponses` component
-  that reuses the existing prompt reveal UI (`components/prompts/reveal-view.tsx`)
-  in a compact variant that fits the slide. If the reveal UI doesn't fit, we
-  render a minimal inline tally list (top 5 counts + total responses).
+- Bottom-center: an inline `PromptResponsesInline` component (new,
+  `components/present/slides/prompt-responses-inline.tsx`) that renders a
+  compact tally:
+  - Text prompt: total responses count only (no bodies — those live on the
+    poll page).
+  - Single/multi-choice / yes-no: bar list of options with counts and
+    percentages, sorted by count desc, capped at top 6.
+  - Rating: average as big number + a small histogram of the distribution.
+  The existing `reveal-view.tsx` is not reused — it assumes a full-page
+  context and its layout won't fit the slide.
 - Bottom-right: **Next item →** button.
 
 ### `picker-slide.tsx`
@@ -179,7 +223,10 @@ Handles both oneshot and shuffle, idle and revealed.
 **Oneshot revealed:**
 
 - Center: pick-card with picked user's `display_name` at ~64px.
-- Confetti burst on first render of the revealed state (mount trigger).
+- Confetti burst is fired exactly once per `picker_result.user_id` value —
+  a `useEffect` keyed on the id triggers the animation. If realtime
+  redelivers the same UPDATE, the effect no-ops (same key). If the host
+  clicks Pick again, the new user_id triggers a fresh burst.
 - Bottom-left: **Pick again** button (host may redo).
 - Bottom-right: **Next item →** button.
 
@@ -236,9 +283,11 @@ The existing parallel-route slot `app/(app)/@right/meetings/[id]/page.tsx`
   - Composer textarea + Send button
   - Same emoji reactions + delete-own affordances as the present rail
 - When the meeting is `live` AND viewer IS the host, show the same
-  MeetingCommentBox as a secondary panel below the agenda add form (so the
-  host on the detail page can also see the live conversation before they
-  present).
+  MeetingCommentBox as a secondary panel below the agenda add form. Because
+  the `@right` column has a constrained vertical budget (see the shell
+  layout, commit `a844868`), the comment feed here is capped at the newest
+  8 entries with a "See all in Present →" link that opens the present
+  route; the composer stays visible without needing to scroll.
 - When the meeting is `scheduled` / `ended` / `postponed` / `cancelled`, the
   comment box is not shown (agenda add form or existing empty state remains).
 
@@ -247,66 +296,122 @@ The existing parallel-route slot `app/(app)/@right/meetings/[id]/page.tsx`
 ### New table: `meeting_comments`
 
 ```sql
-create table meeting_comments (
+create table public.meeting_comments (
   id uuid primary key default gen_random_uuid(),
-  meeting_id uuid not null references meetings(id) on delete cascade,
-  agenda_item_id uuid null references agenda_items(id) on delete set null,
-  author_user_id uuid not null references profiles(id),
+  meeting_id uuid not null references public.meetings(id) on delete cascade,
+  agenda_item_id uuid null references public.agenda_items(id) on delete set null,
+  author_user_id uuid not null references public.profiles(id) on delete cascade,
   body text not null check (char_length(body) between 1 and 500),
   created_at timestamptz not null default now(),
   deleted_at timestamptz null
 );
 create index meeting_comments_meeting_created_idx
-  on meeting_comments (meeting_id, created_at);
+  on public.meeting_comments (meeting_id, created_at);
 ```
 
-- `agenda_item_id` is nullable so comments posted on the Standby / Curtain
-  screens (or before any item is current) still bind to the meeting.
-- `deleted_at` soft-delete: the row remains for audit / count integrity, but
-  rail render filters `deleted_at is null`. Reactions on a deleted comment are
-  hidden client-side.
+- `agenda_item_id` is nullable so comments posted on Standby / Curtain (or
+  before any item is current) still bind to the meeting.
+- `author_user_id` uses `on delete cascade` (matches `responses_attributed`
+  in migration 0005) — if a profile is deleted, their comments go with them.
+- `deleted_at` soft-delete: the row remains but the rail filters
+  `deleted_at is null`. Reactions on a soft-deleted comment are hidden
+  client-side.
 
 ### New table: `meeting_comment_reactions`
 
 ```sql
-create table meeting_comment_reactions (
-  comment_id uuid not null references meeting_comments(id) on delete cascade,
-  user_id uuid not null references profiles(id),
-  emoji text not null check (emoji in ('👍','❤️','😂','🔥')),
+create table public.meeting_comment_reactions (
+  comment_id uuid not null references public.meeting_comments(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  emoji      text not null check (emoji in ('👍','❤️','😂','🔥')),
   created_at timestamptz not null default now(),
   primary key (comment_id, user_id, emoji)
 );
 ```
 
 - Composite PK guarantees one row per (comment, user, emoji). Toggle logic is
-  INSERT-or-DELETE.
+  INSERT-or-DELETE from the client.
 
 ### Extensions
 
-- `meetings`: add `has_started boolean not null default false`. Set to true by
-  `advanceMeetingAgenda` the first time it advances from a null current item.
-  Used to distinguish Standby from Curtain.
-- `agenda_items`: add `timer_ends_at timestamptz null`. Set by
+- `public.meetings`: add `has_started boolean not null default false`. Set by
+  the modified `advanceMeetingAgenda` UPDATE (see slide-state section).
+- `public.agenda_items`: add `timer_ends_at timestamptz null`. Set by
   `startPromptTimer`; read by client for the countdown ring; cleared to null
-  when the prompt is closed.
+  by `expirePromptTimer` when the prompt is closed.
 
 ### RLS
 
-Both new tables use the same visibility rule as the meeting itself: a viewer
-sees the meeting → they see its comments and reactions.
+There is no `is_meeting_participant` helper in the codebase — the existing
+meeting-scoped tables (see `0014_agenda_items.sql`, `0017_shuffle_sessions.sql`)
+inline the predicate. Present mode does the same. The canonical predicate:
 
-- `meeting_comments`:
-  - SELECT: viewer must be in the meeting's roster
-    (existing helper — `is_meeting_participant(auth.uid(), meeting_id)` or
-    equivalent — extend if not present).
-  - INSERT: same + `author_user_id = auth.uid()`.
-  - UPDATE: only `author_user_id = auth.uid()` AND the only column changing is
-    `deleted_at` from null to now(). Enforced via a policy that references
-    `OLD.deleted_at IS NULL`.
-  - DELETE: never (soft-delete only).
-- `meeting_comment_reactions`:
-  - SELECT: viewer in roster.
-  - INSERT / DELETE: `user_id = auth.uid()`.
+```sql
+-- READ / participant predicate
+exists (
+  select 1 from public.meetings m
+  where m.id = meeting_id
+    and auth.uid() is not null
+    and (
+      m.participants_override is null
+      or exists (
+        select 1 from jsonb_array_elements_text(m.participants_override) x
+        where x.value = auth.uid()::text
+      )
+      or m.host_user_id = auth.uid()
+      or m.created_by  = auth.uid()
+    )
+)
+```
+
+Policies:
+
+- `meeting_comments_read` (SELECT): the predicate above.
+- `meeting_comments_insert` (INSERT): the predicate above AND
+  `author_user_id = auth.uid()`.
+- `meeting_comments_soft_delete` (UPDATE): Postgres RLS cannot reference
+  `OLD` in USING/WITH CHECK — we express the null→timestamp transition using
+  paired USING/WITH CHECK clauses.
+
+  ```sql
+  create policy meeting_comments_soft_delete on public.meeting_comments
+    for update
+    using       (author_user_id = auth.uid() and deleted_at is null)
+    with check  (author_user_id = auth.uid() and deleted_at is not null);
+  ```
+
+  USING restricts *which rows* can be updated (only my own, not yet deleted).
+  WITH CHECK restricts *what the row can become* (still mine, deleted_at
+  set). Together they permit exactly `deleted_at: null → not null` on rows
+  the author owns. Any other column change trivially fails WITH CHECK because
+  it would also require `author_user_id = auth.uid()` which is already true —
+  so we additionally rely on the server action to only send
+  `{ deleted_at: <now> }` in its update payload. If tighter enforcement is
+  needed later, add a `BEFORE UPDATE` trigger that raises unless only
+  `deleted_at` changed.
+- `meeting_comments_no_delete`: no DELETE policy is created; soft-delete only.
+- `meeting_comment_reactions_read` (SELECT): the participant predicate,
+  joined via `meeting_comments`:
+
+  ```sql
+  exists (
+    select 1 from public.meeting_comments c
+    join public.meetings m on m.id = c.meeting_id
+    where c.id = comment_id
+      and auth.uid() is not null
+      and (
+        m.participants_override is null
+        or exists (
+          select 1 from jsonb_array_elements_text(m.participants_override) x
+          where x.value = auth.uid()::text
+        )
+        or m.host_user_id = auth.uid()
+        or m.created_by  = auth.uid()
+      )
+  )
+  ```
+- `meeting_comment_reactions_write` (INSERT, DELETE): the same predicate
+  AND `user_id = auth.uid()`.
 
 ### Jokes
 
@@ -375,12 +480,21 @@ New file `lib/actions/comment.ts`:
 
 New file `lib/actions/prompt-timer.ts`:
 
-- `startPromptTimer({ agenda_item_id, seconds })` → validates host, sets
-  `agenda_items.timer_ends_at = now() + seconds * interval '1 second'`.
-- `closePrompt({ agenda_item_id, prompt_id })` → validates host or "elapsed
-  timer" (i.e. `timer_ends_at <= now()`); updates
-  `prompts.status = 'closed'`, clears `agenda_items.timer_ends_at`. Idempotent
-  when the prompt is already closed.
+- `startPromptTimer({ agenda_item_id, seconds })` → validates viewer is the
+  meeting's host (looked up via `agenda_items → meetings.host_user_id`), sets
+  `agenda_items.timer_ends_at = now() + (seconds || ' seconds')::interval`.
+- `expirePromptTimer({ agenda_item_id })` → validates viewer is either the
+  meeting's host OR the linked prompt's `owner_user_id` (the latter covers
+  any race with the poll-owner's own controls); in a single transaction:
+  1. `update prompts set is_open = false where id = <linked prompt_id>`
+  2. `update agenda_items set timer_ends_at = null where id = <agenda_item_id>`
+  Idempotent — if `is_open` is already false, both statements no-op safely
+  and the action returns `ok(null)`.
+
+Note: this is a NEW action, distinct from the existing
+`lib/actions/prompt.ts#closePrompt(prompt_id)`. That existing action is
+used from the poll-owner detail page and only permits the prompt owner. Its
+signature and behaviour are unchanged by this spec.
 
 All actions follow the existing `_result.ts` `Result<T, ActionError>` pattern.
 
@@ -426,9 +540,13 @@ lib/actions/
 ├── comment.ts
 └── prompt-timer.ts
 
-supabase/migrations/
-└── <timestamp>_present_mode.sql
+db/supabase/supabase/migrations/
+└── 0022_present_mode.sql
 ```
+
+The migration path in this repo is `db/supabase/supabase/migrations/`
+(not the plain `supabase/migrations/` root-level layout). Existing migrations
+are zero-padded and sequential; the next number is `0022`.
 
 Modified:
 
@@ -436,6 +554,9 @@ Modified:
   (host + live only).
 - `app/(app)/@right/meetings/[id]/page.tsx` — render `MeetingCommentBox` when
   meeting is live.
+- `lib/actions/meeting.ts` — extend `advanceMeetingAgenda`'s single UPDATE to
+  also set `has_started = true` whenever `item_id` is non-null (see slide
+  state section for the exact SQL). No signature change.
 
 ## Testing
 
@@ -447,8 +568,11 @@ Modified:
      `/present`.
   2. Non-host visits `/present` → redirected.
   3. Standby → Start agenda → Discussion slide renders with palette 1.
-  4. Advance to prompt → open state → set 30s timer → wait → prompt auto-closes
-     and slide switches to closed state.
+  4. Advance to prompt → open state → set a short timer (test-mode injects a
+     5s minimum via URL flag `?__test_timer=5s` that the timer chooser
+     honours only in `NODE_ENV !== "production"`; alternatively, use
+     Playwright's clock fake to fast-forward 60s) → prompt auto-closes and
+     slide switches to closed state showing the tally.
   5. Advance to oneshot picker → Pick → confetti + name appears.
   6. Non-host on `/meetings/[id]` posts a comment → appears in host's rail
      within ~1s.

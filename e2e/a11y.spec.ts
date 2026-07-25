@@ -9,7 +9,7 @@ import AxeBuilder from "@axe-core/playwright";
 
 test("sign-in has no critical or serious a11y violations", async ({ page }) => {
   await page.goto("/sign-in");
-  await page.getByRole("heading", { name: "Sign in to Atlas" }).waitFor();
+  await page.getByRole("heading", { name: "Welcome to Atlas" }).waitFor();
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa"])
     .analyze();

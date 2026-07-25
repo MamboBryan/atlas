@@ -2,8 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/require";
-import { ResponseInput } from "@/components/prompts/response-input";
+import { PollRespondForm } from "@/components/polls/poll-respond-form";
 import { ParticipationCounter } from "@/components/prompts/participation-counter";
 import { PromptOwnerControls } from "@/components/prompts/prompt-owner-controls";
 import { RevealView } from "@/components/prompts/reveal-view";
@@ -63,28 +64,34 @@ export default async function PollDetailPage({
         </Link>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="text-2xl font-semibold">{prompt.question}</h1>
-          <div className="shrink-0 flex gap-1.5">
-            {prompt.is_revealed ? (
-              <Badge variant="secondary">Revealed</Badge>
-            ) : prompt.is_open ? (
-              <Badge>Open</Badge>
-            ) : (
-              <Badge variant="outline">Closed</Badge>
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-2xl font-extrabold">
+              {prompt.question}
+            </CardTitle>
+            <div className="shrink-0 flex gap-1.5 pt-0.5">
+              {prompt.is_revealed ? (
+                <Badge variant="ended">Revealed</Badge>
+              ) : prompt.is_open ? (
+                <Badge variant="open">Open</Badge>
+              ) : (
+                <Badge variant="outline">Closed</Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-ink-soft flex flex-wrap gap-x-4 gap-y-1">
+            <span>Type: {prompt.response_type.replace("_", " ")}</span>
+            <span>Anonymity: {prompt.anonymity}</span>
+            <span>Created by {creator?.display_name ?? "Unknown"}</span>
+            {prompt.owner_user_id !== prompt.created_by && (
+              <span>Owned by {owner?.display_name ?? "Unknown"}</span>
             )}
           </div>
-        </div>
-        <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-          <span>Type: {prompt.response_type.replace("_", " ")}</span>
-          <span>Anonymity: {prompt.anonymity}</span>
-          <span>Created by {creator?.display_name ?? "Unknown"}</span>
-          {prompt.owner_user_id !== prompt.created_by && (
-            <span>Owned by {owner?.display_name ?? "Unknown"}</span>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {!prompt.is_revealed && <ParticipationCounter promptId={prompt.id} />}
 
@@ -101,7 +108,7 @@ export default async function PollDetailPage({
           }}
         />
       ) : prompt.is_open ? (
-        <ResponseInput
+        <PollRespondForm
           prompt={{
             id: prompt.id,
             response_type: prompt.response_type,
@@ -114,7 +121,7 @@ export default async function PollDetailPage({
           alreadyResponded={alreadyResponded}
         />
       ) : (
-        <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+        <div className="rounded-lg border border-ink/20 bg-surface-raised p-5 text-sm text-ink-soft">
           This poll is closed and hasn&apos;t been revealed yet.
         </div>
       )}

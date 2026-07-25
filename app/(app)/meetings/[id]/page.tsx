@@ -192,6 +192,7 @@ export default async function MeetingDetailPage({
                 meetingId={m.id}
                 status={m.status}
                 scheduledStart={m.scheduled_start}
+                isHost={isHost}
               />
               {m.status !== "ended" && m.status !== "cancelled" && (
                 <DelegateHostButton

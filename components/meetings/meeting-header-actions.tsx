@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,10 +32,12 @@ export function MeetingHeaderActions({
   meetingId,
   status,
   scheduledStart,
+  isHost,
 }: {
   meetingId: string;
   status: MeetingStatus;
   scheduledStart: string;
+  isHost: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -48,6 +51,21 @@ export function MeetingHeaderActions({
   }, [scheduledStart]);
 
   const [newStartLocal, setNewStartLocal] = useState(defaultPostponeLocal);
+
+  if (status === "live") {
+    if (!isHost) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="default"
+          size="sm"
+          render={<Link href={`/meetings/${meetingId}/present` as never} />}
+        >
+          Present →
+        </Button>
+      </div>
+    );
+  }
 
   if (status !== "scheduled" && status !== "postponed") return null;
 

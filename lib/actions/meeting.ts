@@ -216,9 +216,17 @@ export async function advanceMeetingAgenda(
   if (!parsed.success) return err("invalid_input", parsed.error.message);
 
   const { user, supabase } = await requireUser();
+
+  const payload: { current_agenda_item_id: string | null; has_started?: true } = {
+    current_agenda_item_id: parsed.data.item_id,
+  };
+  if (parsed.data.item_id != null) {
+    payload.has_started = true;
+  }
+
   const { error } = await supabase
     .from("meetings")
-    .update({ current_agenda_item_id: parsed.data.item_id })
+    .update(payload)
     .eq("id", parsed.data.meeting_id)
     .eq("host_user_id", user.id);
   if (error) return err("db_error", error.message);

@@ -15,7 +15,15 @@ export type AgendaItemLite = {
   timer_ends_at: string | null;
 };
 
-export type PromptLite = { id: string; is_open: boolean };
+export type PromptLite = {
+  id: string;
+  is_open: boolean;
+  question?: string;
+  response_type?: "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
+  options?: unknown;
+  rating_min?: number | null;
+  rating_max?: number | null;
+};
 
 export type SlideState =
   | { kind: "not-live" }

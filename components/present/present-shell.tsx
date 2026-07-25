@@ -259,6 +259,7 @@ export function PresentShell(props: PresentShellProps) {
             total={total}
             meetingTitle={props.meetingTitle}
             meetingId={props.meetingId}
+            onNext={advanceNext}
           />
         )}
         {(slideState.kind === "picker-oneshot-idle" ||

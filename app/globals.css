@@ -24,6 +24,17 @@
     --danger-text: #D42222;
     --info: #1CB0F6;
 
+    /* Button bevels — same hue, just barely darker (10% black mix) */
+    --primary-shadow:        color-mix(in srgb, var(--primary) 90%, #000);
+    --accent-shadow:         color-mix(in srgb, var(--accent) 90%, #000);
+    --success-shadow:        color-mix(in srgb, var(--success) 90%, #000);
+    --danger-shadow:         color-mix(in srgb, var(--danger) 90%, #000);
+    --surface-raised-shadow: color-mix(in srgb, var(--surface-raised) 90%, var(--ink));
+
+    /* Disabled button — neutral gray with the same bevel structure */
+    --btn-disabled:        #DFDBCB;
+    --btn-disabled-shadow: #B5AF9C;
+
     /* Semantic mappings kept for shadcn compatibility */
     --background: var(--surface);
     --foreground: var(--ink);
@@ -61,6 +72,14 @@
     --shadow-lift:  0 5px 0 0 var(--ink);
     --shadow-press: 0 1px 0 0 var(--ink);
 
+    /* Chunky block shadow (buttons — lower-left depth).
+       Consumers set --btn-shadow to tint (e.g. darker shade of the button color). */
+    --shadow-block:    -4px 4px 0 0 var(--btn-shadow, var(--ink));
+    --shadow-block-sm: -2px 2px 0 0 var(--btn-shadow, var(--ink));
+
+    /* Typography — single family for body + display */
+    --font-display: var(--font-sans);
+
     /* Motion */
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease-soft:   cubic-bezier(0.4, 0, 0.2, 1);
@@ -89,12 +108,26 @@
     --danger-text: var(--danger);
     --info: #6ED2FF;
 
+    /* Dark bg mutes darkening — push the mix deeper (~22% surface) so the
+       bevel reads clearly while staying in the button's hue family. */
+    --primary-shadow:        color-mix(in srgb, var(--primary) 60%, var(--surface));
+    --accent-shadow:         color-mix(in srgb, var(--accent) 60%, var(--surface));
+    --success-shadow:        color-mix(in srgb, var(--success) 60%, var(--surface));
+    --danger-shadow:         color-mix(in srgb, var(--danger) 60%, var(--surface));
+    --surface-raised-shadow: color-mix(in srgb, var(--surface-raised) 55%, var(--surface));
+
+    --btn-disabled:        #2C2F52;
+    --btn-disabled-shadow: #1D2040;
+
     --sticker-fill: var(--surface);
 
     /* Ink shadows invisible on navy — use pure black */
     --shadow-flat:  0 3px 0 0 #000;
     --shadow-lift:  0 5px 0 0 #000;
     --shadow-press: 0 1px 0 0 #000;
+
+    --shadow-block:    -4px 4px 0 0 var(--btn-shadow, #000);
+    --shadow-block-sm: -2px 2px 0 0 var(--btn-shadow, #000);
 
     color-scheme: dark;
   }

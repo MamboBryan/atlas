@@ -7,26 +7,31 @@ const buttonVariants = cva(
   [
     "group/button inline-flex shrink-0 items-center justify-center gap-2",
     "font-display font-extrabold whitespace-nowrap select-none",
-    "border-chunk border-ink rounded-md",
+    "rounded-md",
     "transition-all duration-fast ease-soft",
-    "shadow-flat",
-    "hover:-translate-y-[2px] hover:shadow-lift",
-    "active:translate-y-[2px] active:shadow-press",
+    "hover:-translate-x-[3px] hover:translate-y-[3px] hover:brightness-95",
+    "active:-translate-x-[6px] active:translate-y-[6px] active:brightness-90",
     "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
-    "disabled:opacity-50 disabled:shadow-flat disabled:hover:translate-y-0 disabled:pointer-events-none",
+    "disabled:bg-[var(--btn-disabled)] disabled:text-ink-soft disabled:border-transparent disabled:shadow-[-6px_6px_0_0_var(--btn-disabled-shadow)] disabled:translate-x-0 disabled:translate-y-0 disabled:brightness-100 disabled:pointer-events-none",
     "[&_svg]:size-4 [&_svg]:shrink-0",
   ].join(" "),
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-ink",
-        accent: "bg-accent text-accent-ink",
-        outline: "bg-surface-raised text-ink",
-        secondary: "bg-surface-raised text-ink", // alias for compat
+        default:
+          "bg-primary text-primary-ink shadow-[-6px_6px_0_0_var(--primary-shadow)] hover:shadow-[-3px_3px_0_0_var(--primary-shadow)] active:shadow-none",
+        accent:
+          "bg-accent text-accent-ink shadow-[-6px_6px_0_0_var(--accent-shadow)] hover:shadow-[-3px_3px_0_0_var(--accent-shadow)] active:shadow-none",
+        outline:
+          "bg-surface-raised text-ink border-thin border-ink shadow-[-6px_6px_0_0_var(--surface-raised-shadow)] hover:shadow-[-3px_3px_0_0_var(--surface-raised-shadow)] active:shadow-none",
+        secondary:
+          "bg-surface-raised text-ink border-thin border-ink shadow-[-6px_6px_0_0_var(--surface-raised-shadow)] hover:shadow-[-3px_3px_0_0_var(--surface-raised-shadow)] active:shadow-none",
         ghost:
-          "border-transparent shadow-none bg-transparent text-ink hover:translate-y-0 hover:bg-ink/5 hover:shadow-none active:translate-y-0 active:shadow-none",
-        destructive: "bg-danger text-danger-ink",
-        link: "border-transparent shadow-none bg-transparent text-primary underline-offset-4 hover:underline hover:translate-y-0 hover:shadow-none active:translate-y-0 active:shadow-none",
+          "bg-transparent text-ink shadow-none hover:translate-x-0 hover:translate-y-0 hover:bg-ink/5 hover:shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none",
+        destructive:
+          "bg-danger text-danger-ink shadow-[-6px_6px_0_0_var(--danger-shadow)] hover:shadow-[-3px_3px_0_0_var(--danger-shadow)] active:shadow-none",
+        link:
+          "bg-transparent text-primary shadow-none underline-offset-4 hover:underline hover:translate-x-0 hover:translate-y-0 hover:shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none",
       },
       size: {
         default: "h-11 px-4 text-sm",

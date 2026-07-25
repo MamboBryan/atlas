@@ -51,6 +51,8 @@ const config: Config = {
         flat: "var(--shadow-flat)",
         lift: "var(--shadow-lift)",
         press: "var(--shadow-press)",
+        block: "var(--shadow-block)",
+        "block-sm": "var(--shadow-block-sm)",
       },
       transitionTimingFunction: {
         spring: "var(--ease-spring)",

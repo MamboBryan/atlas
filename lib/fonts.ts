@@ -1,14 +1,8 @@
-import { Geist, Nunito } from "next/font/google";
+import localFont from "next/font/local";
 
-export const geist = Geist({
-  subsets: ["latin"],
+export const googleSans = localFont({
+  src: "./font-files/GoogleSans-Variable.ttf",
   variable: "--font-sans",
   display: "swap",
-});
-
-export const nunito = Nunito({
-  subsets: ["latin"],
-  weight: ["700", "800", "900"],
-  variable: "--font-display",
-  display: "swap",
+  weight: "100 900",
 });

@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth/require";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+} from "@/components/ui/card";
 
 type MeetingRow = {
   id: string;
@@ -31,10 +39,9 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 }
 
 function StatusBadge({ status }: { status: MeetingRow["status"] }) {
-  if (status === "ended") return <Badge variant="secondary">Ended</Badge>;
-  if (status === "postponed")
-    return <Badge variant="outline">Postponed</Badge>;
-  return <Badge variant="outline">Cancelled</Badge>;
+  if (status === "ended") return <Badge variant="ended">Ended</Badge>;
+  if (status === "postponed") return <Badge variant="postponed">Postponed</Badge>;
+  return <Badge variant="destructive">Cancelled</Badge>;
 }
 
 export default async function PastMeetingsPage() {
@@ -79,22 +86,29 @@ export default async function PastMeetingsPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {/* Back link */}
       <div className="flex items-center gap-2 text-sm">
         <Link
           href={"/meetings" as never}
-          className="text-muted-foreground hover:underline"
+          className="text-ink-soft hover:text-ink transition-colors"
         >
           ← Meetings
         </Link>
       </div>
-      <h1 className="text-2xl font-semibold">Past meetings</h1>
+
+      {/* Page header */}
+      <h1 className="font-display text-3xl font-extrabold text-ink">
+        Past meetings
+      </h1>
 
       {meetings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No meetings have taken place yet.
-        </p>
+        <EmptyState
+          sticker="empty-box"
+          headline="No past meetings yet"
+          body="Meetings that have ended or been postponed will appear here."
+        />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {meetings.map((m) => {
             const host = m.host_user_id
               ? nameById.get(m.host_user_id) ?? "?"
@@ -106,12 +120,12 @@ export default async function PastMeetingsPage() {
               <Link
                 key={m.id}
                 href={`/meetings/${m.id}` as never}
-                className="block rounded-lg border p-4 hover:bg-muted transition-colors"
+                className="block"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{m.title}</div>
-                    <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
+                <Card interactive>
+                  <CardHeader>
+                    <CardTitle className="truncate">{m.title}</CardTitle>
+                    <CardDescription className="flex flex-wrap gap-x-3 gap-y-0.5">
                       <span>
                         {fmtWhen(
                           m.started_at ?? m.scheduled_start,
@@ -123,12 +137,12 @@ export default async function PastMeetingsPage() {
                       <span>host {host}</span>
                       <span>·</span>
                       <span>{pc} participants</span>
-                    </div>
-                  </div>
-                  <div className="shrink-0">
-                    <StatusBadge status={m.status} />
-                  </div>
-                </div>
+                    </CardDescription>
+                    <CardAction>
+                      <StatusBadge status={m.status} />
+                    </CardAction>
+                  </CardHeader>
+                </Card>
               </Link>
             );
           })}

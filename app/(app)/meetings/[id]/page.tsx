@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
+import { Badge, LiveBadge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth/require";
 import { MeetingLiveView } from "@/components/meetings/meeting-live-view";
 import {
@@ -35,6 +35,14 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
     timeZone: tz,
   });
   return `${local} (${source} ${tz})`;
+}
+
+function StatusBadge({ status }: { status: Meeting["status"] }) {
+  if (status === "live") return <LiveBadge />;
+  if (status === "scheduled") return <Badge variant="scheduled">Scheduled</Badge>;
+  if (status === "postponed") return <Badge variant="postponed">Postponed</Badge>;
+  if (status === "ended") return <Badge variant="ended">Ended</Badge>;
+  return <Badge variant="destructive">Cancelled</Badge>;
 }
 
 export default async function MeetingDetailPage({
@@ -107,23 +115,27 @@ export default async function MeetingDetailPage({
 
   return (
     <div className="max-w-4xl space-y-6">
+      {/* Back link */}
       <div className="flex items-center gap-2 text-sm">
         <Link
           href={"/meetings" as never}
-          className="text-muted-foreground hover:underline"
+          className="text-ink-soft hover:text-ink transition-colors"
         >
           ← Meetings
         </Link>
       </div>
 
+      {/* Page header */}
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-3">
-          <h1 className="text-2xl font-semibold">{m.title}</h1>
-          <Badge variant={m.status === "live" ? "default" : "outline"}>
-            {m.status}
-          </Badge>
+          <h1 className="font-display text-3xl font-extrabold text-ink leading-tight">
+            {m.title}
+          </h1>
+          <div className="shrink-0 pt-1">
+            <StatusBadge status={m.status} />
+          </div>
         </div>
-        <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+        <div className="text-sm text-ink-soft flex flex-wrap gap-x-4 gap-y-1">
           <span>{fmtWhen(m.scheduled_start, m.timezone, viewerTz)}</span>
           <span>Host: {hostRow?.display_name ?? "?"}</span>
           {participantCount !== null && (
@@ -134,7 +146,7 @@ export default async function MeetingDetailPage({
               Series:{" "}
               <Link
                 href={`/series/${seriesRow.id}` as never}
-                className="underline hover:text-foreground"
+                className="underline hover:text-ink"
               >
                 {seriesRow.name}
               </Link>
@@ -156,8 +168,8 @@ export default async function MeetingDetailPage({
       />
 
       {isHost && m.status !== "ended" && (
-        <section className="space-y-3 pt-4 border-t">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <section className="space-y-3 pt-4 border-t border-ink/10">
+          <h2 className="text-xs font-display font-extrabold uppercase tracking-widest text-ink-soft">
             Edit agenda
           </h2>
           <AgendaEditor

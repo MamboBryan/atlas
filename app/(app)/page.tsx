@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, LiveBadge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth/require";
 import { NextMeetingActions } from "@/components/app/next-meeting-actions";
 
@@ -40,8 +40,8 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 }
 
 function StatusBadge({ status }: { status: Meeting["status"] }) {
-  if (status === "live") return <Badge>Live</Badge>;
-  return <Badge variant="outline">Scheduled</Badge>;
+  if (status === "live") return <LiveBadge />;
+  return <Badge variant="scheduled">Scheduled</Badge>;
 }
 
 export default async function HomePage() {

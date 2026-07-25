@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/require";
+import { NewPollTrigger } from "@/app/(app)/polls/_ui/new-poll-trigger";
 
 type PromptRow = {
   id: string;
@@ -15,6 +17,12 @@ type PromptRow = {
   created_at: string;
 };
 
+function pollStatusBadge(p: PromptRow) {
+  if (p.is_revealed) return <Badge variant="secondary">Revealed</Badge>;
+  if (p.is_open) return <Badge variant="default">Open</Badge>;
+  return <Badge variant="outline">Closed</Badge>;
+}
+
 function PromptRowCard({
   p,
   href,
@@ -27,31 +35,24 @@ function PromptRowCard({
   answered: boolean;
 }) {
   return (
-    <Link
-      href={href as never}
-      className="block rounded-lg border p-4 hover:bg-muted transition-colors"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-medium truncate">{p.question}</div>
-          <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
-            <span>{p.response_type.replace("_", " ")}</span>
-            <span>·</span>
-            <span>{p.anonymity}</span>
-          </div>
-        </div>
-        <div className="shrink-0 flex flex-wrap gap-1.5 justify-end">
-          {mine && <Badge variant="outline">Yours</Badge>}
-          {!mine && answered && <Badge variant="outline">Answered</Badge>}
-          {p.is_revealed ? (
-            <Badge variant="secondary">Revealed</Badge>
-          ) : p.is_open ? (
-            <Badge>Open</Badge>
-          ) : (
-            <Badge variant="outline">Closed</Badge>
-          )}
-        </div>
-      </div>
+    <Link href={href as never} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
+      <Card interactive size="sm">
+        <CardHeader>
+          <CardTitle className="text-base leading-snug line-clamp-2">
+            {p.question}
+          </CardTitle>
+          <CardDescription>
+            {p.response_type.replace(/_/g, " ")} · {p.anonymity.replace(/_/g, " ")}
+          </CardDescription>
+          <CardAction>
+            <div className="flex flex-wrap gap-1.5 justify-end">
+              {mine && <Badge variant="outline">Yours</Badge>}
+              {!mine && answered && <Badge variant="outline">Answered</Badge>}
+              {pollStatusBadge(p)}
+            </div>
+          </CardAction>
+        </CardHeader>
+      </Card>
     </Link>
   );
 }
@@ -94,9 +95,7 @@ export default async function PollsPage() {
           >
             Past
           </Link>
-          <Link href={"/polls/new" as never} className={buttonVariants()}>
-            New poll
-          </Link>
+          <NewPollTrigger />
         </div>
       </div>
 

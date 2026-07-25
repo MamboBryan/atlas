@@ -53,7 +53,10 @@ downstream reads from these.
 | `--accent` | `#FFD84A` | `#FFE264` | Highlights, celebration |
 | `--accent-ink` | `#111111` | `#111111` | Text on accent (dark both modes) |
 | `--success` | `#58CC02` | `#7EE84A` | Confirmation, live, streaks |
-| `--danger` | `#FF4B4B` | `#FF7070` | Destructive, errors |
+| `--success-ink` | `#111111` | `#111111` | Text on success backgrounds |
+| `--danger` | `#FF4B4B` | `#FF7070` | Destructive, errors (backgrounds/borders) |
+| `--danger-ink` | `#111111` | `#111111` | Text on danger backgrounds |
+| `--danger-text` | `#D42222` | `var(--danger)` | Danger text on light surfaces (WCAG AA) |
 | `--info` | `#1CB0F6` | `#6ED2FF` | Neutral notice |
 
 All combinations verified against WCAG AA (4.5:1 body, 3:1 large text) before

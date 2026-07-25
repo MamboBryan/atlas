@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ComponentType } from "react";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,7 +13,7 @@ export function NavLink({
 }: {
   href: Route;
   label: string;
-  Icon: React.ComponentType<{ className?: string }>;
+  Icon: ComponentType<{ className?: string }>;
 }) {
   const pathname = usePathname();
   const active =

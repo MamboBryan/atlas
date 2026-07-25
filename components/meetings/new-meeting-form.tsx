@@ -57,7 +57,7 @@ export function NewMeetingForm({
           </label>
 
           {error && (
-            <p className="text-sm text-danger" role="alert">
+            <p className="text-sm text-danger-text" role="alert">
               {error}
             </p>
           )}

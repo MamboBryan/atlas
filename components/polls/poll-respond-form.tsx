@@ -215,7 +215,7 @@ export function PollRespondForm({
       )}
 
       {err && (
-        <p className="text-sm text-danger" role="alert">
+        <p className="text-sm text-danger-text" role="alert">
           {err}
         </p>
       )}

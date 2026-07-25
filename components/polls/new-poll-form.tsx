@@ -26,6 +26,12 @@ export function NewPollForm({ onDone }: { onDone: () => void }) {
   const [responseType, setResponseType] = useState<ResponseType>("text");
   const submitRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
+  // Capture timezone once on mount so the server action can convert
+  // datetime-local values (wall-clock) to the correct UTC instant.
+  const timezone =
+    typeof window !== "undefined"
+      ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC")
+      : "UTC";
 
   const needsOptions =
     responseType === "single_choice" || responseType === "multi_choice";
@@ -140,8 +146,11 @@ export function NewPollForm({ onDone }: { onDone: () => void }) {
             <Input type="datetime-local" name="opens_at" />
           </label>
 
+          {/* Hidden timezone so the server action can localise opens_at correctly */}
+          <input type="hidden" name="timezone" value={timezone} />
+
           {error && (
-            <p className="text-sm text-danger" role="alert">
+            <p className="text-sm text-danger-text" role="alert">
               {error}
             </p>
           )}

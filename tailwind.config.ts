@@ -30,7 +30,7 @@ const config: Config = {
           foreground: "var(--accent-foreground)",
         },
         success: { DEFAULT: "var(--success)", ink: "var(--success-ink)" },
-        danger:  { DEFAULT: "var(--danger)",  ink: "var(--danger-ink)"  },
+        danger:  { DEFAULT: "var(--danger)",  ink: "var(--danger-ink)", text: "var(--danger-text)" },
         info: "var(--info)",
         destructive: { DEFAULT: "var(--destructive)" },
         border: "var(--border)",

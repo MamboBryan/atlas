@@ -14,6 +14,7 @@ type RosterRow = { id: string; display_name: string };
 type RRule = {
   freq: "DAILY" | "WEEKLY" | "MONTHLY";
   byday: string;
+  bymonthday: number;
   byhour: number;
   byminute: number;
 };
@@ -31,6 +32,7 @@ const DAYS = [
 function buildRRule(r: RRule): string {
   const bits = [`FREQ=${r.freq}`];
   if (r.freq === "WEEKLY") bits.push(`BYDAY=${r.byday}`);
+  if (r.freq === "MONTHLY") bits.push(`BYMONTHDAY=${r.bymonthday}`);
   bits.push(`BYHOUR=${r.byhour}`);
   bits.push(`BYMINUTE=${r.byminute}`);
   return bits.join(";");
@@ -64,6 +66,7 @@ export function NewSeriesForm({
   const [rrule, setRRule] = useState<RRule>({
     freq: "WEEKLY",
     byday: "MO",
+    bymonthday: 1,
     byhour: 10,
     byminute: 0,
   });
@@ -169,6 +172,26 @@ export function NewSeriesForm({
                 </select>
               </label>
             )}
+            {rrule.freq === "MONTHLY" && (
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-ink-soft">
+                  Day of month
+                </span>
+                <select
+                  value={rrule.bymonthday}
+                  onChange={(e) =>
+                    setRRule({ ...rrule, bymonthday: Number(e.target.value) })
+                  }
+                  className="w-full rounded-md border border-ink/20 bg-transparent px-2 py-2 text-sm text-ink"
+                >
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="block space-y-1">
               <span className="text-xs font-medium text-ink-soft">
                 Hour (0–23)
@@ -224,7 +247,7 @@ export function NewSeriesForm({
         </fieldset>
 
         {error && (
-          <p className="text-sm text-danger" role="alert">
+          <p className="text-sm text-danger-text" role="alert">
             {error}
           </p>
         )}

@@ -25,7 +25,9 @@ export function MobileNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t-chunk border-ink bg-surface md:hidden">
       {items.map(({ href, label, Icon }) => {
-        const active = pathname === href;
+        const active =
+          pathname === href ||
+          (href !== "/" && pathname.startsWith(href + "/"));
         return (
           <Link
             key={href}

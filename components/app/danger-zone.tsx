@@ -19,7 +19,7 @@ export function DangerZone() {
   return (
     <Card className="border-danger">
       <CardHeader>
-        <CardTitle className="text-danger">Danger zone</CardTitle>
+        <CardTitle className="text-danger-text">Danger zone</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between gap-4">

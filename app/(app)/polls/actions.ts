@@ -1,6 +1,7 @@
 "use server";
 
 import { createPrompt } from "@/lib/actions/prompt";
+import { localInputToIso } from "@/lib/utils/date";
 
 /**
  * Server action consumed by NewPollForm (Sheet-based form).
@@ -26,6 +27,7 @@ export async function createPollAction(
     (fd.get("anonymity") as string | null) ?? "attributed";
   const timing = (fd.get("timing") as string | null) ?? "async";
   const opens_at_raw = (fd.get("opens_at") as string | null)?.trim() ?? "";
+  const timezone = (fd.get("timezone") as string | null)?.trim() || "UTC";
 
   if (!question) return { error: "Question is required." };
 
@@ -36,8 +38,10 @@ export async function createPollAction(
   };
 
   if (opens_at_raw) {
-    // datetime-local gives "YYYY-MM-DDTHH:mm" — append :00Z to make it ISO
-    const iso = opens_at_raw.length === 16 ? `${opens_at_raw}:00.000Z` : opens_at_raw;
+    // datetime-local gives "YYYY-MM-DDTHH:mm" — interpret in the viewer's
+    // timezone (sent as a hidden field) then convert to UTC ISO.
+    const iso = localInputToIso(opens_at_raw, timezone);
+    if (!iso) return { error: "Invalid opens_at date/time." };
     base.opens_at = iso;
   }
 

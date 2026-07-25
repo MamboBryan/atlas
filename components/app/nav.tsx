@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ComponentType } from "react";
 import type { Route } from "next";
 import {
   HomeIcon,
@@ -19,7 +20,7 @@ import { NavLink } from "@/components/app/nav-link";
 type NavItem = {
   href: Route;
   label: string;
-  Icon: React.ComponentType<{ className?: string }>;
+  Icon: ComponentType<{ className?: string }>;
 };
 
 const items: NavItem[] = [

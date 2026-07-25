@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -84,17 +85,29 @@ export function NotificationsBell({ userId }: { userId: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="size-4" />
-            {unread > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] leading-none rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
-                {unread > 9 ? "9+" : unread}
-              </span>
-            )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative w-full justify-start gap-2 px-3 py-2 text-sm text-ink hover:bg-surface-raised"
+          >
+            <span className="relative flex items-center">
+              <Bell className="size-4" />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] leading-none rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-1">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </span>
+            <span>Notifications</span>
           </Button>
         }
       />
-      <DropdownMenuContent align="end" className="w-80 p-0">
+      <DropdownMenuContent
+        align="start"
+        side="top"
+        sideOffset={4}
+        className="w-80 p-0"
+      >
         <div className="px-3 py-2 border-b flex items-center justify-between">
           <span className="text-sm font-medium">Notifications</span>
           <Link

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShuffleRunner } from "@/components/tools/shuffle-runner";
+import { ShufflePlayground } from "@/components/tools/shuffle-playground";
 
 export default async function ToolsShufflePage({
   searchParams,
@@ -18,7 +18,7 @@ export default async function ToolsShufflePage({
         </Link>
       </div>
       <h1 className="text-2xl font-semibold">Shuffle roster</h1>
-      <ShuffleRunner sessionId={id ?? null} />
+      <ShufflePlayground sessionId={id ?? null} />
     </div>
   );
 }

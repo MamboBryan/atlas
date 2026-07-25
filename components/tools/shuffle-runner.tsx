@@ -1,11 +1,11 @@
 "use client";
-
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
+  advanceShuffle,
+  backShuffle,
   restartShuffle,
   startShuffle,
 } from "@/lib/actions/picker";
@@ -18,13 +18,6 @@ type SessionRow = {
   current_index: number;
   status: "active" | "finished";
 };
-
-type AnimPhase = "idle" | "out" | "in";
-
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 export function ShuffleRunner({
   sessionId,
@@ -40,9 +33,7 @@ export function ShuffleRunner({
   const [err, setErr] = useState<string | null>(null);
   const [session, setSession] = useState<SessionRow | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
-  const [animPhase, setAnimPhase] = useState<AnimPhase>("idle");
   const controllable = canControl ?? true;
-  const outTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadSession = useCallback(async (id: string) => {
     const s = createSupabaseBrowserClient();
@@ -109,53 +100,30 @@ export function ShuffleRunner({
     };
   }, [sessionId, loadSession]);
 
-  // Cleanup timers on unmount.
-  useEffect(() => {
-    return () => {
-      if (outTimerRef.current !== null) clearTimeout(outTimerRef.current);
-    };
-  }, []);
-
-  const doShuffle = useCallback(() => {
+  const doPrev = () => {
     if (!session) return;
     setErr(null);
-
-    if (prefersReducedMotion()) {
-      // Skip animation; just reshuffle.
-      start(async () => {
-        const res = await restartShuffle(session.id);
-        if (!res.ok) setErr(res.error.message);
-      });
-      return;
-    }
-
-    const total = session.roster_snapshot.length;
-    const outDuration = total * 60 + 200; // stagger 60ms per card + buffer
-
-    // Phase 1: stagger out.
-    setAnimPhase("out");
-
-    outTimerRef.current = setTimeout(() => {
-      // Phase 2: reshuffle on server then stagger in.
-      start(async () => {
-        const res = await restartShuffle(session.id);
-        if (!res.ok) {
-          setErr(res.error.message);
-          setAnimPhase("idle");
-          return;
-        }
-        // The realtime subscription will call loadSession which updates
-        // session; as a fallback also load directly.
-        if (sessionId) await loadSession(sessionId);
-        setAnimPhase("in");
-
-        // Return to idle after in-animation completes.
-        outTimerRef.current = setTimeout(() => {
-          setAnimPhase("idle");
-        }, total * 60 + 400);
-      });
-    }, outDuration);
-  }, [session, sessionId, loadSession]);
+    start(async () => {
+      const res = await backShuffle(session.id);
+      if (!res.ok) setErr(res.error.message);
+    });
+  };
+  const doNext = () => {
+    if (!session) return;
+    setErr(null);
+    start(async () => {
+      const res = await advanceShuffle(session.id);
+      if (!res.ok) setErr(res.error.message);
+    });
+  };
+  const doRestart = () => {
+    if (!session) return;
+    setErr(null);
+    start(async () => {
+      const res = await restartShuffle(session.id);
+      if (!res.ok) setErr(res.error.message);
+    });
+  };
 
   if (!session) {
     return (
@@ -169,58 +137,33 @@ export function ShuffleRunner({
     );
   }
 
-  const roster = session.roster_snapshot;
-  const total = roster.length;
+  const total = session.roster_snapshot.length;
+  const idx = session.current_index;
+  const currentId = session.roster_snapshot[idx];
+  const currentName = names[currentId] ?? "…";
 
   return (
-    <div className="space-y-6">
-      {/* Roster grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {roster.map((userId, idx) => {
-          const displayName = names[userId] ?? "…";
-          const delayMs = idx * 60;
-
-          let cardClass =
-            "flex items-center justify-center text-center min-h-16 select-none";
-
-          let style: React.CSSProperties = {};
-
-          if (animPhase === "out") {
-            // Staggered fade-out + rise.
-            style = {
-              animationDelay: `${delayMs}ms`,
-              animationFillMode: "both",
-            };
-            cardClass += " animate-[rise-out_300ms_ease-in_both]";
-          } else if (animPhase === "in") {
-            // Staggered rise-in after reshuffle.
-            style = {
-              animationDelay: `${delayMs}ms`,
-            };
-            cardClass += " animate-rise-in";
-          }
-
-          return (
-            <Card key={`${userId}-${idx}`} className={cardClass} style={style}>
-              <CardContent className="py-4 px-3">
-                <span className="font-display font-extrabold text-sm leading-snug">
-                  {displayName}
-                </span>
-              </CardContent>
-            </Card>
-          );
-        })}
+    <div className="space-y-4">
+      <div className="rounded-lg border p-6 space-y-2 text-center">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          {idx + 1} of {total}
+          {session.status === "finished" && " · done"}
+        </div>
+        <div key={currentId} className="text-3xl font-semibold">
+          {currentName}
+        </div>
       </div>
 
       {controllable && (
         <div className="flex justify-center gap-2">
-          <Button
-            size="lg"
-            variant="accent"
-            onClick={doShuffle}
-            disabled={pending || animPhase !== "idle"}
-          >
-            {pending ? "Shuffling…" : "Shuffle"}
+          <Button variant="outline" onClick={doPrev} disabled={pending || idx === 0}>
+            Prev
+          </Button>
+          <Button onClick={doNext} disabled={pending || session.status === "finished"}>
+            Next
+          </Button>
+          <Button variant="ghost" onClick={doRestart} disabled={pending}>
+            Restart
           </Button>
         </div>
       )}
@@ -231,8 +174,8 @@ export function ShuffleRunner({
         </p>
       )}
 
-      <div className="text-xs text-ink-soft text-center">
-        Session: {session.id.slice(0, 8)} · {total} members
+      <div className="text-xs text-muted-foreground text-center">
+        Session ID: {session.id.slice(0, 8)} · shareable link
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/require";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { SeriesForm } from "@/components/series/series-form";
 import type { AgendaTemplateItem } from "@/lib/zod/series";
 
@@ -101,89 +102,119 @@ export default async function SeriesDetailPage({
   const nextInRotation =
     series.rotation_order[series.rotation_cursor % series.rotation_order.length];
 
+  const cadenceLabel = (() => {
+    const upper = series.rrule.toUpperCase();
+    if (upper.includes("FREQ=WEEKLY")) return "weekly";
+    if (upper.includes("FREQ=DAILY")) return "daily";
+    if (upper.includes("FREQ=MONTHLY")) return "monthly";
+    return "custom";
+  })();
+
+  const nextOccurrence = upcoming.length > 0 ? upcoming[0] : null;
+
   return (
     <div className="space-y-8 max-w-3xl">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Link
-            href={"/series" as never}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            ← All series
-          </Link>
-        </div>
-        <h1 className="text-2xl font-semibold">{series.name}</h1>
+      {/* Back link */}
+      <div className="flex items-center gap-2">
+        <Link
+          href={"/series" as never}
+          className="text-sm text-ink-soft hover:text-ink transition-colors"
+        >
+          ← All series
+        </Link>
+      </div>
+
+      {/* Header */}
+      <div className="space-y-4">
+        <h1 className="font-display text-3xl font-extrabold text-ink">{series.name}</h1>
         {series.description && (
-          <p className="text-sm text-muted-foreground">{series.description}</p>
+          <p className="text-sm text-ink-soft">{series.description}</p>
         )}
-        <div className="text-xs text-muted-foreground flex flex-wrap gap-2">
-          <span>{series.timezone}</span>
-          <span>·</span>
-          <code>{series.rrule}</code>
-          <span>·</span>
-          <span>owner {nameById.get(series.owner_user_id) ?? "?"}</span>
+
+        {/* Meta line */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="secondary">{cadenceLabel}</Badge>
+          <span className="text-sm text-ink-soft">{series.rotation_order.length} members</span>
+          {nextOccurrence && (
+            <span className="text-sm text-ink-soft">
+              Next: {fmtWhen(nextOccurrence.scheduled_start, series.timezone)}
+            </span>
+          )}
         </div>
       </div>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Rotation ({series.rotation_order.length})
+      {/* Members grid */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
+          Rotation
         </h2>
-        <ol className="rounded-md border divide-y">
-          {series.rotation_order.map((uid, i) => {
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {series.rotation_order.map((uid) => {
             const isNext = uid === nextInRotation;
+            const name = nameById.get(uid) ?? uid.slice(0, 8);
             return (
-              <li
-                key={uid}
-                className="flex items-center justify-between gap-2 p-2 text-sm"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="w-6 text-muted-foreground tabular-nums">
-                    {i + 1}.
-                  </span>
-                  {nameById.get(uid) ?? uid.slice(0, 8)}
-                </span>
-                {isNext && <Badge>next</Badge>}
-              </li>
+              <Card key={uid} size="sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-ink/10 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <CardTitle className="text-base truncate">{name}</CardTitle>
+                        {isNext && (
+                          <CardDescription className="text-xs">Next host</CardDescription>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
             );
           })}
-        </ol>
+        </div>
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Upcoming generated meetings ({upcoming.length})
+      {/* Upcoming meetings */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
+          Upcoming
         </h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-soft">
             None yet. The cron generates the next 14 days each run.
           </p>
         ) : (
-          <ul className="rounded-md border divide-y">
+          <div className="space-y-2">
             {upcoming.map((m) => (
-              <li key={m.id} className="p-2 text-sm">
-                <Link
-                  href={`/meetings/${m.id}` as never}
-                  className="flex items-center justify-between gap-2 hover:underline"
-                >
-                  <span className="truncate">{m.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {fmtWhen(m.scheduled_start, series.timezone)} ·{" "}
-                    {m.host_user_id
-                      ? `host ${nameById.get(m.host_user_id) ?? "?"}`
-                      : "no host"}{" "}
-                    · {m.status}
-                  </span>
-                </Link>
-              </li>
+              <Link
+                key={m.id}
+                href={`/meetings/${m.id}` as never}
+                className="block no-underline"
+              >
+                <Card interactive size="sm">
+                  <CardHeader>
+                    <CardTitle className="text-base">{m.title}</CardTitle>
+                    <CardDescription className="flex flex-wrap gap-2">
+                      <span>{fmtWhen(m.scheduled_start, series.timezone)}</span>
+                      <span>·</span>
+                      <span>
+                        {m.host_user_id
+                          ? `host ${nameById.get(m.host_user_id) ?? "?"}`
+                          : "no host"}
+                      </span>
+                      <span>·</span>
+                      <Badge variant="secondary" className="text-xs">{m.status}</Badge>
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
       {canEdit && (
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
             Edit
           </h2>
           <SeriesForm

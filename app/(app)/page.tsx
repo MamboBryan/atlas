@@ -9,6 +9,7 @@ import {
   CardAction,
   CardContent,
 } from "@/components/ui/card";
+import { MeetingRoomIcon } from "@hugeicons/core-free-icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth/require";
 import { NextMeetingActions } from "@/components/app/next-meeting-actions";
@@ -49,8 +50,12 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 }
 
 function StatusBadge({ status }: { status: Meeting["status"] }) {
-  if (status === "live") return <LiveBadge />;
-  return <Badge variant="scheduled">Scheduled</Badge>;
+  if (status === "live") return <LiveBadge size="lg" />;
+  return (
+    <Badge variant="scheduled" size="lg">
+      Scheduled
+    </Badge>
+  );
 }
 
 export default async function HomePage() {
@@ -163,10 +168,9 @@ export default async function HomePage() {
           </Card>
         ) : (
           <EmptyState
-            sticker="calendar"
+            icon={MeetingRoomIcon}
             headline="No meetings on the horizon"
-            body="Schedule your team's next ritual."
-            action={{ label: "New meeting", href: "/meetings?new=meeting" as never }}
+            body="You're safe, but only for now."
           />
         )}
       </section>

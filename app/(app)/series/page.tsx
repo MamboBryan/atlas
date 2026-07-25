@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/require";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CalendarUserIcon } from "@hugeicons/core-free-icons";
 import { MeetingsTabs } from "@/components/app/meetings-tabs";
 import { NewSeriesTrigger } from "./_ui/new-series-trigger";
 
@@ -117,7 +118,7 @@ export default async function SeriesListPage() {
 
       {series.length === 0 ? (
         <EmptyState
-          sticker="empty-box"
+          icon={CalendarUserIcon}
           headline="No series yet"
           body={isAdmin ? "Create one to auto-generate recurring meetings." : "Ask an admin to create a recurring series."}
           action={isAdmin ? { label: "New series", href: "/series?new=series" as never } : undefined}

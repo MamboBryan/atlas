@@ -137,52 +137,58 @@ export function PollRespondForm({
 
       {(prompt.response_type === "single_choice" ||
         prompt.response_type === "yes_no") && (
-        <div className="space-y-2">
-          {(prompt.options ?? []).map((o) => (
-            <label
-              key={o.id}
-              className={
-                "flex items-center gap-3 rounded-lg border-chunk border-ink px-4 py-3 cursor-pointer transition-all duration-fast " +
-                (choice === o.id
-                  ? "bg-primary/10 border-primary shadow-flat"
-                  : "bg-surface-raised hover:bg-surface hover:-translate-y-[1px] hover:shadow-flat")
-              }
-            >
-              <input
-                type="radio"
-                name="choice"
-                value={o.id}
-                checked={choice === o.id}
-                onChange={() => setChoice(o.id)}
-                className="accent-primary"
-              />
-              <span className="font-medium text-ink">{o.label}</span>
-            </label>
-          ))}
+        <div className="space-y-3">
+          {(prompt.options ?? []).map((o) => {
+            const selected = choice === o.id;
+            return (
+              <label
+                key={o.id}
+                className={
+                  "flex items-center rounded-md border-chunk px-4 py-3 cursor-pointer transition-all duration-fast " +
+                  (selected
+                    ? "bg-primary text-primary-ink border-primary shadow-[-6px_6px_0_0_var(--primary-shadow)]"
+                    : "bg-surface-raised text-ink border-ink hover:bg-surface hover:-translate-y-[1px] hover:shadow-flat")
+                }
+              >
+                <input
+                  type="radio"
+                  name="choice"
+                  value={o.id}
+                  checked={selected}
+                  onChange={() => setChoice(o.id)}
+                  className="sr-only"
+                />
+                <span className="font-medium">{o.label}</span>
+              </label>
+            );
+          })}
         </div>
       )}
 
       {prompt.response_type === "multi_choice" && (
-        <div className="space-y-2">
-          {(prompt.options ?? []).map((o) => (
-            <label
-              key={o.id}
-              className={
-                "flex items-center gap-3 rounded-lg border-chunk border-ink px-4 py-3 cursor-pointer transition-all duration-fast " +
-                (multi.has(o.id)
-                  ? "bg-primary/10 border-primary shadow-flat"
-                  : "bg-surface-raised hover:bg-surface hover:-translate-y-[1px] hover:shadow-flat")
-              }
-            >
-              <input
-                type="checkbox"
-                checked={multi.has(o.id)}
-                onChange={() => toggleMulti(o.id)}
-                className="accent-primary"
-              />
-              <span className="font-medium text-ink">{o.label}</span>
-            </label>
-          ))}
+        <div className="space-y-3">
+          {(prompt.options ?? []).map((o) => {
+            const selected = multi.has(o.id);
+            return (
+              <label
+                key={o.id}
+                className={
+                  "flex items-center rounded-md border-chunk px-4 py-3 cursor-pointer transition-all duration-fast " +
+                  (selected
+                    ? "bg-primary text-primary-ink border-primary shadow-[-6px_6px_0_0_var(--primary-shadow)]"
+                    : "bg-surface-raised text-ink border-ink hover:bg-surface hover:-translate-y-[1px] hover:shadow-flat")
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => toggleMulti(o.id)}
+                  className="sr-only"
+                />
+                <span className="font-medium">{o.label}</span>
+              </label>
+            );
+          })}
         </div>
       )}
 

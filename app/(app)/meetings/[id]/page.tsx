@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ChessKingIcon } from "@hugeicons/core-free-icons";
 import { Badge, LiveBadge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth/require";
 import { MeetingLiveView } from "@/components/meetings/meeting-live-view";
+import { MeetingHeaderActions } from "@/components/meetings/meeting-header-actions";
+import { DelegateHostButton } from "@/components/meetings/delegate-host-button";
 import {
   AgendaEditor,
   type AgendaItem,
@@ -38,11 +42,11 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 }
 
 function StatusBadge({ status }: { status: Meeting["status"] }) {
-  if (status === "live") return <LiveBadge />;
-  if (status === "scheduled") return <Badge variant="scheduled">Scheduled</Badge>;
-  if (status === "postponed") return <Badge variant="postponed">Postponed</Badge>;
-  if (status === "ended") return <Badge variant="ended">Ended</Badge>;
-  return <Badge variant="destructive">Cancelled</Badge>;
+  if (status === "live") return <LiveBadge size="lg" />;
+  if (status === "scheduled") return <Badge variant="scheduled" size="lg">Scheduled</Badge>;
+  if (status === "postponed") return <Badge variant="postponed" size="lg">Postponed</Badge>;
+  if (status === "ended") return <Badge variant="ended" size="lg">Ended</Badge>;
+  return <Badge variant="destructive" size="lg">Cancelled</Badge>;
 }
 
 export default async function MeetingDetailPage({
@@ -64,7 +68,7 @@ export default async function MeetingDetailPage({
 
   const m = meeting as Meeting;
 
-  const [{ data: hostRow }, { data: items }, { data: seriesRow }] =
+  const [{ data: hostRow }, { data: items }, { data: seriesRow }, { data: rosterRows }] =
     await Promise.all([
       m.host_user_id
         ? supabase
@@ -85,9 +89,15 @@ export default async function MeetingDetailPage({
             .eq("id", m.series_id)
             .single()
         : Promise.resolve({ data: null }),
+      supabase
+        .from("profiles")
+        .select("id,display_name")
+        .eq("is_active", true)
+        .order("display_name", { ascending: true }),
     ]);
 
   const agendaItems = (items ?? []) as AgendaItem[];
+  const roster = (rosterRows ?? []) as { id: string; display_name: string }[];
 
   const isHost = m.host_user_id === user.id;
 
@@ -114,63 +124,105 @@ export default async function MeetingDetailPage({
     : null;
 
   return (
-    <div className="max-w-4xl space-y-6">
-      {/* Back link */}
-      <div className="flex items-center gap-2 text-sm">
-        <Link
-          href={"/meetings" as never}
-          className="text-ink-soft hover:text-ink transition-colors"
+    <div className="space-y-8">
+      <header className="space-y-3">
+        {/* Breadcrumbs */}
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center gap-1.5 text-sm text-ink-soft"
         >
-          ← Meetings
-        </Link>
-      </div>
+          <Link
+            href={"/meetings" as never}
+            className="hover:text-ink transition-colors"
+          >
+            Meetings
+          </Link>
+          <span aria-hidden>/</span>
+          <span className="text-ink truncate">{m.title}</span>
+        </nav>
 
-      {/* Page header */}
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="font-display text-3xl font-extrabold text-ink leading-tight">
-            {m.title}
-          </h1>
-          <div className="shrink-0 pt-1">
-            <StatusBadge status={m.status} />
+        {/* Title + actions */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-display text-3xl font-extrabold text-ink leading-tight">
+                {m.title}
+              </h1>
+              <StatusBadge status={m.status} />
+            </div>
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
+              <span>{fmtWhen(m.scheduled_start, m.timezone, viewerTz)}</span>
+              <span aria-hidden>·</span>
+              <span className="inline-flex items-center gap-1.5">
+                <HugeiconsIcon
+                  icon={ChessKingIcon}
+                  size={16}
+                  strokeWidth={2}
+                  className="shrink-0"
+                />
+                <span className="capitalize">
+                  {hostRow?.display_name ?? "?"}
+                </span>
+              </span>
+              {participantCount !== null && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>{participantCount} participants</span>
+                </>
+              )}
+              {seriesRow && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>
+                    Series:{" "}
+                    <Link
+                      href={`/series/${seriesRow.id}` as never}
+                      className="underline hover:text-ink"
+                    >
+                      {seriesRow.name}
+                    </Link>
+                  </span>
+                </>
+              )}
+            </p>
           </div>
-        </div>
-        <div className="text-sm text-ink-soft flex flex-wrap gap-x-4 gap-y-1">
-          <span>{fmtWhen(m.scheduled_start, m.timezone, viewerTz)}</span>
-          <span>Host: {hostRow?.display_name ?? "?"}</span>
-          {participantCount !== null && (
-            <span>{participantCount} participants (restricted)</span>
-          )}
-          {seriesRow && (
-            <span>
-              Series:{" "}
-              <Link
-                href={`/series/${seriesRow.id}` as never}
-                className="underline hover:text-ink"
-              >
-                {seriesRow.name}
-              </Link>
-            </span>
+          {isHost && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <MeetingHeaderActions
+                meetingId={m.id}
+                status={m.status}
+                scheduledStart={m.scheduled_start}
+              />
+              {m.status !== "ended" && m.status !== "cancelled" && (
+                <DelegateHostButton
+                  meetingId={m.id}
+                  currentHostId={m.host_user_id}
+                  roster={roster}
+                />
+              )}
+            </div>
           )}
         </div>
-      </div>
+      </header>
 
-      <MeetingLiveView
-        meetingId={m.id}
-        scheduledStart={m.scheduled_start}
-        initialMeeting={{
-          id: m.id,
-          status: m.status,
-          current_agenda_item_id: m.current_agenda_item_id,
-        }}
-        initialItems={agendaItems}
-        isHost={isHost}
-      />
+      {(m.status === "live" || m.status === "ended") && (
+        <MeetingLiveView
+          meetingId={m.id}
+          scheduledStart={m.scheduled_start}
+          initialMeeting={{
+            id: m.id,
+            status: m.status,
+            current_agenda_item_id: m.current_agenda_item_id,
+          }}
+          initialItems={agendaItems}
+          isHost={isHost}
+        />
+      )}
 
       {isHost && m.status !== "ended" && (
-        <section className="space-y-3 pt-4 border-t border-ink/10">
-          <h2 className="text-xs font-display font-extrabold uppercase tracking-widest text-ink-soft">
-            Edit agenda
+        <section className="space-y-3">
+          <h2 className="font-display text-xl font-extrabold text-ink">
+            Agenda
           </h2>
           <AgendaEditor
             meetingId={m.id}

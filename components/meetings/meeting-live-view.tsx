@@ -1,29 +1,21 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckmarkCircle02Icon, MeetingRoomIcon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   advanceMeetingAgenda,
   endMeeting,
-  postponeMeetingManual,
-  startMeeting,
 } from "@/lib/actions/meeting";
 import { AgendaRunner } from "@/components/meetings/agenda-runner";
 import { AgendaSummary } from "@/components/meetings/agenda-summary";
 import type { AgendaItem } from "@/components/meetings/agenda-editor";
+import { cn } from "@/lib/utils";
 
 type MeetingRow = {
   id: string;
@@ -31,25 +23,10 @@ type MeetingRow = {
   current_agenda_item_id: string | null;
 };
 
-function toLocalInputValue(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    d.getFullYear() +
-    "-" +
-    pad(d.getMonth() + 1) +
-    "-" +
-    pad(d.getDate()) +
-    "T" +
-    pad(d.getHours()) +
-    ":" +
-    pad(d.getMinutes())
-  );
-}
+type TrackState = "done" | "current" | "next" | "upcoming";
 
 export function MeetingLiveView({
   meetingId,
-  scheduledStart,
   initialMeeting,
   initialItems,
   isHost,
@@ -65,15 +42,6 @@ export function MeetingLiveView({
   const [err, setErr] = useState<string | null>(null);
   const [meeting, setMeeting] = useState<MeetingRow>(initialMeeting);
   const [items, setItems] = useState<AgendaItem[]>(initialItems);
-  const [postponeOpen, setPostponeOpen] = useState(false);
-  const defaultPostponeLocal = useMemo(() => {
-    const d = new Date(scheduledStart);
-    d.setDate(d.getDate() + 1);
-    return toLocalInputValue(d.toISOString());
-  }, [scheduledStart]);
-  const [newStartLocal, setNewStartLocal] = useState<string>(
-    defaultPostponeLocal,
-  );
 
   const refreshMeeting = useCallback(async () => {
     const s = createSupabaseBrowserClient();
@@ -134,18 +102,6 @@ export function MeetingLiveView({
   );
   const current = currentIdx >= 0 ? items[currentIdx] : null;
 
-  function doStart() {
-    setErr(null);
-    start(async () => {
-      const res = await startMeeting(meetingId);
-      if (!res.ok) {
-        setErr(res.error.message);
-        return;
-      }
-      router.refresh();
-    });
-  }
-
   function doEnd() {
     setErr(null);
     start(async () => {
@@ -179,180 +135,201 @@ export function MeetingLiveView({
     advanceTo(next ? next.id : null);
   }
 
-  function doPostpone() {
-    setErr(null);
-    if (!newStartLocal) {
-      setErr("Pick a new date and time");
-      return;
-    }
-    const iso = new Date(newStartLocal).toISOString();
-    start(async () => {
-      const res = await postponeMeetingManual({
-        meeting_id: meetingId,
-        new_scheduled_start: iso,
-      });
-      if (!res.ok) {
-        setErr(res.error.message);
-        return;
-      }
-      setPostponeOpen(false);
-      router.push(`/meetings/${res.data.id}`);
-    });
+  if (meeting.status === "ended" || meeting.status === "cancelled" || meeting.status === "postponed") {
+    return <AgendaSummary items={items} status={meeting.status} />;
   }
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            Agenda
-          </h2>
-          <Badge variant={meeting.status === "live" ? "default" : "outline"}>
-            {meeting.status}
-          </Badge>
-        </div>
-        <div className="space-y-1">
-          {items.length === 0 && (
-            <EmptyState sticker="calendar" headline="No agenda items yet" />
-          )}
-          {items.map((it, i) => {
-            const active = it.id === meeting.current_agenda_item_id;
-            return (
-              <div
-                key={it.id}
-                className={
-                  "flex items-center gap-2 rounded-md border p-2 " +
-                  (active ? "border-primary bg-primary/5" : "")
-                }
-              >
-                <div className="text-xs w-6 text-muted-foreground">
-                  {i + 1}.
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="truncate text-sm">{it.title}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {it.kind}
-                  </div>
-                </div>
-                {isHost && meeting.status === "live" && !active && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => advanceTo(it.id)}
-                    disabled={pending}
-                  >
-                    Go
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+  if (meeting.status !== "live") return null;
 
-      <section className="space-y-3 lg:col-span-2">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+  return (
+    <div className="space-y-6">
+      {isHost && (
+        <Card size="sm" className="!py-4">
+          <CardContent className="flex flex-wrap items-center gap-3 !px-5">
+            <span className="text-xs font-display font-extrabold uppercase tracking-widest text-ink-soft">
+              Host controls
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={advanceNext}
+                disabled={pending || items.length === 0}
+              >
+                {currentIdx < 0
+                  ? "Start agenda"
+                  : currentIdx >= items.length - 1
+                    ? "Finish agenda"
+                    : "Next"}
+              </Button>
+              <Button
+                variant="destructive-outline"
+                size="sm"
+                onClick={doEnd}
+                disabled={pending}
+              >
+                End meeting
+              </Button>
+            </div>
+            {err && (
+              <span className="text-xs text-danger-text" role="alert">
+                {err}
+              </span>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-display font-extrabold uppercase tracking-widest text-ink-soft">
           Now
         </h2>
-        {meeting.status === "scheduled" ? (
-          <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
-            Not started yet.
-          </div>
-        ) : meeting.status === "ended" ||
-          meeting.status === "cancelled" ||
-          meeting.status === "postponed" ? (
-          <AgendaSummary items={items} status={meeting.status} />
-        ) : (
+        {current ? (
           <AgendaRunner
             current={current}
             meetingId={meetingId}
             isHost={isHost}
           />
+        ) : (
+          <Card size="sm">
+            <CardContent className="text-center text-sm text-ink-soft !py-6">
+              Waiting for the host to start the agenda.
+            </CardContent>
+          </Card>
         )}
+      </section>
 
-        {isHost && (
-          <div className="rounded-lg border p-3 space-y-2">
-            <div className="text-sm font-medium">Host controls</div>
-            <div className="flex flex-wrap gap-2">
-              {meeting.status === "scheduled" && (
-                <>
-                  <Button onClick={doStart} disabled={pending}>
-                    {pending ? "…" : "Start meeting"}
-                  </Button>
-                  <Dialog open={postponeOpen} onOpenChange={setPostponeOpen}>
-                    <DialogTrigger
-                      render={
-                        <Button variant="outline" disabled={pending}>
-                          Postpone
-                        </Button>
-                      }
-                    />
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Postpone meeting</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-3">
-                        <div className="space-y-1">
-                          <Label htmlFor="new-start">New date & time</Label>
-                          <Input
-                            id="new-start"
-                            type="datetime-local"
-                            value={newStartLocal}
-                            onChange={(e) => setNewStartLocal(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            The current meeting will be marked postponed and a
-                            new one created with the same agenda and host.
-                          </p>
-                        </div>
-                        {err && (
-                          <p className="text-sm text-destructive" role="alert">
-                            {err}
-                          </p>
-                        )}
-                      </div>
-                      <DialogFooter>
-                        <Button
-                          variant="secondary"
-                          onClick={() => setPostponeOpen(false)}
-                          disabled={pending}
-                        >
-                          Cancel
-                        </Button>
-                        <Button onClick={doPostpone} disabled={pending}>
-                          {pending ? "…" : "Postpone"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </>
-              )}
-              {meeting.status === "live" && (
-                <>
-                  <Button
-                    onClick={advanceNext}
-                    disabled={pending || items.length === 0}
-                  >
-                    {currentIdx < 0 ? "Start agenda" : "Next"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={doEnd}
-                    disabled={pending}
-                  >
-                    End meeting
-                  </Button>
-                </>
-              )}
-            </div>
-            {err && (
-              <p className="text-sm text-destructive" role="alert">
-                {err}
-              </p>
-            )}
+      <section className="space-y-3">
+        <h2 className="text-xs font-display font-extrabold uppercase tracking-widest text-ink-soft">
+          Agenda
+        </h2>
+        {items.length === 0 ? (
+          <EmptyState
+            icon={MeetingRoomIcon}
+            headline="No agenda items yet"
+            body="Anyone in the meeting can add an item from the right panel."
+          />
+        ) : (
+          <div className="space-y-3">
+            {items.map((it, i) => {
+              const state: TrackState =
+                currentIdx < 0
+                  ? i === 0
+                    ? "next"
+                    : "upcoming"
+                  : i < currentIdx
+                    ? "done"
+                    : i === currentIdx
+                      ? "current"
+                      : i === currentIdx + 1
+                        ? "next"
+                        : "upcoming";
+              return (
+                <AgendaTrackCard
+                  key={it.id}
+                  item={it}
+                  index={i}
+                  state={state}
+                  isHost={isHost}
+                  pending={pending}
+                  onGo={() => advanceTo(it.id)}
+                />
+              );
+            })}
           </div>
         )}
       </section>
     </div>
+  );
+}
+
+function AgendaTrackCard({
+  item,
+  index,
+  state,
+  isHost,
+  pending,
+  onGo,
+}: {
+  item: AgendaItem;
+  index: number;
+  state: TrackState;
+  isHost: boolean;
+  pending: boolean;
+  onGo: () => void;
+}) {
+  const isDone = state === "done";
+  const isCurrent = state === "current";
+  const isNext = state === "next";
+
+  return (
+    <Card
+      size="sm"
+      className={cn(
+        "!py-3 transition-all",
+        isCurrent &&
+          "!bg-accent !border-accent !shadow-[-3px_3px_0_0_var(--accent-shadow)] [&_[data-slot=card-description]]:text-accent-ink/70",
+        isDone && "opacity-60",
+      )}
+    >
+      <CardContent className="flex items-center gap-3 !px-4">
+        {isDone ? (
+          <HugeiconsIcon
+            icon={CheckmarkCircle02Icon}
+            size={20}
+            strokeWidth={2}
+            className="shrink-0 text-success"
+          />
+        ) : (
+          <div
+            className={cn(
+              "w-6 text-xs",
+              isCurrent ? "text-accent-ink font-bold" : "text-ink-soft",
+            )}
+          >
+            {index + 1}.
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div
+            className={cn(
+              "truncate",
+              isDone && "line-through text-ink-soft",
+              isCurrent && "text-accent-ink font-semibold",
+            )}
+          >
+            {item.title}
+          </div>
+          <div
+            className={cn(
+              "text-xs capitalize",
+              isCurrent ? "text-accent-ink/80" : "text-ink-soft",
+            )}
+          >
+            {item.kind}
+          </div>
+        </div>
+        {isCurrent && (
+          <Badge variant="live" size="lg">
+            Now
+          </Badge>
+        )}
+        {isNext && (
+          <Badge variant="postponed" size="lg">
+            Next
+          </Badge>
+        )}
+        {isHost && !isCurrent && !isDone && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onGo}
+            disabled={pending}
+          >
+            Go
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }

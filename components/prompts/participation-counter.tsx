@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useId, useState, useCallback } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function ParticipationCounter({ promptId }: { promptId: string }) {
   const [n, setN] = useState(0);
   const [d, setD] = useState(0);
+  const instanceId = useId();
 
   const refresh = useCallback(async () => {
     const s = createSupabaseBrowserClient();
@@ -20,7 +21,7 @@ export function ParticipationCounter({ promptId }: { promptId: string }) {
     const s = createSupabaseBrowserClient();
     refresh();
     const ch = s
-      .channel(`part:${promptId}`)
+      .channel(`part:${promptId}:${instanceId}`)
       .on(
         "postgres_changes" as never,
         {
@@ -37,7 +38,7 @@ export function ParticipationCounter({ promptId }: { promptId: string }) {
     return () => {
       s.removeChannel(ch);
     };
-  }, [promptId, refresh]);
+  }, [promptId, instanceId, refresh]);
 
   return (
     <div className="text-sm text-muted-foreground">

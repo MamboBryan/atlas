@@ -41,6 +41,7 @@ export async function createPrompt(
     is_open: true,
     opens_at: p.opens_at ?? null,
     closes_at: p.closes_at ?? null,
+    meeting_id: p.meeting_id ?? null,
   };
   if (p.response_type === "single_choice" || p.response_type === "multi_choice")
     row.options = p.options;
@@ -56,16 +57,21 @@ export async function createPrompt(
     .single();
   if (error || !data) return err("db_error", error?.message ?? "unknown");
 
-  const svc = serviceClient();
-  const recipients = (await resolveAllActiveUserIds(svc)).filter(
-    (id) => id !== user.id,
-  );
-  const { data: creator } = await svc
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .single<{ display_name: string }>();
+  if (p.meeting_id) {
+    revalidatePath(`/meetings/${p.meeting_id}`);
+    return ok({ id: data.id });
+  }
+
   try {
+    const svc = serviceClient();
+    const recipients = (await resolveAllActiveUserIds(svc)).filter(
+      (id) => id !== user.id,
+    );
+    const { data: creator } = await svc
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single<{ display_name: string }>();
     await emit(
       {
         user_ids: recipients,

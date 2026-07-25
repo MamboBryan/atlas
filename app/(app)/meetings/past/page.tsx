@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { requireUser } from "@/lib/auth/require";
+import { MeetingRoomIcon } from "@hugeicons/core-free-icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Card,
@@ -103,7 +104,7 @@ export default async function PastMeetingsPage() {
 
       {meetings.length === 0 ? (
         <EmptyState
-          sticker="empty-box"
+          icon={MeetingRoomIcon}
           headline="No past meetings yet"
           body="Meetings that have ended or been postponed will appear here."
         />

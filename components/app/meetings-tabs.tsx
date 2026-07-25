@@ -3,34 +3,42 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { MeetingRoomIcon, CalendarUserIcon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 
-const tabs: { href: Route; label: string }[] = [
-  { href: "/meetings" as Route, label: "Meetings" },
-  { href: "/series" as Route, label: "Series" },
+type HugeIcon = React.ComponentProps<typeof HugeiconsIcon>["icon"];
+
+const tabs: { href: Route; label: string; icon: HugeIcon }[] = [
+  { href: "/meetings" as Route, label: "Meetings", icon: MeetingRoomIcon },
+  { href: "/series" as Route, label: "Series", icon: CalendarUserIcon },
 ];
 
 export function MeetingsTabs() {
   const pathname = usePathname();
   return (
-    <div className="flex gap-6 border-b border-ink/10">
+    <div className="flex flex-wrap gap-3">
       {tabs.map((t) => {
         const active =
-          pathname === t.href ||
-          pathname.startsWith(t.href + "/");
+          pathname === t.href || pathname.startsWith(t.href + "/");
         return (
           <Link
             key={t.href}
             href={t.href}
             className={cn(
-              "relative py-3 text-sm font-semibold transition-colors",
-              active ? "text-ink" : "text-ink-soft hover:text-ink",
+              "flex items-center gap-3 rounded-md border-[3px] border-solid border-ink bg-surface-raised px-4 py-3 text-sm text-ink shadow-flat transition-all duration-med",
+              active
+                ? "bg-accent text-accent-ink"
+                : "hover:-translate-y-[1px] hover:shadow-lift",
             )}
           >
-            {t.label}
-            {active && (
-              <span className="absolute inset-x-0 -bottom-px h-[3px] rounded-t-sm bg-accent" />
-            )}
+            <HugeiconsIcon
+              icon={t.icon}
+              size={22}
+              strokeWidth={2}
+              className="shrink-0"
+            />
+            <span>{t.label}</span>
           </Link>
         );
       })}

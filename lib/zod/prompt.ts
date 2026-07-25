@@ -11,6 +11,7 @@ const baseFields = {
   timing: z.enum(["async", "live"]).default("async"),
   opens_at: z.string().datetime().optional(),
   closes_at: z.string().datetime().optional(),
+  meeting_id: z.string().uuid().optional(),
 };
 
 export const createPromptInput = z.discriminatedUnion("response_type", [

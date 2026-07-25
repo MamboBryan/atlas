@@ -29,16 +29,30 @@ function Bar({
 }) {
   const pct = max === 0 ? 0 : Math.round((count / max) * 100);
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-sm">
+    <div
+      className="relative overflow-hidden rounded-md border-chunk border-ink bg-surface-raised shadow-flat"
+      role="meter"
+      aria-valuenow={count}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-label={`${label}: ${count}`}
+    >
+      <div
+        className="absolute inset-y-0 left-0 bg-primary transition-[width] duration-fast ease-soft"
+        style={{ width: `${pct}%` }}
+        aria-hidden
+      />
+      <div className="relative flex items-center justify-between px-4 py-3 font-medium text-ink">
         <span>{label}</span>
-        <span className="text-muted-foreground">{count}</span>
+        <span>{count}</span>
       </div>
-      <div className="h-2 rounded bg-muted overflow-hidden">
-        <div
-          className="h-full bg-primary transition-all"
-          style={{ width: `${pct}%` }}
-        />
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-between px-4 py-3 font-medium text-primary-ink"
+        style={{ clipPath: `inset(0 ${100 - pct}% 0 0)` }}
+        aria-hidden
+      >
+        <span>{label}</span>
+        <span>{count}</span>
       </div>
     </div>
   );
@@ -138,7 +152,7 @@ async function AttributedReveal({ prompt }: { prompt: Prompt }) {
     }
     const max = Math.max(...Array.from(counts.values()), 0);
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         {(prompt.options ?? []).map((o) => (
           <Bar
             key={o.id}
@@ -171,7 +185,7 @@ async function AttributedReveal({ prompt }: { prompt: Prompt }) {
         Mean: <span className="font-medium text-foreground">{mean}</span> ·{" "}
         {values.length} responses
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((v) => (
           <Bar
             key={v}
@@ -240,7 +254,7 @@ async function AnonymousReveal({ prompt }: { prompt: Prompt }) {
       );
     }
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         {payload.options.map((o) => (
           <Bar
             key={o.id}
@@ -264,7 +278,7 @@ async function AnonymousReveal({ prompt }: { prompt: Prompt }) {
       );
     }
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         {payload.options.map((o) => (
           <Bar
             key={o.id}
@@ -298,7 +312,7 @@ async function AnonymousReveal({ prompt }: { prompt: Prompt }) {
         Mean: <span className="font-medium text-foreground">{mean}</span> ·{" "}
         {total} responses
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((v) => (
           <Bar
             key={v}

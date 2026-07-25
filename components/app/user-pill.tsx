@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { ChevronUpIcon, LogOutIcon, SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "./theme-toggle";
 
 export function UserPill({
   displayName,
@@ -37,7 +36,6 @@ export function UserPill({
       <MenuPrimitive.Portal>
         <MenuPrimitive.Positioner side="top" sideOffset={4}>
           <MenuPrimitive.Popup className="w-52 rounded-md border-thin border-ink bg-surface-raised p-1 shadow-flat text-ink z-50">
-            <ThemeToggle />
             <Link
               href="/settings"
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-surface"

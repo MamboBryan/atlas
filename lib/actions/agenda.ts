@@ -31,11 +31,14 @@ export async function addAgendaItemAction(
 
   const { data: meeting } = await supabase
     .from("meetings")
-    .select("id,host_user_id")
+    .select("id,host_user_id,status")
     .eq("id", parsed.data.meeting_id)
     .single();
   if (!meeting) return err("not_found", "meeting");
-  if (meeting.host_user_id !== user.id) return err("forbidden", "host only");
+  // Any participant can add an item while the meeting is live; otherwise host-only.
+  const canAdd =
+    meeting.status === "live" || meeting.host_user_id === user.id;
+  if (!canAdd) return err("forbidden", "host only");
 
   const { data: maxRow } = await supabase
     .from("agenda_items")

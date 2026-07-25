@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CalendarUserIcon, MeetingRoomIcon } from "@hugeicons/core-free-icons";
 import { requireUser } from "@/lib/auth/require";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -150,7 +151,7 @@ export default async function SeriesDetailPage({
           Rotation
         </h2>
         {series.rotation_order.length === 0 ? (
-          <EmptyState sticker="empty-box" headline="No members in rotation" body="Add members via the edit panel below." />
+          <EmptyState icon={CalendarUserIcon} headline="No members in rotation" body="Add members via the edit panel below." />
         ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {series.rotation_order.map((uid) => {
@@ -184,7 +185,7 @@ export default async function SeriesDetailPage({
           Upcoming
         </h2>
         {upcoming.length === 0 ? (
-          <EmptyState sticker="calendar" headline="No upcoming meetings" body="The cron generates the next 14 days each run." />
+          <EmptyState icon={MeetingRoomIcon} headline="No upcoming meetings" body="The cron generates the next 14 days each run." />
         ) : (
           <div className="space-y-2">
             {upcoming.map((m) => (

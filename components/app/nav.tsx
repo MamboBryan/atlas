@@ -24,11 +24,17 @@ type NavItem = {
   href: Route;
   label: string;
   icon: HugeIcon;
+  matchPaths?: string[];
 };
 
 const items: NavItem[] = [
   { href: "/" as Route, label: "Home", icon: Home01Icon },
-  { href: "/meetings" as Route, label: "Meetings", icon: MeetingRoomIcon },
+  {
+    href: "/meetings" as Route,
+    label: "Meetings",
+    icon: MeetingRoomIcon,
+    matchPaths: ["/series"],
+  },
   { href: "/roster" as Route, label: "Roster", icon: UserGroupIcon },
   { href: "/polls" as Route, label: "Polls", icon: ChatFeedback01Icon },
   { href: "/notifications" as Route, label: "Notifications", icon: Notification01Icon },
@@ -63,12 +69,19 @@ export function Nav({
 
   return (
     <nav className="hidden md:flex flex-col gap-2 bg-surface p-4 overflow-hidden">
-      <Link href="/" className="flex items-center gap-2 px-2 py-3 overflow-hidden" title="Home">
-        <AtlasLogo className="h-5 w-5 text-accent shrink-0" />
+      <Link
+        href="/"
+        className={cn(
+          "flex items-center gap-2 px-2 py-3 overflow-hidden",
+          collapsed && "justify-center gap-0 px-0",
+        )}
+        title="Home"
+      >
+        <AtlasLogo className="h-5 w-5 text-primary shrink-0" />
         <span
           className={cn(
-            "font-display text-xl font-extrabold text-ink transition-opacity duration-fast",
-            collapsed && "opacity-0",
+            "font-display text-xl font-extrabold text-primary transition-opacity duration-fast",
+            collapsed && "opacity-0 w-0",
           )}
         >
           Atlas
@@ -81,6 +94,7 @@ export function Nav({
             href={i.href}
             label={i.label}
             icon={i.icon}
+            matchPaths={i.matchPaths}
             collapsed={collapsed}
           />
         ))}

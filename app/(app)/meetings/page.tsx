@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/require";
-import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge, LiveBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ChessKingIcon, MeetingRoomIcon } from "@hugeicons/core-free-icons";
 import { MeetingsTabs } from "@/components/app/meetings-tabs";
 import { NewMeetingTrigger } from "./_ui/new-meeting-trigger";
 
@@ -36,11 +39,11 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 }
 
 function StatusBadge({ status }: { status: MeetingRow["status"] }) {
-  if (status === "live") return <LiveBadge />;
-  if (status === "scheduled") return <Badge variant="scheduled">Scheduled</Badge>;
-  if (status === "ended") return <Badge variant="ended">Ended</Badge>;
-  if (status === "postponed") return <Badge variant="postponed">Postponed</Badge>;
-  return <Badge variant="outline">Cancelled</Badge>;
+  if (status === "live") return <LiveBadge size="lg" />;
+  if (status === "scheduled") return <Badge variant="scheduled" size="lg">Scheduled</Badge>;
+  if (status === "ended") return <Badge variant="ended" size="lg">Ended</Badge>;
+  if (status === "postponed") return <Badge variant="postponed" size="lg">Postponed</Badge>;
+  return <Badge variant="outline" size="lg">Cancelled</Badge>;
 }
 
 function MeetingCard({
@@ -56,18 +59,29 @@ function MeetingCard({
 }) {
   return (
     <Link href={`/meetings/${m.id}` as never} className="block no-underline">
-      <Card interactive size="sm">
-        <CardHeader>
-          <CardTitle className="truncate">{m.title}</CardTitle>
-          <CardDescription>
-            {fmtWhen(m.scheduled_start, m.timezone, viewerTz)}
-            {" · "}host {host}
-            {" · "}{participantCount} participants
-          </CardDescription>
-          <CardAction>
+      <Card interactive>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-ink-soft">
+              {fmtWhen(m.scheduled_start, m.timezone, viewerTz)}
+            </p>
             <StatusBadge status={m.status} />
-          </CardAction>
-        </CardHeader>
+          </div>
+          <h3 className="font-display text-xl font-extrabold text-ink truncate">
+            {m.title}
+          </h3>
+          <p className="flex items-center gap-1.5 text-sm text-ink-soft">
+            <HugeiconsIcon
+              icon={ChessKingIcon}
+              size={16}
+              strokeWidth={2}
+              className="shrink-0"
+            />
+            <span className="capitalize">{host}</span>
+            <span aria-hidden>·</span>
+            <span>{participantCount} participants</span>
+          </p>
+        </CardContent>
       </Card>
     </Link>
   );
@@ -127,19 +141,16 @@ export default async function MeetingsPage() {
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="space-y-8">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-extrabold text-ink">Meetings</h1>
           <p className="text-sm text-ink-soft">Upcoming rituals for your team.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href={"/meetings/past" as never}
-            className="inline-flex h-10 items-center rounded-md border border-ink bg-surface-raised px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface"
-          >
+          <Button variant="outline" render={<Link href={"/meetings/past" as never} />}>
             Past
-          </Link>
+          </Button>
           <NewMeetingTrigger defaultTimezone={viewerTz} />
         </div>
       </header>
@@ -191,7 +202,7 @@ export default async function MeetingsPage() {
           Recent past ({past.length})
         </h2>
         {past.length === 0 ? (
-          <EmptyState sticker="calendar" headline="No past meetings yet" body="Completed meetings will show up here." />
+          <EmptyState icon={MeetingRoomIcon} headline="No past meetings yet" body="Completed meetings will show up here." />
         ) : (
           <div className="space-y-2">
             {past.map((m) => (

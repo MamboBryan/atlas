@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BouncingDots } from "@/components/ui/bouncing-dots";
@@ -20,9 +19,9 @@ function SheetOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) {
     <DialogPrimitive.Backdrop
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-ink/40 duration-fast",
-        "data-open:animate-in data-open:fade-in-0",
-        "data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]",
+        "data-open:animate-in data-open:fade-in-0 data-open:duration-med",
+        "data-closed:animate-out data-closed:fade-out-0 data-closed:duration-fast",
         className,
       )}
       {...props}
@@ -47,7 +46,8 @@ function SheetContent({
           "border-l-chunk border-ink",
           "rounded-l-lg",
           "focus:outline-none",
-          "data-open:animate-sheet-in data-closed:animate-sheet-out",
+          "data-open:animate-sheet-in data-open:duration-med data-open:ease-spring",
+          "data-closed:animate-sheet-out data-closed:duration-med data-closed:ease-soft",
           className,
         )}
         {...props}
@@ -78,12 +78,8 @@ function SheetHeader({
         ) : null}
       </div>
       <DialogPrimitive.Close
-        render={
-          <Button variant="ghost" size="icon-sm" aria-label="Close" />
-        }
-      >
-        <XIcon />
-      </DialogPrimitive.Close>
+        render={<Button variant="outline" size="sm">Close</Button>}
+      />
     </div>
   );
 }
@@ -117,7 +113,7 @@ function SheetFooter({
 }) {
   return (
     <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-2 border-t border-ink/10 bg-surface-raised px-6 py-4 sm:flex-row sm:justify-end">
-      <DialogPrimitive.Close render={<Button variant="ghost">{secondary}</Button>} />
+      <DialogPrimitive.Close render={<Button variant="outline">{secondary}</Button>} />
       <Button variant="default" disabled={loading || disabled} onClick={onPrimary}>
         {loading ? <BouncingDots /> : primary}
       </Button>

@@ -226,3 +226,45 @@ export async function advanceMeetingAgenda(
   revalidatePath(`/meetings/${parsed.data.meeting_id}`);
   return ok(null);
 }
+
+export async function delegateMeetingHost(
+  meetingId: string,
+  newHostUserId: string,
+): Promise<ActionResult<null>> {
+  if (!meetingId || !newHostUserId) {
+    return err("invalid_input", "meetingId and newHostUserId required");
+  }
+
+  const { user, supabase } = await requireUser();
+  const { data: meeting } = await supabase
+    .from("meetings")
+    .select("id,host_user_id,status")
+    .eq("id", meetingId)
+    .single();
+  if (!meeting) return err("not_found", "meeting not found");
+  if (meeting.host_user_id !== user.id) {
+    return err("forbidden", "host only");
+  }
+  if (meeting.status === "ended" || meeting.status === "cancelled") {
+    return err("invalid_state", "cannot delegate a finished meeting");
+  }
+
+  const { data: newHost } = await supabase
+    .from("profiles")
+    .select("id,is_active")
+    .eq("id", newHostUserId)
+    .single();
+  if (!newHost || !newHost.is_active) {
+    return err("invalid_input", "new host must be an active member");
+  }
+
+  const { error: updateErr } = await supabase
+    .from("meetings")
+    .update({ host_user_id: newHostUserId })
+    .eq("id", meetingId);
+  if (updateErr) return err("db_error", updateErr.message);
+
+  revalidatePath(`/meetings/${meetingId}`);
+  revalidatePath("/meetings");
+  return ok(null);
+}

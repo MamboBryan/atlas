@@ -27,6 +27,7 @@ export async function createPollAction(
     (fd.get("anonymity") as string | null) ?? "attributed";
   const timing = (fd.get("timing") as string | null) ?? "async";
   const opens_at_raw = (fd.get("opens_at") as string | null)?.trim() ?? "";
+  const closes_at_raw = (fd.get("closes_at") as string | null)?.trim() ?? "";
   const timezone = (fd.get("timezone") as string | null)?.trim() || "UTC";
 
   if (!question) return { error: "Question is required." };
@@ -43,6 +44,12 @@ export async function createPollAction(
     const iso = localInputToIso(opens_at_raw, timezone);
     if (!iso) return { error: "Invalid opens_at date/time." };
     base.opens_at = iso;
+  }
+
+  if (closes_at_raw) {
+    const iso = localInputToIso(closes_at_raw, timezone);
+    if (!iso) return { error: "Invalid closes_at date/time." };
+    base.closes_at = iso;
   }
 
   let input: unknown;

@@ -23,13 +23,15 @@ const buttonVariants = cva(
         accent:
           "bg-accent text-accent-ink shadow-[-6px_6px_0_0_var(--accent-shadow)] hover:shadow-[-3px_3px_0_0_var(--accent-shadow)] active:shadow-none",
         outline:
-          "bg-surface-raised text-ink border-thin border-ink shadow-[-6px_6px_0_0_var(--surface-raised-shadow)] hover:shadow-[-3px_3px_0_0_var(--surface-raised-shadow)] active:shadow-none",
+          "bg-surface-raised text-ink border-[0.1px] border-[var(--surface-raised-shadow)] shadow-[-6px_6px_0_0_var(--surface-raised-shadow)] hover:shadow-[-3px_3px_0_0_var(--surface-raised-shadow)] active:shadow-none",
         secondary:
-          "bg-surface-raised text-ink border-thin border-ink shadow-[-6px_6px_0_0_var(--surface-raised-shadow)] hover:shadow-[-3px_3px_0_0_var(--surface-raised-shadow)] active:shadow-none",
+          "bg-surface-raised text-ink border-[0.1px] border-[var(--surface-raised-shadow)] shadow-[-6px_6px_0_0_var(--surface-raised-shadow)] hover:shadow-[-3px_3px_0_0_var(--surface-raised-shadow)] active:shadow-none",
         ghost:
           "bg-transparent text-ink shadow-none hover:translate-x-0 hover:translate-y-0 hover:bg-ink/5 hover:shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none",
         destructive:
           "bg-danger text-danger-ink shadow-[-6px_6px_0_0_var(--danger-shadow)] hover:shadow-[-3px_3px_0_0_var(--danger-shadow)] active:shadow-none",
+        "destructive-outline":
+          "bg-surface-raised text-danger-text border-[0.1px] border-[var(--danger-shadow)] shadow-[-6px_6px_0_0_var(--danger-shadow)] hover:shadow-[-3px_3px_0_0_var(--danger-shadow)] active:shadow-none",
         link:
           "bg-transparent text-primary shadow-none underline-offset-4 hover:underline hover:translate-x-0 hover:translate-y-0 hover:shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none",
       },
@@ -49,12 +51,16 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  nativeButton,
+  render,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      nativeButton={nativeButton ?? render === undefined}
+      render={render}
       {...props}
     />
   );

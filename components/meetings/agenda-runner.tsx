@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { buttonVariants, Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import type { AgendaItem } from "@/components/meetings/agenda-editor";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
@@ -10,6 +11,22 @@ import {
   startShuffle,
 } from "@/lib/actions/picker";
 import { ShuffleRunner } from "@/components/tools/shuffle-runner";
+
+function KindLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-xs font-display font-extrabold uppercase tracking-widest text-ink-soft">
+      {children}
+    </div>
+  );
+}
+
+function RunnerCard({ children }: { children: React.ReactNode }) {
+  return (
+    <Card size="sm">
+      <CardContent className="space-y-2">{children}</CardContent>
+    </Card>
+  );
+}
 
 export function AgendaRunner({
   current,
@@ -22,23 +39,25 @@ export function AgendaRunner({
 }) {
   if (!current) {
     return (
-      <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
-        Nothing selected. Host will advance to the next item.
-      </div>
+      <Card size="sm">
+        <CardContent className="text-center text-sm text-ink-soft">
+          Nothing selected. Host will advance to the next item.
+        </CardContent>
+      </Card>
     );
   }
 
   if (current.kind === "discussion") {
     return (
-      <div className="rounded-lg border p-4 space-y-2">
-        <div className="text-xs text-muted-foreground uppercase tracking-wide">
-          Discussion
+      <RunnerCard>
+        <KindLabel>Discussion</KindLabel>
+        <div className="font-display text-xl font-extrabold text-ink">
+          {current.title}
         </div>
-        <div className="text-lg font-medium">{current.title}</div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-ink-soft">
           Open discussion — no recording in v1.
         </p>
-      </div>
+      </RunnerCard>
     );
   }
 
@@ -53,25 +72,25 @@ export function AgendaRunner({
   }
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
-      <div className="text-xs text-muted-foreground uppercase tracking-wide">
-        Prompt
+    <RunnerCard>
+      <KindLabel>Prompt</KindLabel>
+      <div className="font-display text-xl font-extrabold text-ink">
+        {current.title}
       </div>
-      <div className="text-lg font-medium">{current.title}</div>
       {current.prompt_id && (
-        <div className="pt-2">
-          <Link
-            href={`/polls/${current.prompt_id}` as never}
-            className={buttonVariants({ variant: "outline" })}
+        <div className="pt-2 space-y-2">
+          <Button
+            variant="outline"
+            render={<Link href={`/polls/${current.prompt_id}` as never} />}
           >
             Open prompt
-          </Link>
-          <p className="text-xs text-muted-foreground mt-2">
+          </Button>
+          <p className="text-xs text-ink-soft">
             Live embed of the prompt lands with Phase 7.
           </p>
         </div>
       )}
-    </div>
+    </RunnerCard>
   );
 }
 
@@ -147,34 +166,40 @@ function PickerAgendaItem({
 
   if (!config) {
     return (
-      <div className="rounded-lg border p-4 text-sm text-destructive">
-        Missing picker config.
-      </div>
+      <Card size="sm">
+        <CardContent className="text-sm text-danger-text">
+          Missing picker config.
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
-      <div className="text-xs text-muted-foreground uppercase tracking-wide">
-        Picker · {config.mode}
+    <RunnerCard>
+      <KindLabel>Picker · {config.mode}</KindLabel>
+      <div className="font-display text-xl font-extrabold text-ink">
+        {item.title}
       </div>
-      <div className="text-lg font-medium">{item.title}</div>
 
       {config.mode === "oneshot" && (
-        <div className="space-y-3">
+        <div className="space-y-3 pt-2">
           {oneshotUserId ? (
-            <div className="rounded-md border p-6 text-center">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                And the pick is
-              </div>
-              <div className="text-3xl font-semibold">
-                {pickName ?? "…"}
-              </div>
-            </div>
+            <Card size="sm" className="!py-6">
+              <CardContent className="text-center">
+                <div className="text-xs uppercase tracking-widest font-display font-extrabold text-ink-soft">
+                  And the pick is
+                </div>
+                <div className="font-display text-3xl font-extrabold text-ink pt-1">
+                  {pickName ?? "…"}
+                </div>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
-              {isHost ? "Click Pick to draw." : "Waiting for host to pick."}
-            </div>
+            <Card size="sm" className="!py-6">
+              <CardContent className="text-center text-sm text-ink-soft">
+                {isHost ? "Click Pick to draw." : "Waiting for host to pick."}
+              </CardContent>
+            </Card>
           )}
           {isHost && (
             <div className="flex justify-center">
@@ -187,7 +212,7 @@ function PickerAgendaItem({
       )}
 
       {config.mode === "shuffle" && (
-        <div className="space-y-3">
+        <div className="space-y-3 pt-2">
           {shuffleSessionId ? (
             <ShuffleRunner
               sessionId={shuffleSessionId}
@@ -201,18 +226,20 @@ function PickerAgendaItem({
               </Button>
             </div>
           ) : (
-            <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
-              Waiting for host to start.
-            </div>
+            <Card size="sm" className="!py-6">
+              <CardContent className="text-center text-sm text-ink-soft">
+                Waiting for host to start.
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
 
       {err && (
-        <p className="text-sm text-destructive text-center" role="alert">
+        <p className="text-sm text-danger-text text-center" role="alert">
           {err}
         </p>
       )}
-    </div>
+    </RunnerCard>
   );
 }

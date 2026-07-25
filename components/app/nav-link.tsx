@@ -13,16 +13,22 @@ export function NavLink({
   label,
   icon,
   collapsed = false,
+  matchPaths = [],
 }: {
   href: Route;
   label: string;
   icon: HugeIcon;
   collapsed?: boolean;
+  matchPaths?: string[];
 }) {
   const pathname = usePathname();
-  const active =
+  const matchesSelf =
     pathname === href ||
     (href !== "/" && pathname.startsWith(href + "/"));
+  const matchesOther = matchPaths.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+  const active = matchesSelf || matchesOther;
   return (
     <Link
       href={href}

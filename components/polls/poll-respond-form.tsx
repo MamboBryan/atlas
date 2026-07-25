@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BouncingDots } from "@/components/ui/bouncing-dots";
 import { Textarea } from "@/components/ui/textarea";
 import { fireConfetti } from "@/components/ui/confetti-burst";
+import { Sticker } from "@/components/ui/sticker";
 import { submitResponse } from "@/lib/actions/response";
 
 export type PromptForResponse = {
@@ -34,6 +35,7 @@ export function PollRespondForm({
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(alreadyResponded);
   const [confirming, setConfirming] = useState(false);
+  const [showThumb, setShowThumb] = useState(false);
 
   const [text, setText] = useState("");
   const [choice, setChoice] = useState<string>("");
@@ -82,6 +84,8 @@ export function PollRespondForm({
       // returned by submitResponse, so we can't detect "last respondent"
       // cheaply. Firing on every submit is still delightful.
       fireConfetti();
+      setShowThumb(true);
+      setTimeout(() => setShowThumb(false), 800);
       router.refresh();
     });
   }
@@ -96,8 +100,13 @@ export function PollRespondForm({
 
   if (done) {
     return (
-      <div className="rounded-lg border border-ink/20 bg-surface-raised p-5 text-sm text-ink-soft">
+      <div className="relative rounded-lg border border-ink/20 bg-surface-raised p-5 text-sm text-ink-soft">
         You&apos;ve responded. Waiting on others…
+        {showThumb && (
+          <span className="pointer-events-none absolute -top-6 right-4 animate-rise-in">
+            <Sticker name="thumbs-up" size="md" rotate={-6} />
+          </span>
+        )}
       </div>
     );
   }

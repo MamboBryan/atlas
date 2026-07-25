@@ -3,6 +3,7 @@ import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { closePrompt, revealPrompt } from "@/lib/actions/prompt";
+import { fireConfetti } from "@/components/ui/confetti-burst";
 
 export function PromptOwnerControls({
   promptId,
@@ -23,6 +24,7 @@ export function PromptOwnerControls({
         setErr(res.error.message);
         return;
       }
+      fireConfetti({ origin: { x: 0.5, y: 0.35 } });
       router.refresh();
     });
   }

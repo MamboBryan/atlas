@@ -151,7 +151,9 @@ Notes:
 
   It is never reset. `endMeeting` also does not touch it — after ending, the
   meeting no longer satisfies the shell's `status === "live"` guard, so the
-  standby/curtain distinction is moot.
+  standby/curtain distinction is moot. If a future flow ever reverts a meeting
+  from `ended` back to `live` (no such flow exists today), that flow must also
+  reset `has_started = false` if a fresh Standby is desired.
 
 ## Slide components
 
@@ -306,7 +308,7 @@ create table public.meeting_comments (
   deleted_at timestamptz null
 );
 create index meeting_comments_meeting_created_idx
-  on public.meeting_comments (meeting_id, created_at);
+  on public.meeting_comments (meeting_id, created_at desc);
 ```
 
 - `agenda_item_id` is nullable so comments posted on Standby / Curtain (or
@@ -568,11 +570,11 @@ Modified:
      `/present`.
   2. Non-host visits `/present` → redirected.
   3. Standby → Start agenda → Discussion slide renders with palette 1.
-  4. Advance to prompt → open state → set a short timer (test-mode injects a
-     5s minimum via URL flag `?__test_timer=5s` that the timer chooser
-     honours only in `NODE_ENV !== "production"`; alternatively, use
-     Playwright's clock fake to fast-forward 60s) → prompt auto-closes and
-     slide switches to closed state showing the tally.
+  4. Advance to prompt → open state → set a 30s timer → use Playwright's
+     `page.clock.fastForward("60s")` to advance past `timer_ends_at` →
+     prompt auto-closes and slide switches to closed state showing the
+     tally. Do not add test-only URL flags to the app code; use the
+     browser's fake clock instead.
   5. Advance to oneshot picker → Pick → confetti + name appears.
   6. Non-host on `/meetings/[id]` posts a comment → appears in host's rail
      within ~1s.

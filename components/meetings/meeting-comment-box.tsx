@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { postComment, deleteMyComment, toggleReaction } from "@/lib/actions/comment";
 
@@ -28,6 +28,7 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
   const [reactions, setReactions] = useState<Record<string, { emoji: string; user_id: string }[]>>({});
   const [body, setBody] = useState("");
   const [pending, start] = useTransition();
+  const knownCommentIds = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const s = createSupabaseBrowserClient();
@@ -50,6 +51,7 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
       created_at: c.created_at as string,
     }));
     setComments(rows);
+    knownCommentIds.current = new Set(rows.map((r) => r.id));
     const ids = rows.map((r) => r.id);
     if (ids.length === 0) { setReactions({}); return; }
     const { data: rx } = await s
@@ -68,10 +70,19 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
 
   useEffect(() => {
     const s = createSupabaseBrowserClient();
+    // Guard: meeting_comment_reactions has no meeting_id column so we can't
+    // server-side-filter. Skip refresh when the changed comment isn't ours.
+    const loadIfKnown = (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+      const commentId =
+        (payload.new?.comment_id as string | undefined) ??
+        (payload.old?.comment_id as string | undefined);
+      if (commentId && !knownCommentIds.current.has(commentId)) return;
+      load();
+    };
     const ch = s
       .channel(`meeting-comments:${meetingId}`)
       .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comments", filter: `meeting_id=eq.${meetingId}` }, load)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comment_reactions" }, load)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comment_reactions" }, loadIfKnown)
       .subscribe();
     return () => { s.removeChannel(ch); };
   }, [meetingId, load]);

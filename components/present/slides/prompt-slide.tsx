@@ -32,7 +32,6 @@ export function PromptSlide({
   index: number;
   total: number;
   meetingTitle: string;
-  meetingId: string;
   onNext: () => void;
 }) {
   const [pending, start] = useTransition();
@@ -159,9 +158,4 @@ export function PromptSlide({
       </footer>
     </div>
   );
-}
-
-export function _tallyProps() {
-  // Preserved to satisfy the type-only re-export path if any consumer imports it later.
-  return null;
 }

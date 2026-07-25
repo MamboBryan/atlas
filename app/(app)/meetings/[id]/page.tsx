@@ -8,6 +8,7 @@ import {
   type AgendaItem,
   type PromptOption,
 } from "@/components/meetings/agenda-editor";
+import { MeetingHeaderActions } from "@/components/meetings/meeting-header-actions";
 
 type Meeting = {
   id: string;
@@ -131,7 +132,8 @@ export default async function MeetingDetailPage({
           <h1 className="font-display text-3xl font-extrabold text-ink leading-tight">
             {m.title}
           </h1>
-          <div className="shrink-0 pt-1">
+          <div className="shrink-0 pt-1 flex items-center gap-3">
+            <MeetingHeaderActions meetingId={m.id} status={m.status} isHost={isHost} />
             <StatusBadge status={m.status} />
           </div>
         </div>

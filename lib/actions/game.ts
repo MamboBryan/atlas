@@ -2,17 +2,18 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/require";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
-import { ensureRoundInput } from "@/lib/zod/game";
+import { ensureRoundInput, submitTargetNumberInput } from "@/lib/zod/game";
 import { pickGame } from "@/lib/games/select";
 import {
   generateTargetNumberPuzzle,
   TARGET_NUMBER_DURATION_MS,
+  evaluateExpression,
 } from "@/lib/games/target-number";
 import {
   generateZeroInPuzzle,
   ZERO_IN_DURATION_MS,
 } from "@/lib/games/zero-in";
-import type { GameKind } from "@/lib/games/types";
+import type { GameKind, TargetNumberOp, TargetNumberPayload } from "@/lib/games/types";
 
 export const LOBBY_OPEN_WINDOW_MS = 10 * 60_000;
 
@@ -128,4 +129,68 @@ function publicize(row: RoundRow): EnsureRoundResult {
     ends_at: row.ends_at,
     status: row.status,
   };
+}
+
+export async function submitTargetNumberAction(
+  input: unknown,
+): Promise<ActionResult<{ result: number; better: boolean }>> {
+  const parsed = submitTargetNumberInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+
+  const { user, supabase } = await requireUser();
+
+  const { data: round } = await supabase
+    .from("game_rounds")
+    .select("id, kind, puzzle, ends_at, status")
+    .eq("id", parsed.data.round_id)
+    .single();
+  if (!round) return err("not_found", "round");
+  if (round.kind !== "target_number") return err("wrong_kind", "not target_number");
+  if (round.status !== "active") return err("round_closed", "round is finished");
+  if (new Date(round.ends_at).getTime() <= Date.now()) {
+    return err("round_closed", "past ends_at");
+  }
+
+  const puzzle = round.puzzle as { target: number; bases: number[] };
+  const evalResult = evaluateExpression(puzzle.bases, parsed.data.expression as TargetNumberOp[]);
+  if (!evalResult.ok) return err("invalid_expression", evalResult.reason);
+
+  const nowIso = new Date().toISOString();
+  const { data: prior } = await supabase
+    .from("game_submissions")
+    .select("id, payload")
+    .eq("round_id", parsed.data.round_id)
+    .eq("player_id", user.id)
+    .maybeSingle();
+
+  const priorPayload = (prior?.payload as TargetNumberPayload | undefined) ?? null;
+  const priorDistance = priorPayload
+    ? Math.abs(puzzle.target - priorPayload.best_result)
+    : Infinity;
+  const newDistance = Math.abs(puzzle.target - evalResult.result);
+
+  if (priorPayload && newDistance >= priorDistance) {
+    return ok({ result: evalResult.result, better: false });
+  }
+
+  const newPayload: TargetNumberPayload = {
+    best_result: evalResult.result,
+    expression: parsed.data.expression,
+    best_submitted_at: nowIso,
+  };
+
+  const upsert = prior
+    ? await supabase
+        .from("game_submissions")
+        .update({ payload: newPayload, submitted_at: nowIso })
+        .eq("id", prior.id)
+    : await supabase.from("game_submissions").insert({
+        round_id: parsed.data.round_id,
+        player_id: user.id,
+        payload: newPayload,
+        submitted_at: nowIso,
+      });
+
+  if (upsert.error) return err("db_error", upsert.error.message);
+  return ok({ result: evalResult.result, better: true });
 }

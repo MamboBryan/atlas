@@ -12,8 +12,9 @@ const PAD_BOTTOM = 16;
 
 export function AccountsChart({ values, year }: { values: number[]; year: number }) {
   const [hover, setHover] = useState<number | null>(null);
+  const n = values.length;
   const max = Math.max(1, ...values);
-  const xAt = (i: number) => PAD_X + (i / 11) * (W - 2 * PAD_X);
+  const xAt = (i: number) => PAD_X + (i / Math.max(1, n - 1)) * (W - 2 * PAD_X);
   const yAt = (v: number) => PAD_TOP + (1 - v / max) * (H - PAD_TOP - PAD_BOTTOM);
   const d = smoothPath(values.map((v, i) => [xAt(i), yAt(v)]));
 
@@ -74,7 +75,7 @@ export function AccountsChart({ values, year }: { values: number[]; year: number
           <div
             className="pointer-events-none absolute z-10 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-surface shadow-md"
             style={{
-              left: `${Math.min(86, Math.max(14, ((hover + 0.5) / 12) * 100))}%`,
+              left: `${Math.min(86, Math.max(14, ((hover + 0.5) / n) * 100))}%`,
               top: `${(yAt(values[hover]) / H) * 100}%`,
               transform: showBelow
                 ? "translate(-50%, 10px)"
@@ -95,9 +96,9 @@ export function AccountsChart({ values, year }: { values: number[]; year: number
       </div>
 
       <div className="mt-1 flex text-[10px] text-ink-soft">
-        {MONTH_LABELS.map((l) => (
-          <span key={l} className="flex-1 text-center">
-            {l}
+        {values.map((_, i) => (
+          <span key={MONTH_LABELS[i]} className="flex-1 text-center">
+            {MONTH_LABELS[i]}
           </span>
         ))}
       </div>

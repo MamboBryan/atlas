@@ -59,7 +59,11 @@ export function AccountsCard({
   const byMonth = new Map(
     monthly.map((m) => [Number(m.period_start.slice(5, 7)) - 1, m.value]),
   );
-  const values = Array.from({ length: 12 }, (_, i) => byMonth.get(i) ?? 0);
+  // Only plot up to the current month for the ongoing year; a past year shows all 12.
+  const now = new Date();
+  const monthsToShow =
+    year < now.getUTCFullYear() ? 12 : now.getUTCMonth() + 1;
+  const values = Array.from({ length: monthsToShow }, (_, i) => byMonth.get(i) ?? 0);
 
   return (
     <Card>

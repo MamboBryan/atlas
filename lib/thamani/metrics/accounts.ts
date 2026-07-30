@@ -30,12 +30,22 @@ export function bucketAccounts(createdAts: string[], now: Date): MetricRow[] {
  */
 export async function computeAccountsMetrics(now: Date): Promise<MetricRow[]> {
   const client = thamaniReadClient();
-  const { data, error } = await client.from("accounts").select("created_at");
-  if (error) {
-    throw new Error(`Thamani accounts read failed: ${error.message}`);
+  const pageSize = 1000;
+  const createdAts: string[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await client
+      .from("accounts")
+      .select("created_at")
+      .range(from, from + pageSize - 1);
+    if (error) {
+      throw new Error(`Thamani accounts read failed: ${error.message}`);
+    }
+    const rows = data ?? [];
+    for (const r of rows) {
+      const c = (r as { created_at: string | null }).created_at;
+      if (c) createdAts.push(c);
+    }
+    if (rows.length < pageSize) break;
   }
-  const createdAts = (data ?? [])
-    .map((r) => (r as { created_at: string | null }).created_at)
-    .filter((c): c is string => !!c);
   return bucketAccounts(createdAts, now);
 }

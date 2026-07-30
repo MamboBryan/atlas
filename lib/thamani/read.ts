@@ -32,17 +32,6 @@ export function pickCurrent(rows: MetricRow[], now: Date): CurrentValues {
   return out;
 }
 
-export async function getAccountsCurrent(
-  supabase: MinimalClient,
-  now: Date,
-): Promise<CurrentValues> {
-  const { data } = await supabase
-    .from("thamani_metrics")
-    .select("metric_key,grain,period_start,value")
-    .eq("metric_key", ACCOUNTS_NEW);
-  return pickCurrent((data ?? []) as MetricRow[], now);
-}
-
 export async function getAccountsMonthly(
   supabase: MinimalClient,
   year: number,

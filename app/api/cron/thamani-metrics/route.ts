@@ -7,17 +7,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const now = new Date();
-  const rows = await computeAccountsMetrics(now);
-
-  const supabase = atlasServiceClient();
-  const { error } = await supabase.from("thamani_metrics").upsert(
-    rows.map((r) => ({ ...r, computed_at: now.toISOString() })),
-    { onConflict: "metric_key,grain,period_start" },
-  );
-  if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  try {
+    const now = new Date();
+    const rows = await computeAccountsMetrics(now);
+    const supabase = atlasServiceClient();
+    const { error } = await supabase.from("thamani_metrics").upsert(
+      rows.map((r) => ({ ...r, computed_at: now.toISOString() })),
+      { onConflict: "metric_key,grain,period_start" },
+    );
+    if (error) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, upserted: rows.length });
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : String(e) },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json({ ok: true, upserted: rows.length });
 }

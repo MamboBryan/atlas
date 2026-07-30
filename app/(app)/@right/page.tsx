@@ -10,7 +10,13 @@ import {
 } from "@/components/ui/card";
 import { Badge, LiveBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MeetingRoomIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  MeetingRoomIcon,
+  Quiz02Icon,
+  Calendar03Icon,
+  Target02Icon,
+} from "@hugeicons/core-free-icons";
 import { requireUser } from "@/lib/auth/require";
 
 type UnavailableRow = {
@@ -89,11 +95,32 @@ export default async function HomeRight() {
 
   return (
     <div className="space-y-8">
+      {/* Picker */}
+      <section className="sticky top-0 z-10 -mx-6 bg-surface px-6 pt-2 pb-3 space-y-3">
+        <div className="flex items-center gap-1.5">
+          <HugeiconsIcon icon={Target02Icon} size={16} strokeWidth={2} className="text-ink-soft shrink-0" />
+          <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
+            Picker
+          </h2>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="accent" className="flex-1" render={<Link href="/tools/pick" />}>
+            Pick someone
+          </Button>
+          <Button variant="outline" className="flex-1" render={<Link href="/tools/shuffle" />}>
+            Shuffle
+          </Button>
+        </div>
+      </section>
+
       {/* Availability */}
       <section className="space-y-3">
-        <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
-          Availability
-        </h2>
+        <div className="flex items-center gap-1.5">
+          <HugeiconsIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="text-ink-soft shrink-0" />
+          <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
+            Availability
+          </h2>
+        </div>
         {unavailable.length === 0 ? (
           <Card size="sm">
             <CardContent className="!py-4 text-center text-sm text-ink-soft">
@@ -125,9 +152,12 @@ export default async function HomeRight() {
 
       {/* Meetings */}
       <section className="space-y-3">
-        <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
-          Meetings
-        </h2>
+        <div className="flex items-center gap-1.5">
+          <HugeiconsIcon icon={MeetingRoomIcon} size={16} strokeWidth={2} className="text-ink-soft shrink-0" />
+          <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
+            Meetings
+          </h2>
+        </div>
         {nextMeeting ? (
           <Card size="sm">
             <CardHeader>
@@ -157,7 +187,8 @@ export default async function HomeRight() {
 
       {/* Polls */}
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <HugeiconsIcon icon={Quiz02Icon} size={16} strokeWidth={2} className="text-ink-soft shrink-0" />
           <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
             Polls
           </h2>
@@ -183,17 +214,6 @@ export default async function HomeRight() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* Picker (kept) */}
-      <section className="space-y-3">
-        <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
-          Picker
-        </h2>
-        <div className="flex flex-col gap-3">
-          <Button variant="accent" render={<Link href="/tools/pick" />}>Pick someone</Button>
-          <Button variant="outline" render={<Link href="/tools/shuffle" />}>Shuffle users</Button>
-        </div>
       </section>
     </div>
   );

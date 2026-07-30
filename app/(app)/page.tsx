@@ -1,14 +1,14 @@
 import { requireUser } from "@/lib/auth/require";
 import { AccountsCard } from "@/components/thamani/accounts-card";
-import { getAccountsCurrent, getAccountsMonthly } from "@/lib/thamani/read";
+import { getAccountsSnapshot, getAccountsMonthly } from "@/lib/thamani/read";
 
 export default async function HomePage() {
   const { supabase } = await requireUser();
 
   const metricsNow = new Date();
   const metricsYear = metricsNow.getUTCFullYear();
-  const [accountsCurrent, accountsMonthly] = await Promise.all([
-    getAccountsCurrent(supabase, metricsNow),
+  const [{ current, previous }, accountsMonthly] = await Promise.all([
+    getAccountsSnapshot(supabase, metricsNow),
     getAccountsMonthly(supabase, metricsYear),
   ]);
 
@@ -21,7 +21,7 @@ export default async function HomePage() {
         </div>
       </header>
 
-      <AccountsCard current={accountsCurrent} monthly={accountsMonthly} year={metricsYear} />
+      <AccountsCard current={current} previous={previous} monthly={accountsMonthly} year={metricsYear} />
     </div>
   );
 }

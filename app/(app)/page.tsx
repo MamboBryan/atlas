@@ -13,6 +13,8 @@ import { MeetingRoomIcon } from "@hugeicons/core-free-icons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth/require";
 import { NextMeetingActions } from "@/components/app/next-meeting-actions";
+import { AccountsCard } from "@/components/thamani/accounts-card";
+import { getAccountsCurrent, getAccountsMonthly } from "@/lib/thamani/read";
 
 type Meeting = {
   id: string;
@@ -127,6 +129,13 @@ export default async function HomePage() {
     nextMeeting.host_user_id === user.id &&
     inStartWindow;
 
+  const metricsNow = new Date();
+  const metricsYear = metricsNow.getUTCFullYear();
+  const [accountsCurrent, accountsMonthly] = await Promise.all([
+    getAccountsCurrent(supabase, metricsNow),
+    getAccountsMonthly(supabase, metricsYear),
+  ]);
+
   return (
     <div className="space-y-8">
       <header className="flex items-start justify-between gap-4">
@@ -135,6 +144,13 @@ export default async function HomePage() {
           <p className="text-sm text-ink-soft">What&apos;s on your plate today.</p>
         </div>
       </header>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
+          Product growth
+        </h2>
+        <AccountsCard current={accountsCurrent} monthly={accountsMonthly} year={metricsYear} />
+      </section>
 
       <section className="space-y-3">
         <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">

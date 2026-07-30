@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { periodStart, periodEndMs, computeSet } from "@/lib/thamani/periods";
+import { periodStart, periodEndMs, computeSet, previousPeriodStart, comparisonSet } from "@/lib/thamani/periods";
 
 const d = (iso: string) => new Date(iso);
 
@@ -57,5 +57,29 @@ describe("computeSet", () => {
     expect(byGrain("year")).toEqual(["2026-01-01"]);
     expect(byGrain("week")).toEqual(["2026-07-27"]);
     expect(byGrain("day")).toEqual(["2026-07-30"]);
+  });
+});
+
+describe("previousPeriodStart", () => {
+  const now = d("2026-07-30T18:05:00Z"); // Thu, Q3, Jul
+  it("day → yesterday", () => expect(previousPeriodStart(now, "day")).toBe("2026-07-29"));
+  it("week → previous Monday", () => expect(previousPeriodStart(now, "week")).toBe("2026-07-20"));
+  it("month → last month", () => expect(previousPeriodStart(now, "month")).toBe("2026-06-01"));
+  it("quarter → previous quarter (Q2)", () => expect(previousPeriodStart(now, "quarter")).toBe("2026-04-01"));
+  it("year → previous year", () => expect(previousPeriodStart(now, "year")).toBe("2025-01-01"));
+  it("month wraps to prior December in January", () =>
+    expect(previousPeriodStart(d("2026-01-10T00:00:00Z"), "month")).toBe("2025-12-01"));
+});
+
+describe("comparisonSet", () => {
+  it("returns the previous period for all five grains", () => {
+    const set = comparisonSet(d("2026-07-30T18:05:00Z"));
+    expect(set).toEqual([
+      { grain: "day", period_start: "2026-07-29" },
+      { grain: "week", period_start: "2026-07-20" },
+      { grain: "month", period_start: "2026-06-01" },
+      { grain: "quarter", period_start: "2026-04-01" },
+      { grain: "year", period_start: "2025-01-01" },
+    ]);
   });
 });

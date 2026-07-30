@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pickCurrent } from "@/lib/thamani/read";
+import { pickCurrent, trendDirection, pickPrevious } from "@/lib/thamani/read";
 import type { MetricRow } from "@/lib/thamani/types";
 
 describe("pickCurrent", () => {
@@ -22,5 +22,22 @@ describe("pickCurrent", () => {
     expect(pickCurrent([], now)).toEqual({
       today: 0, week: 0, month: 0, quarter: 0, year: 0,
     });
+  });
+});
+
+describe("trendDirection", () => {
+  it("up when current > previous", () => expect(trendDirection(74, 0)).toBe("up"));
+  it("down when current < previous", () => expect(trendDirection(1, 2)).toBe("down"));
+  it("flat when equal", () => expect(trendDirection(0, 0)).toBe("flat"));
+});
+
+describe("pickPrevious", () => {
+  const now = new Date("2026-07-30T18:05:00Z");
+  const rows: MetricRow[] = [
+    { metric_key: "accounts_new", grain: "month", period_start: "2026-06-01", value: 2 },
+    { metric_key: "accounts_new", grain: "year", period_start: "2025-01-01", value: 0 },
+  ];
+  it("selects the previous period per grain, 0 when absent", () => {
+    expect(pickPrevious(rows, now)).toEqual({ today: 0, week: 0, month: 2, quarter: 0, year: 0 });
   });
 });

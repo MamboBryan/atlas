@@ -70,3 +70,26 @@ export function computeSet(now: Date): { grain: Grain; period_start: string }[] 
   out.push({ grain: "day", period_start: periodStart(now, "day") });
   return out;
 }
+
+const ALL_GRAINS: Grain[] = ["day", "week", "month", "quarter", "year"];
+
+export function previousPeriodStart(now: Date, grain: Grain): string {
+  const cur = new Date(`${periodStart(now, grain)}T00:00:00Z`);
+  const y = cur.getUTCFullYear();
+  const m = cur.getUTCMonth();
+  const d = cur.getUTCDate();
+  let ms: number;
+  switch (grain) {
+    case "day": ms = Date.UTC(y, m, d - 1); break;
+    case "week": ms = Date.UTC(y, m, d - 7); break;
+    case "month": ms = Date.UTC(y, m - 1, 1); break;
+    case "quarter": ms = Date.UTC(y, m - 3, 1); break;
+    case "year": ms = Date.UTC(y - 1, 0, 1); break;
+  }
+  const p = new Date(ms);
+  return iso(p.getUTCFullYear(), p.getUTCMonth() + 1, p.getUTCDate());
+}
+
+export function comparisonSet(now: Date): { grain: Grain; period_start: string }[] {
+  return ALL_GRAINS.map((grain) => ({ grain, period_start: previousPeriodStart(now, grain) }));
+}

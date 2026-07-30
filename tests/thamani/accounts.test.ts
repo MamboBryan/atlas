@@ -44,4 +44,16 @@ describe("bucketAccounts", () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((r) => r.value === 0)).toBe(true);
   });
+
+  it("emits each (grain, period_start) at most once (no upsert-conflict dupes)", () => {
+    const rows = bucketAccounts(["2026-07-15T09:00:00Z"], new Date("2026-07-30T18:05:00Z"));
+    const keys = rows.map((r) => `${r.grain}|${r.period_start}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("includes previous-period buckets (e.g. last month 2026-06-01)", () => {
+    const rows = bucketAccounts([], new Date("2026-07-30T18:05:00Z"));
+    expect(rows.some((r) => r.grain === "month" && r.period_start === "2026-06-01")).toBe(true);
+    expect(rows.some((r) => r.grain === "year" && r.period_start === "2025-01-01")).toBe(true);
+  });
 });

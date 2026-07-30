@@ -31,12 +31,14 @@ function TrendArrow({ current, previous }: { current: number; previous: number }
 
 function Stat({ label, value, previous }: { label: string; value: number; previous: number }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex items-center justify-between gap-4 py-1.5">
       <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">
         {label}
       </span>
-      <span className="flex items-center gap-1.5">
-        <span className="font-display text-2xl font-extrabold text-ink">{value}</span>
+      <span className="flex items-center gap-1">
+        <span className="font-display text-xl font-extrabold text-ink tabular-nums">
+          {value}
+        </span>
         <TrendArrow current={value} previous={previous} />
       </span>
     </div>
@@ -64,20 +66,22 @@ export function AccountsCard({
       <CardHeader>
         <CardTitle>New accounts</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          <Stat label="Today" value={current.today} previous={previous.today} />
-          <Stat label="This week" value={current.week} previous={previous.week} />
-          <Stat label="This month" value={current.month} previous={previous.month} />
-          <Stat label="This quarter" value={current.quarter} previous={previous.quarter} />
-          <Stat label="This year" value={current.year} previous={previous.year} />
-        </div>
-
-        <div className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-wide text-ink-soft">
-            {year} · month by month
+      <CardContent>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
+          <div className="flex flex-col divide-y divide-ink/10 sm:w-44 sm:shrink-0">
+            <Stat label="Today" value={current.today} previous={previous.today} />
+            <Stat label="This week" value={current.week} previous={previous.week} />
+            <Stat label="This month" value={current.month} previous={previous.month} />
+            <Stat label="This quarter" value={current.quarter} previous={previous.quarter} />
+            <Stat label="This year" value={current.year} previous={previous.year} />
           </div>
-          <AccountsChart values={values} year={year} />
+
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-ink-soft">
+              {year} · month by month
+            </div>
+            <AccountsChart values={values} year={year} />
+          </div>
         </div>
       </CardContent>
     </Card>

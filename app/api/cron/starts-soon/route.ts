@@ -13,8 +13,9 @@ type Meeting = {
 
 const WINDOW_MINUTES = 10;
 
-export async function POST(req: NextRequest) {
-  if (req.headers.get("x-cron-secret") !== process.env.CRON_SECRET)
+export async function GET(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`)
     return NextResponse.json({ ok: false }, { status: 401 });
 
   const svc = createClient(

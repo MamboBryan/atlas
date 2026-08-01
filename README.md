@@ -28,7 +28,7 @@ pnpm dev
 
 - `app/(app)/…` — authenticated app routes (dashboard, roster, meetings, polls, series, notifications, settings)
 - `app/(auth)/sign-in` — Supabase magic-link + Google
-- `app/api/cron/*` — Vercel cron endpoints (require `x-cron-secret`)
+- `app/api/cron/*` — Vercel cron endpoints (GET, `Authorization: Bearer $CRON_SECRET`)
 - `lib/actions/*` — server actions
 - `lib/notify/*` — notification emit + email delivery
 - `components/*` — shared UI (shadcn + custom)

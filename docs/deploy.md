@@ -74,8 +74,14 @@ are listed:
 - `/api/cron/auto-postpone` — every 5 min
 - `/api/cron/generate-occurrences` — hourly
 
-Every cron endpoint requires the `x-cron-secret` header matching
-`CRON_SECRET`. Vercel injects this from the env var.
+Vercel Cron invokes each endpoint with a **GET** request carrying an
+`Authorization: Bearer $CRON_SECRET` header (injected automatically from
+the `CRON_SECRET` env var). Each route rejects any request whose header
+doesn't match. To trigger a job manually:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<app>/api/cron/<job>
+```
 
 ## 6. First sign-in and admin bootstrap
 

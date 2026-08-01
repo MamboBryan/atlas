@@ -127,7 +127,7 @@ reference images. Commit them alongside your changes. CI runs the same tests in
 ## Phase 7 — Series + rotation
 
 - [ ] Admin creates a weekly series with 3-person rotation
-- [ ] Cron endpoint `/api/cron/generate-occurrences` (with `x-cron-secret`)
+- [ ] Cron endpoint `/api/cron/generate-occurrences` (GET, `Authorization: Bearer $CRON_SECRET`)
       creates upcoming meetings
 - [ ] Rotation cursor advances after each meeting; hosts cycle through the
       list in order
@@ -141,7 +141,7 @@ reference images. Commit them alongside your changes. CI runs the same tests in
 - [ ] `auto_postpone_count` increments on each auto-postpone
 - [ ] After 3 auto-postpones the chain is cancelled and the series'
       rotation_cursor advances
-- [ ] Cron endpoint `/api/cron/auto-postpone` (with `x-cron-secret`) applies
+- [ ] Cron endpoint `/api/cron/auto-postpone` (GET, `Authorization: Bearer $CRON_SECRET`) applies
       the state machine correctly on past-due meetings
 
 ## Phase 9 — Notifications + email
@@ -151,7 +151,7 @@ reference images. Commit them alongside your changes. CI runs the same tests in
 - [ ] `/notifications` feed lists all rows, marks them read on view
 - [ ] Settings → email preferences: toggling a channel off suppresses the
       email for that kind (verify in Mailpit / Resend logs)
-- [ ] Cron `/api/cron/send-emails` (with `x-cron-secret`) drains queue and
+- [ ] Cron `/api/cron/send-emails` (GET, `Authorization: Bearer $CRON_SECRET`) drains queue and
       is idempotent (second run processes zero items)
 - [ ] `meeting_starts_soon` cron fires once per meeting within window
 
@@ -169,7 +169,7 @@ reference images. Commit them alongside your changes. CI runs the same tests in
 
 - [ ] Middleware blocks all non-`/api/cron`, non-`/auth`, non-`/sign-in`
       routes when unauthenticated
-- [ ] All cron endpoints reject requests without a valid `x-cron-secret`
+- [ ] All cron endpoints reject requests without a valid `Authorization: Bearer $CRON_SECRET`
 - [ ] Timezones: create a meeting in a non-viewer timezone; viewer sees both
       local and source times
 - [ ] Sign-out clears session and redirects to `/sign-in`

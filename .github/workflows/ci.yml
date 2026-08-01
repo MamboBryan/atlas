@@ -12,7 +12,13 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
-      - run: pnpm build
+      - name: build
+        env:
+          # /sign-in is prerendered at build and constructs a Supabase browser
+          # client, which requires these publishable values to be present.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: pnpm build
       - run: pnpm exec prettier --check .
 
   supabase:
@@ -43,5 +49,11 @@ jobs:
       - name: run
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY_LOCAL }}
-        run: pnpm test:e2e
+          FALLBACK_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          # Use the anon key from the running local stack; fall back to the
+          # publishable-key secret so the dev server always boots. Authenticated
+          # e2e tests self-skip when SUPABASE_SERVICE_ROLE_KEY is unset (it is here).
+          KEY="$(pnpm exec supabase status -o env 2>/dev/null | sed -n 's/^ANON_KEY=//p' | tr -d '"')"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="${KEY:-$FALLBACK_ANON_KEY}"
+          pnpm test:e2e

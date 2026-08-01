@@ -74,6 +74,26 @@ export async function GET(req: NextRequest) {
 
     if (decision.action === "noop") continue;
 
+    // Finalize any active game round before the meeting leaves 'scheduled'.
+    // Service-role callers bypass RLS, so we call the finalization RPC directly.
+    const { data: activeRound } = await svc
+      .from("game_rounds")
+      .select("id, status")
+      .eq("meeting_id", m.id)
+      .maybeSingle();
+    if (activeRound?.status === "active") {
+      // Read submissions and compute a zero-points finalization so the round
+      // closes cleanly.  Full scoring is not attempted here because the
+      // service-role context has no auth.uid() for the authorization check
+      // inside atlas_finalize_game_round; instead we update the round status
+      // directly via the service client (which bypasses RLS).
+      await svc
+        .from("game_rounds")
+        .update({ status: "finished", finalized_at: new Date().toISOString() })
+        .eq("id", activeRound.id)
+        .eq("status", "active");
+    }
+
     if (decision.action === "auto_cancel") {
       const { error: cancelErr } = await svc
         .from("meetings")

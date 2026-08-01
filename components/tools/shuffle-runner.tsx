@@ -39,7 +39,9 @@ export function ShuffleRunner({
     const s = createSupabaseBrowserClient();
     const { data, error } = await s
       .from("shuffle_sessions")
-      .select("id,meeting_id,owner_user_id,roster_snapshot,current_index,status")
+      .select(
+        "id,meeting_id,owner_user_id,roster_snapshot,current_index,status",
+      )
       .eq("id", id)
       .single();
     if (error || !data) {
@@ -156,10 +158,17 @@ export function ShuffleRunner({
 
       {controllable && (
         <div className="flex justify-center gap-2">
-          <Button variant="outline" onClick={doPrev} disabled={pending || idx === 0}>
+          <Button
+            variant="outline"
+            onClick={doPrev}
+            disabled={pending || idx === 0}
+          >
             Prev
           </Button>
-          <Button onClick={doNext} disabled={pending || session.status === "finished"}>
+          <Button
+            onClick={doNext}
+            disabled={pending || session.status === "finished"}
+          >
             Next
           </Button>
           <Button variant="ghost" onClick={doRestart} disabled={pending}>

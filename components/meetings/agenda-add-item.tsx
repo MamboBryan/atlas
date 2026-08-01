@@ -21,11 +21,7 @@ type Kind = "discussion" | "prompt" | "picker";
 type PickerMode = "oneshot" | "shuffle";
 type PickerScope = "meeting_participants" | "whole_roster";
 type PromptResponseType =
-  | "text"
-  | "single_choice"
-  | "multi_choice"
-  | "yes_no"
-  | "rating";
+  "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
 type PromptAnonymity = "attributed" | "hard_anonymous";
 type PromptTiming = "async" | "live";
 type RatingMax = 5 | 10;
@@ -143,8 +139,9 @@ export function AgendaAddItem({
   const [kind, setKind] = useState<Kind>("discussion");
   const [title, setTitle] = useState("");
   const [promptId, setPromptId] = useState<string>("");
-  const [pickerScope, setPickerScope] =
-    useState<PickerScope>("meeting_participants");
+  const [pickerScope, setPickerScope] = useState<PickerScope>(
+    "meeting_participants",
+  );
   const [pickerMode, setPickerMode] = useState<PickerMode>("oneshot");
 
   // Local list so newly-created prompts show up without a full refresh.
@@ -252,7 +249,11 @@ export function AgendaAddItem({
         <>
           <div className="space-y-2">
             <Label>Mode</Label>
-            <TabRow value={pickerMode} onChange={setPickerMode} options={MODES} />
+            <TabRow
+              value={pickerMode}
+              onChange={setPickerMode}
+              options={MODES}
+            />
           </div>
           <div className="space-y-2">
             <Label>Scope</Label>
@@ -277,8 +278,7 @@ export function AgendaAddItem({
         className="w-full mt-2"
         onClick={submit}
         disabled={
-          pending ||
-          (kind === "prompt" ? !promptId : title.trim().length === 0)
+          pending || (kind === "prompt" ? !promptId : title.trim().length === 0)
         }
       >
         {pending ? "Adding…" : "Add"}
@@ -317,7 +317,8 @@ function PickPromptSheet({
         <SheetBody className="space-y-2">
           {prompts.length === 0 ? (
             <p className="text-sm text-ink-soft">
-              You don&apos;t have any standalone prompts yet. Create one instead.
+              You don&apos;t have any standalone prompts yet. Create one
+              instead.
             </p>
           ) : (
             prompts.map((p) => {

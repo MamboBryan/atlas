@@ -48,8 +48,8 @@ Two games ship together in v1: **Target Number** (Countdown-style math dash) and
 
 ### Late-joiner rules
 
-- Enter *during* an active round → immediately playable with the reduced remaining time. No prorating — reduced time is its own natural penalty (less time to think for Target Number, fewer usable seconds for their 3 guesses in Zero In).
-- Enter *after* the round finished → see the reveal + scoreboard, no play, no points.
+- Enter _during_ an active round → immediately playable with the reduced remaining time. No prorating — reduced time is its own natural penalty (less time to think for Target Number, fewer usable seconds for their 3 guesses in Zero In).
+- Enter _after_ the round finished → see the reveal + scoreboard, no play, no points.
 
 ### Player privacy during a round
 
@@ -78,12 +78,12 @@ Two games ship together in v1: **Target Number** (Countdown-style math dash) and
 
 ### Scoring
 
-| Result | Base points |
-|---|---|
-| Exact match | 30 |
-| Within 5 | 20 |
-| Within 10 | 10 |
-| Further than 10 | 0 |
+| Result          | Base points |
+| --------------- | ----------- |
+| Exact match     | 30          |
+| Within 5        | 20          |
+| Within 10       | 10          |
+| Further than 10 | 0           |
 
 Plus a **time bonus of up to 15 points** on top of base points, linearly decreasing from 15 (submitted at 0s elapsed) to 0 (submitted at 60s elapsed). Time bonus is applied only when base points are earned.
 
@@ -103,19 +103,19 @@ Plus a **time bonus of up to 15 points** on top of base points, linearly decreas
 - After each guess the server responds `higher` or `lower` — no distance revealed.
 - Guesses can be submitted anytime within the timer, sequentially.
 - If the timer expires with unspent guesses, the round ends immediately for that player.
-- The *closest of the player's submitted guesses* counts as their result (not their final guess).
+- The _closest of the player's submitted guesses_ counts as their result (not their final guess).
 
 ### Scoring
 
 Scores stack — a player can earn multiple tiers in the same round.
 
-| Condition | Points |
-|---|---|
-| Any guess exactly matches the secret | 25 |
-| Closest player in the round | 12 |
-| Best guess within 1% of secret (±10) | 5 |
-| Best guess within 5% of secret (±50) | 3 |
-| Submitted at least one guess | 1 |
+| Condition                            | Points |
+| ------------------------------------ | ------ |
+| Any guess exactly matches the secret | 25     |
+| Closest player in the round          | 12     |
+| Best guess within 1% of secret (±10) | 5      |
+| Best guess within 5% of secret (±50) | 3      |
+| Submitted at least one guess         | 1      |
 
 **Maximum per round: 46 points** (exact + closest + within 1% + within 5% + submitted).
 

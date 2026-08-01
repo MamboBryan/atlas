@@ -50,13 +50,13 @@ error and skips the batch — a safe no-op.
 3. Add environment variables (Project → Settings → Environment
    Variables). All are **Production + Preview**:
 
-   | Name                            | Value                                  |
-   | ------------------------------- | -------------------------------------- |
-   | `NEXT_PUBLIC_SUPABASE_URL`      | `https://<ref>.supabase.co`            |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key                      |
+   | Name                            | Value                                   |
+   | ------------------------------- | --------------------------------------- |
+   | `NEXT_PUBLIC_SUPABASE_URL`      | `https://<ref>.supabase.co`             |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key                       |
    | `SUPABASE_SERVICE_ROLE_KEY`     | Supabase service-role key (server-only) |
-   | `RESEND_API_KEY`                | Resend key                             |
-   | `CRON_SECRET`                   | 32-char random string                  |
+   | `RESEND_API_KEY`                | Resend key                              |
+   | `CRON_SECRET`                   | 32-char random string                   |
 
    Do **not** set `ATLAS_TEST_MODE`. It gates the test-only sign-in
    route; leaving it unset in production returns 404.

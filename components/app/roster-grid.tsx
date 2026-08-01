@@ -132,7 +132,11 @@ export function RosterGrid({
       )}
 
       {rows.length === 0 ? (
-        <EmptyState sticker="empty-box" headline="No members yet" body="Add the first team member to get started." />
+        <EmptyState
+          sticker="empty-box"
+          headline="No members yet"
+          body="Add the first team member to get started."
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((m) => (
@@ -154,7 +158,9 @@ export function RosterGrid({
                 <CardDescription>
                   {m.role}
                   {!m.is_active && (
-                    <span className="ml-2 text-ink-faint">&middot; inactive</span>
+                    <span className="ml-2 text-ink-faint">
+                      &middot; inactive
+                    </span>
                   )}
                 </CardDescription>
                 <CardAction>

@@ -4,7 +4,10 @@ import { computeAccountsMetrics } from "@/lib/thamani/metrics/accounts";
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (
+    !process.env.CRON_SECRET ||
+    auth !== `Bearer ${process.env.CRON_SECRET}`
+  ) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
@@ -17,7 +20,10 @@ export async function GET(req: NextRequest) {
       { onConflict: "metric_key,grain,period_start" },
     );
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: error.message },
+        { status: 500 },
+      );
     }
     return NextResponse.json({ ok: true, upserted: rows.length });
   } catch (e) {

@@ -4,7 +4,11 @@ export const createOneOff = z.object({
   title: z.string().min(1).max(120),
   scheduled_start: z.string().datetime(),
   timezone: z.string().min(1).max(64),
-  participants_override: z.array(z.string().uuid()).min(1).nullable().optional(),
+  participants_override: z
+    .array(z.string().uuid())
+    .min(1)
+    .nullable()
+    .optional(),
 });
 export type CreateOneOffInput = z.infer<typeof createOneOff>;
 

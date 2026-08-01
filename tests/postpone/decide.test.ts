@@ -11,18 +11,16 @@ const base = {
 };
 
 test("noop when meeting is not scheduled", () => {
-  expect(
-    decidePostponeAction({ ...base, status: "live" }).action,
-  ).toBe("noop");
-  expect(
-    decidePostponeAction({ ...base, status: "ended" }).action,
-  ).toBe("noop");
-  expect(
-    decidePostponeAction({ ...base, status: "postponed" }).action,
-  ).toBe("noop");
-  expect(
-    decidePostponeAction({ ...base, status: "cancelled" }).action,
-  ).toBe("noop");
+  expect(decidePostponeAction({ ...base, status: "live" }).action).toBe("noop");
+  expect(decidePostponeAction({ ...base, status: "ended" }).action).toBe(
+    "noop",
+  );
+  expect(decidePostponeAction({ ...base, status: "postponed" }).action).toBe(
+    "noop",
+  );
+  expect(decidePostponeAction({ ...base, status: "cancelled" }).action).toBe(
+    "noop",
+  );
 });
 
 test("noop inside grace window", () => {
@@ -68,9 +66,9 @@ test("auto_cancel when count = max (3)", () => {
 
 test("respects custom grace window", () => {
   const now = new Date("2026-07-24T10:04:59Z");
-  expect(
-    decidePostponeAction({ ...base, now, graceMinutes: 5 }).action,
-  ).toBe("noop");
+  expect(decidePostponeAction({ ...base, now, graceMinutes: 5 }).action).toBe(
+    "noop",
+  );
   const now2 = new Date("2026-07-24T10:05:01Z");
   expect(
     decidePostponeAction({ ...base, now: now2, graceMinutes: 5 }).action,

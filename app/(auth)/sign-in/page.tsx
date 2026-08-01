@@ -98,8 +98,8 @@ export default function SignIn() {
                 </h1>
                 <p className="text-sm text-ink-soft">
                   We&apos;ve sent you the link to{" "}
-                  <span className="font-semibold text-ink">{email}</span>, please
-                  click to continue login process.
+                  <span className="font-semibold text-ink">{email}</span>,
+                  please click to continue login process.
                 </p>
               </div>
 

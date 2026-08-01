@@ -15,12 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { startMeeting, postponeMeetingManual } from "@/lib/actions/meeting";
 
-type MeetingStatus =
-  | "scheduled"
-  | "live"
-  | "ended"
-  | "postponed"
-  | "cancelled";
+type MeetingStatus = "scheduled" | "live" | "ended" | "postponed" | "cancelled";
 
 function toLocalInputValue(iso: string) {
   const d = new Date(iso);

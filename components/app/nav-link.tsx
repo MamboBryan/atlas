@@ -23,8 +23,7 @@ export function NavLink({
 }) {
   const pathname = usePathname();
   const matchesSelf =
-    pathname === href ||
-    (href !== "/" && pathname.startsWith(href + "/"));
+    pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
   const matchesOther = matchPaths.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
@@ -41,7 +40,12 @@ export function NavLink({
           : "hover:-translate-y-[1px] hover:shadow-lift",
       )}
     >
-      <HugeiconsIcon icon={icon} size={22} strokeWidth={2} className="shrink-0" />
+      <HugeiconsIcon
+        icon={icon}
+        size={22}
+        strokeWidth={2}
+        className="shrink-0"
+      />
       <span
         className={cn(
           "truncate transition-opacity duration-fast",

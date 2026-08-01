@@ -217,9 +217,10 @@ export async function advanceMeetingAgenda(
 
   const { user, supabase } = await requireUser();
 
-  const payload: { current_agenda_item_id: string | null; has_started?: true } = {
-    current_agenda_item_id: parsed.data.item_id,
-  };
+  const payload: { current_agenda_item_id: string | null; has_started?: true } =
+    {
+      current_agenda_item_id: parsed.data.item_id,
+    };
   if (parsed.data.item_id != null) {
     payload.has_started = true;
   }

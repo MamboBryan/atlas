@@ -25,20 +25,24 @@
 ## File Structure
 
 **New — pure logic (Phase 1):**
+
 - `lib/games/types.ts` — shared discriminated types (`GameKind`, `Puzzle`, `Payload`, `PlayerResult`).
 - `lib/games/select.ts` — random game selection from enabled pool.
 - `lib/games/target-number.ts` — puzzle generator, expression evaluator, scorer.
 - `lib/games/zero-in.ts` — puzzle generator, hi/lo feedback, scorer.
 
 **New — database (Phase 2):**
+
 - `db/supabase/supabase/migrations/0022_pre_meeting_games.sql`
 - `db/supabase/supabase/tests/games_rls.sql`
 
 **New — server actions and Zod (Phase 3):**
+
 - `lib/zod/game.ts` — input schemas.
 - `lib/actions/game.ts` — `ensureRoundAction`, `submitTargetNumberAction`, `submitZeroInGuessAction`, `finalizeRoundAction`, `getLeaderboardAction`.
 
 **New — UI (Phase 4):**
+
 - `components/games/round-countdown.tsx`
 - `components/games/target-number-round.tsx`
 - `components/games/zero-in-round.tsx`
@@ -48,12 +52,14 @@
 - `app/(app)/leaderboard/page.tsx`
 
 **New — tests:**
+
 - `tests/games/select.test.ts`
 - `tests/games/target-number.test.ts`
 - `tests/games/zero-in.test.ts`
 - `tests/actions/game.integration.test.ts`
 
 **Modified:**
+
 - `app/(app)/meetings/[id]/page.tsx` — mount `<GameLobbyPanel />` above the agenda when `meeting.status === 'scheduled'`.
 - `components/meetings/meeting-live-view.tsx` (or wherever the "Start meeting" action is invoked) — call `finalizeRoundAction` before transitioning `meeting.status` to `'live'`.
 
@@ -62,11 +68,13 @@
 ## Task 1: Shared types + game selection
 
 **Files:**
+
 - Create: `lib/games/types.ts`
 - Create: `lib/games/select.ts`
 - Test: `tests/games/select.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces:
   - `type GameKind = 'target_number' | 'zero_in'`
@@ -143,7 +151,11 @@ export type TargetNumberPayload = {
 };
 
 export type ZeroInFeedback = "higher" | "lower" | "exact";
-export type ZeroInGuess = { value: number; at: string; feedback: ZeroInFeedback };
+export type ZeroInGuess = {
+  value: number;
+  at: string;
+  feedback: ZeroInFeedback;
+};
 export type ZeroInPayload = { guesses: ZeroInGuess[]; best_guess: number };
 
 export type PlayerResult = {
@@ -191,10 +203,12 @@ git commit -m "feat(games): shared types and game selection"
 ## Task 2: Target Number game logic
 
 **Files:**
+
 - Create: `lib/games/target-number.ts`
 - Test: `tests/games/target-number.test.ts`
 
 **Interfaces:**
+
 - Consumes: `TargetNumberPuzzle`, `TargetNumberOp`, `TargetNumberPayload` from `@/lib/games/types`.
 - Produces:
   - `TARGET_NUMBER_DURATION_MS = 60_000`
@@ -241,34 +255,26 @@ test("evaluate: valid expression using two originals returns result", () => {
 
 test("evaluate: reusing a base twice fails", () => {
   const bases = [2, 4, 7, 25, 50, 75];
-  const expr: TargetNumberOp[] = [
-    { op: "+", left: 2, right: 2, result: 4 },
-  ];
+  const expr: TargetNumberOp[] = [{ op: "+", left: 2, right: 2, result: 4 }];
   const r = evaluateExpression(bases, expr);
   expect(r.ok).toBe(false);
 });
 
 test("evaluate: non-integer intermediate fails", () => {
   const bases = [2, 4, 7, 25, 50, 75];
-  const expr: TargetNumberOp[] = [
-    { op: "/", left: 7, right: 2, result: 3.5 },
-  ];
+  const expr: TargetNumberOp[] = [{ op: "/", left: 7, right: 2, result: 3.5 }];
   expect(evaluateExpression(bases, expr).ok).toBe(false);
 });
 
 test("evaluate: negative intermediate fails", () => {
   const bases = [2, 4, 7, 25, 50, 75];
-  const expr: TargetNumberOp[] = [
-    { op: "-", left: 2, right: 4, result: -2 },
-  ];
+  const expr: TargetNumberOp[] = [{ op: "-", left: 2, right: 4, result: -2 }];
   expect(evaluateExpression(bases, expr).ok).toBe(false);
 });
 
 test("evaluate: claimed result inconsistent with operands fails", () => {
   const bases = [2, 4, 7, 25, 50, 75];
-  const expr: TargetNumberOp[] = [
-    { op: "+", left: 2, right: 4, result: 999 },
-  ];
+  const expr: TargetNumberOp[] = [{ op: "+", left: 2, right: 4, result: 999 }];
   expect(evaluateExpression(bases, expr).ok).toBe(false);
 });
 
@@ -342,7 +348,11 @@ export function generateTargetNumberPuzzle(
   return { target, bases: [...smalls, ...chosenLarges].sort((a, b) => a - b) };
 }
 
-function applyOp(op: TargetNumberOp["op"], a: number, b: number): number | null {
+function applyOp(
+  op: TargetNumberOp["op"],
+  a: number,
+  b: number,
+): number | null {
   switch (op) {
     case "+":
       return a + b;
@@ -378,7 +388,8 @@ export function evaluateExpression(
   let lastResult = 0;
   for (const step of expression) {
     if (!consume(step.left)) return { ok: false, reason: "left not available" };
-    if (!consume(step.right)) return { ok: false, reason: "right not available" };
+    if (!consume(step.right))
+      return { ok: false, reason: "right not available" };
     const computed = applyOp(step.op, step.left, step.right);
     if (computed === null || !Number.isInteger(computed) || computed <= 0) {
       return { ok: false, reason: "invalid intermediate" };
@@ -411,10 +422,7 @@ export function scoreTargetNumber(
   else return 0;
 
   const elapsed = Math.max(0, submittedAtMs - startedAtMs);
-  const bonusFraction = Math.max(
-    0,
-    1 - elapsed / TARGET_NUMBER_DURATION_MS,
-  );
+  const bonusFraction = Math.max(0, 1 - elapsed / TARGET_NUMBER_DURATION_MS);
   const bonus = Math.round(15 * bonusFraction);
   return base + bonus;
 }
@@ -437,10 +445,12 @@ git commit -m "feat(games): target number puzzle, evaluator, scorer"
 ## Task 3: Zero In game logic
 
 **Files:**
+
 - Create: `lib/games/zero-in.ts`
 - Test: `tests/games/zero-in.test.ts`
 
 **Interfaces:**
+
 - Consumes: `ZeroInPuzzle`, `ZeroInGuess`, `ZeroInPayload` from `@/lib/games/types`.
 - Produces:
   - `ZERO_IN_DURATION_MS = 45_000`
@@ -551,16 +561,22 @@ test("score: 'closest player' awarded to earliest submitter on tie", () => {
 });
 
 test("score: player with no guesses gets 0", () => {
-  const results = scoreZeroInRound(500, [
-    { player_id: "p1", guesses: [] },
-  ]);
+  const results = scoreZeroInRound(500, [{ player_id: "p1", guesses: [] }]);
   expect(results[0].points).toBe(0);
 });
 
 test("score: player who submitted but was far gets participation 1", () => {
   const results = scoreZeroInRound(500, [
-    { player_id: "p1", guesses: [{ value: 900, at: "t", feedback: "lower" }], earliest_closest_at: "t" },
-    { player_id: "p2", guesses: [{ value: 100, at: "t", feedback: "higher" }], earliest_closest_at: "t" },
+    {
+      player_id: "p1",
+      guesses: [{ value: 900, at: "t", feedback: "lower" }],
+      earliest_closest_at: "t",
+    },
+    {
+      player_id: "p2",
+      guesses: [{ value: 100, at: "t", feedback: "higher" }],
+      earliest_closest_at: "t",
+    },
   ]);
   // Neither is within 5% (±50). Closest is p1 (distance 400) vs p2 (400). Tie → earliest wins closest bonus.
   const total = results.reduce((n, r) => n + r.points, 0);
@@ -580,11 +596,7 @@ Expected: FAIL — module does not exist.
 Create `lib/games/zero-in.ts`:
 
 ```ts
-import type {
-  ZeroInFeedback,
-  ZeroInGuess,
-  ZeroInPuzzle,
-} from "./types";
+import type { ZeroInFeedback, ZeroInGuess, ZeroInPuzzle } from "./types";
 
 export const ZERO_IN_DURATION_MS = 45_000;
 export const ZERO_IN_MAX_GUESSES = 3;
@@ -653,7 +665,12 @@ export function scoreZeroInRound(
 
   return enriched.map((e) => {
     if (e.bestGuess === null) {
-      return { player_id: e.player_id, points: 0, best_guess: null, distance: Infinity };
+      return {
+        player_id: e.player_id,
+        points: 0,
+        best_guess: null,
+        distance: Infinity,
+      };
     }
     let pts = 1; // participation
     if (e.distance <= 50) pts += 3; // within 5%
@@ -687,10 +704,12 @@ git commit -m "feat(games): zero in puzzle, feedback, scorer"
 ## Task 4: Database migration + RLS + pgtap
 
 **Files:**
+
 - Create: `db/supabase/supabase/migrations/0022_pre_meeting_games.sql`
 - Create: `db/supabase/supabase/tests/games_rls.sql`
 
 **Interfaces:**
+
 - Consumes: existing `public.meetings`, `public.profiles` tables; existing `public.atlas_touch_updated_at` trigger function (see `0014_agenda_items.sql`).
 - Produces:
   - Tables `public.game_rounds`, `public.game_submissions`.
@@ -955,10 +974,12 @@ git commit -m "feat(db): pre-meeting games tables, RLS, and finalize function"
 ## Task 5: Zod schemas + ensureRoundAction
 
 **Files:**
+
 - Create: `lib/zod/game.ts`
 - Create: `lib/actions/game.ts`
 
 **Interfaces:**
+
 - Consumes: `pickGame`, `generateTargetNumberPuzzle`, `generateZeroInPuzzle`, `TARGET_NUMBER_DURATION_MS`, `ZERO_IN_DURATION_MS`, `ENABLED_GAMES`.
 - Produces:
   - Zod: `ensureRoundInput = { meeting_id: uuid }`, `submitTargetNumberInput = { round_id: uuid, expression: TargetNumberOp[] }`, `submitZeroInInput = { round_id: uuid, guess: number }`, `finalizeRoundInput = { round_id: uuid }`.
@@ -1017,10 +1038,7 @@ import {
   generateTargetNumberPuzzle,
   TARGET_NUMBER_DURATION_MS,
 } from "@/lib/games/target-number";
-import {
-  generateZeroInPuzzle,
-  ZERO_IN_DURATION_MS,
-} from "@/lib/games/zero-in";
+import { generateZeroInPuzzle, ZERO_IN_DURATION_MS } from "@/lib/games/zero-in";
 import type { GameKind } from "@/lib/games/types";
 
 export const LOBBY_OPEN_WINDOW_MS = 10 * 60_000;
@@ -1148,56 +1166,71 @@ Create `tests/actions/game.integration.test.ts` (skeleton — extend in later ta
 import { expect, test, beforeEach } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-const svc = process.env.SUPABASE_TEST_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+const url =
+  process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const svc =
+  process.env.SUPABASE_TEST_SERVICE_KEY ??
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 const canRun = !!url && !!svc;
 const admin = canRun ? createClient(url!, svc!) : null;
 
 beforeEach(async () => {
   if (!admin) return;
-  await admin.from("game_submissions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await admin.from("game_rounds").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin
+    .from("game_submissions")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin
+    .from("game_rounds")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
 });
 
-test.runIf(canRun)("game_rounds insert with valid meeting is idempotent per meeting", async () => {
-  const c = admin!;
-  const { data: host } = await c.auth.admin.inviteUserByEmail("gamehost@atlas.com", {
-    data: { full_name: "Game Host" },
-  });
-  expect(host?.user).toBeTruthy();
+test.runIf(canRun)(
+  "game_rounds insert with valid meeting is idempotent per meeting",
+  async () => {
+    const c = admin!;
+    const { data: host } = await c.auth.admin.inviteUserByEmail(
+      "gamehost@atlas.com",
+      {
+        data: { full_name: "Game Host" },
+      },
+    );
+    expect(host?.user).toBeTruthy();
 
-  const { data: meeting } = await c
-    .from("meetings")
-    .insert({
-      title: "Test",
-      scheduled_start: new Date(Date.now() + 60_000).toISOString(),
-      timezone: "UTC",
-      host_user_id: host!.user!.id,
-      created_by: host!.user!.id,
-      status: "scheduled",
-    })
-    .select("id")
-    .single();
-  expect(meeting).toBeTruthy();
+    const { data: meeting } = await c
+      .from("meetings")
+      .insert({
+        title: "Test",
+        scheduled_start: new Date(Date.now() + 60_000).toISOString(),
+        timezone: "UTC",
+        host_user_id: host!.user!.id,
+        created_by: host!.user!.id,
+        status: "scheduled",
+      })
+      .select("id")
+      .single();
+    expect(meeting).toBeTruthy();
 
-  const first = await c.from("game_rounds").insert({
-    meeting_id: meeting!.id,
-    kind: "target_number",
-    puzzle: { target: 347, bases: [2, 4, 7, 25, 50, 75] },
-    started_at: new Date().toISOString(),
-    ends_at: new Date(Date.now() + 60_000).toISOString(),
-  });
-  expect(first.error).toBeNull();
+    const first = await c.from("game_rounds").insert({
+      meeting_id: meeting!.id,
+      kind: "target_number",
+      puzzle: { target: 347, bases: [2, 4, 7, 25, 50, 75] },
+      started_at: new Date().toISOString(),
+      ends_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+    expect(first.error).toBeNull();
 
-  const second = await c.from("game_rounds").insert({
-    meeting_id: meeting!.id,
-    kind: "target_number",
-    puzzle: { target: 999, bases: [1, 2, 3, 25, 50, 75] },
-    started_at: new Date().toISOString(),
-    ends_at: new Date(Date.now() + 60_000).toISOString(),
-  });
-  expect(second.error).not.toBeNull(); // unique(meeting_id) violation
-});
+    const second = await c.from("game_rounds").insert({
+      meeting_id: meeting!.id,
+      kind: "target_number",
+      puzzle: { target: 999, bases: [1, 2, 3, 25, 50, 75] },
+      started_at: new Date().toISOString(),
+      ends_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+    expect(second.error).not.toBeNull(); // unique(meeting_id) violation
+  },
+);
 ```
 
 - [ ] **Step 4: Run integration tests**
@@ -1217,10 +1250,12 @@ git commit -m "feat(games): ensureRoundAction with idempotent per-meeting round 
 ## Task 6: submitTargetNumberAction
 
 **Files:**
+
 - Modify: `lib/actions/game.ts` (append `submitTargetNumberAction`)
 - Modify: `tests/actions/game.integration.test.ts` (add cases)
 
 **Interfaces:**
+
 - Consumes: `evaluateExpression` from Task 2; `submitTargetNumberInput` from Task 5.
 - Produces: `submitTargetNumberAction(input): ActionResult<{ result: number; better: boolean }>` — evaluates the expression server-side, and upserts the submission row only if the result is closer to the target than the player's current best.
 
@@ -1247,14 +1282,19 @@ export async function submitTargetNumberAction(
     .eq("id", parsed.data.round_id)
     .single();
   if (!round) return err("not_found", "round");
-  if (round.kind !== "target_number") return err("wrong_kind", "not target_number");
-  if (round.status !== "active") return err("round_closed", "round is finished");
+  if (round.kind !== "target_number")
+    return err("wrong_kind", "not target_number");
+  if (round.status !== "active")
+    return err("round_closed", "round is finished");
   if (new Date(round.ends_at).getTime() <= Date.now()) {
     return err("round_closed", "past ends_at");
   }
 
   const puzzle = round.puzzle as { target: number; bases: number[] };
-  const evalResult = evaluateExpression(puzzle.bases, parsed.data.expression as TargetNumberOp[]);
+  const evalResult = evaluateExpression(
+    puzzle.bases,
+    parsed.data.expression as TargetNumberOp[],
+  );
   if (!evalResult.ok) return err("invalid_expression", evalResult.reason);
 
   const nowIso = new Date().toISOString();
@@ -1265,7 +1305,8 @@ export async function submitTargetNumberAction(
     .eq("player_id", user.id)
     .maybeSingle();
 
-  const priorPayload = (prior?.payload as TargetNumberPayload | undefined) ?? null;
+  const priorPayload =
+    (prior?.payload as TargetNumberPayload | undefined) ?? null;
   const priorDistance = priorPayload
     ? Math.abs(puzzle.target - priorPayload.best_result)
     : Infinity;
@@ -1303,49 +1344,59 @@ export async function submitTargetNumberAction(
 Append to `tests/actions/game.integration.test.ts`:
 
 ```ts
-test.runIf(canRun)("target_number submission is rejected once past ends_at", async () => {
-  const c = admin!;
-  const { data: host } = await c.auth.admin.inviteUserByEmail("gamehost2@atlas.com", {
-    data: { full_name: "Game Host 2" },
-  });
-  const { data: meeting } = await c
-    .from("meetings")
-    .insert({
-      title: "Late",
-      scheduled_start: new Date(Date.now() + 60_000).toISOString(),
-      timezone: "UTC",
-      host_user_id: host!.user!.id,
-      created_by: host!.user!.id,
-      status: "scheduled",
-    })
-    .select("id")
-    .single();
+test.runIf(canRun)(
+  "target_number submission is rejected once past ends_at",
+  async () => {
+    const c = admin!;
+    const { data: host } = await c.auth.admin.inviteUserByEmail(
+      "gamehost2@atlas.com",
+      {
+        data: { full_name: "Game Host 2" },
+      },
+    );
+    const { data: meeting } = await c
+      .from("meetings")
+      .insert({
+        title: "Late",
+        scheduled_start: new Date(Date.now() + 60_000).toISOString(),
+        timezone: "UTC",
+        host_user_id: host!.user!.id,
+        created_by: host!.user!.id,
+        status: "scheduled",
+      })
+      .select("id")
+      .single();
 
-  const { data: round } = await c
-    .from("game_rounds")
-    .insert({
-      meeting_id: meeting!.id,
-      kind: "target_number",
-      puzzle: { target: 100, bases: [2, 4, 7, 25, 50, 75] },
-      started_at: new Date(Date.now() - 120_000).toISOString(),
-      ends_at: new Date(Date.now() - 60_000).toISOString(), // past
-    })
-    .select("id, ends_at")
-    .single();
+    const { data: round } = await c
+      .from("game_rounds")
+      .insert({
+        meeting_id: meeting!.id,
+        kind: "target_number",
+        puzzle: { target: 100, bases: [2, 4, 7, 25, 50, 75] },
+        started_at: new Date(Date.now() - 120_000).toISOString(),
+        ends_at: new Date(Date.now() - 60_000).toISOString(), // past
+      })
+      .select("id, ends_at")
+      .single();
 
-  expect(new Date(round!.ends_at).getTime()).toBeLessThan(Date.now());
+    expect(new Date(round!.ends_at).getTime()).toBeLessThan(Date.now());
 
-  // Direct DB assertion: the update policy blocks writes to a submission on
-  // a stale round even when the row is authored by the same player.
-  const { error } = await c.from("game_submissions").insert({
-    round_id: round!.id,
-    player_id: host!.user!.id,
-    payload: { best_result: 100, expression: [], best_submitted_at: new Date().toISOString() },
-  });
-  // Service-role bypasses RLS, so the insert may succeed here — this test
-  // documents the ends_at gate; the RLS gate itself is exercised in the RLS test suite.
-  expect(error).toBeNull();
-});
+    // Direct DB assertion: the update policy blocks writes to a submission on
+    // a stale round even when the row is authored by the same player.
+    const { error } = await c.from("game_submissions").insert({
+      round_id: round!.id,
+      player_id: host!.user!.id,
+      payload: {
+        best_result: 100,
+        expression: [],
+        best_submitted_at: new Date().toISOString(),
+      },
+    });
+    // Service-role bypasses RLS, so the insert may succeed here — this test
+    // documents the ends_at gate; the RLS gate itself is exercised in the RLS test suite.
+    expect(error).toBeNull();
+  },
+);
 ```
 
 - [ ] **Step 3: Run tests**
@@ -1365,9 +1416,11 @@ git commit -m "feat(games): submitTargetNumberAction with server-side eval"
 ## Task 7: submitZeroInGuessAction
 
 **Files:**
+
 - Modify: `lib/actions/game.ts` (append `submitZeroInGuessAction`)
 
 **Interfaces:**
+
 - Consumes: `computeFeedback` from Task 3; `submitZeroInInput` from Task 5; `ZERO_IN_MAX_GUESSES`.
 - Produces: `submitZeroInGuessAction(input): ActionResult<{ feedback: ZeroInFeedback; guesses_left: number; guess_count: number }>` — appends a guess to the player's payload, computes hi/lo server-side, enforces max 3 guesses.
 
@@ -1384,13 +1437,13 @@ import type {
   ZeroInPayload,
 } from "@/lib/games/types";
 
-export async function submitZeroInGuessAction(
-  input: unknown,
-): Promise<ActionResult<{
-  feedback: ZeroInFeedback;
-  guesses_left: number;
-  guess_count: number;
-}>> {
+export async function submitZeroInGuessAction(input: unknown): Promise<
+  ActionResult<{
+    feedback: ZeroInFeedback;
+    guesses_left: number;
+    guess_count: number;
+  }>
+> {
   const parsed = submitZeroInInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
 
@@ -1403,7 +1456,8 @@ export async function submitZeroInGuessAction(
     .single();
   if (!round) return err("not_found", "round");
   if (round.kind !== "zero_in") return err("wrong_kind", "not zero_in");
-  if (round.status !== "active") return err("round_closed", "round is finished");
+  if (round.status !== "active")
+    return err("round_closed", "round is finished");
   if (new Date(round.ends_at).getTime() <= Date.now()) {
     return err("round_closed", "past ends_at");
   }
@@ -1433,8 +1487,11 @@ export async function submitZeroInGuessAction(
     feedback,
   };
   const nextGuesses = [...priorPayload.guesses, newGuess];
-  const bestGuess = nextGuesses.reduce((best, g) =>
-    Math.abs(puzzle.secret - g.value) < Math.abs(puzzle.secret - best) ? g.value : best,
+  const bestGuess = nextGuesses.reduce(
+    (best, g) =>
+      Math.abs(puzzle.secret - g.value) < Math.abs(puzzle.secret - best)
+        ? g.value
+        : best,
     nextGuesses[0].value,
   );
   const newPayload: ZeroInPayload = {
@@ -1482,9 +1539,11 @@ git commit -m "feat(games): submitZeroInGuessAction with server-side hi/lo"
 ## Task 8: finalizeRoundAction + leaderboard
 
 **Files:**
+
 - Modify: `lib/actions/game.ts` (append `finalizeRoundAction` and `getLeaderboardAction`)
 
 **Interfaces:**
+
 - Consumes: `scoreTargetNumber`, `scoreZeroInRound` from earlier tasks; `atlas_finalize_game_round` SQL function.
 - Produces:
   - `finalizeRoundAction({round_id}): ActionResult<{ results: PlayerResult[] }>`
@@ -1523,7 +1582,8 @@ export async function finalizeRoundAction(
   const submissions = subs ?? [];
   const startedAtMs = new Date(round.started_at).getTime();
 
-  const results: Array<{ player_id: string; points: number; display: string }> = [];
+  const results: Array<{ player_id: string; points: number; display: string }> =
+    [];
 
   if (round.kind === "target_number") {
     const puzzle = round.puzzle as { target: number; bases: number[] };
@@ -1550,10 +1610,25 @@ export async function finalizeRoundAction(
     const scored = scoreZeroInRound(
       puzzle.secret,
       submissions.map((s) => {
-        const payload = s.payload as { guesses: Array<{ value: number; at: string; feedback: "higher"|"lower"|"exact" }>; best_guess: number };
-        const closest = payload.guesses.reduce((best, g) =>
-          Math.abs(puzzle.secret - g.value) < Math.abs(puzzle.secret - best.value) ? g : best,
-          payload.guesses[0] ?? { value: 0, at: s.submitted_at, feedback: "exact" as const },
+        const payload = s.payload as {
+          guesses: Array<{
+            value: number;
+            at: string;
+            feedback: "higher" | "lower" | "exact";
+          }>;
+          best_guess: number;
+        };
+        const closest = payload.guesses.reduce(
+          (best, g) =>
+            Math.abs(puzzle.secret - g.value) <
+            Math.abs(puzzle.secret - best.value)
+              ? g
+              : best,
+          payload.guesses[0] ?? {
+            value: 0,
+            at: s.submitted_at,
+            feedback: "exact" as const,
+          },
         );
         return {
           player_id: s.player_id,
@@ -1586,13 +1661,15 @@ export async function finalizeRoundAction(
 }
 
 export async function getLeaderboardAction(): Promise<
-  ActionResult<Array<{
-    player_id: string;
-    display_name: string;
-    total_points: number;
-    rounds_played: number;
-    last_played_at: string;
-  }>>
+  ActionResult<
+    Array<{
+      player_id: string;
+      display_name: string;
+      total_points: number;
+      rounds_played: number;
+      last_played_at: string;
+    }>
+  >
 > {
   const { supabase } = await requireUser();
   const { data, error } = await supabase
@@ -1606,7 +1683,12 @@ export async function getLeaderboardAction(): Promise<
 
   const agg = new Map<
     string,
-    { display_name: string; total_points: number; rounds_played: number; last_played_at: string }
+    {
+      display_name: string;
+      total_points: number;
+      rounds_played: number;
+      last_played_at: string;
+    }
   >();
   for (const row of (data ?? []) as unknown as Array<{
     player_id: string;
@@ -1654,9 +1736,11 @@ git commit -m "feat(games): finalize round and instance-wide leaderboard action"
 ## Task 9: Round countdown component
 
 **Files:**
+
 - Create: `components/games/round-countdown.tsx`
 
 **Interfaces:**
+
 - Consumes: `{ endsAt: string; onExpire?: () => void }` props.
 - Produces: `<RoundCountdown endsAt endsAt string; totalMs: number; onExpire?: () => void />` — draining bar + `MM:SS` label. Amber at 15s, red at 5s.
 
@@ -1693,7 +1777,11 @@ export function RoundCountdown({
 
   const pct = Math.max(0, Math.min(100, (remainMs / totalMs) * 100));
   const tone =
-    remainMs <= 5_000 ? "bg-red-500" : remainMs <= 15_000 ? "bg-amber-500" : "bg-primary";
+    remainMs <= 5_000
+      ? "bg-red-500"
+      : remainMs <= 15_000
+        ? "bg-amber-500"
+        : "bg-primary";
   const seconds = Math.ceil(remainMs / 1000);
   const label = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
@@ -1705,7 +1793,10 @@ export function RoundCountdown({
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className={cn("h-full transition-[width] duration-200 ease-linear", tone)}
+          className={cn(
+            "h-full transition-[width] duration-200 ease-linear",
+            tone,
+          )}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -1731,9 +1822,11 @@ git commit -m "feat(games): shared round countdown bar"
 ## Task 10: Target Number round client
 
 **Files:**
+
 - Create: `components/games/target-number-round.tsx`
 
 **Interfaces:**
+
 - Consumes: `submitTargetNumberAction`; `RoundCountdown`; `TargetNumberOp` from types.
 - Produces: `<TargetNumberRound roundId={} target={} bases={} startedAt={} endsAt={} />` — guided expression builder with chips, operators, undo, submit.
 
@@ -1751,7 +1844,12 @@ import { submitTargetNumberAction } from "@/lib/actions/game";
 import type { TargetNumberOp } from "@/lib/games/types";
 import { TARGET_NUMBER_DURATION_MS } from "@/lib/games/target-number";
 
-type Chip = { key: string; value: number; consumed: boolean; fromStep: number | null };
+type Chip = {
+  key: string;
+  value: number;
+  consumed: boolean;
+  fromStep: number | null;
+};
 
 export function TargetNumberRound({
   roundId,
@@ -1765,10 +1863,17 @@ export function TargetNumberRound({
   endsAt: string;
 }) {
   const [chips, setChips] = useState<Chip[]>(() =>
-    bases.map((v, i) => ({ key: `b${i}`, value: v, consumed: false, fromStep: null })),
+    bases.map((v, i) => ({
+      key: `b${i}`,
+      value: v,
+      consumed: false,
+      fromStep: null,
+    })),
   );
   const [selectedLeft, setSelectedLeft] = useState<Chip | null>(null);
-  const [selectedOp, setSelectedOp] = useState<TargetNumberOp["op"] | null>(null);
+  const [selectedOp, setSelectedOp] = useState<TargetNumberOp["op"] | null>(
+    null,
+  );
   const [expression, setExpression] = useState<TargetNumberOp[]>([]);
   const [bestResult, setBestResult] = useState<number | null>(null);
   const [pending, startTx] = useTransition();
@@ -1793,7 +1898,9 @@ export function TargetNumberRound({
     const step: TargetNumberOp = { op: selectedOp, left: a, right: b, result };
     setChips((prev) => {
       const next = prev.map((c) =>
-        c.key === selectedLeft.key || c.key === chip.key ? { ...c, consumed: true } : c,
+        c.key === selectedLeft.key || c.key === chip.key
+          ? { ...c, consumed: true }
+          : c,
       );
       next.push({
         key: `s${expression.length}`,
@@ -1813,9 +1920,13 @@ export function TargetNumberRound({
     const last = expression[expression.length - 1];
     setExpression((prev) => prev.slice(0, -1));
     setChips((prev) => {
-      const withoutResult = prev.filter((c) => c.fromStep !== expression.length - 1);
+      const withoutResult = prev.filter(
+        (c) => c.fromStep !== expression.length - 1,
+      );
       return withoutResult.map((c) =>
-        c.value === last.left || c.value === last.right ? { ...c, consumed: false } : c,
+        c.value === last.left || c.value === last.right
+          ? { ...c, consumed: false }
+          : c,
       );
     });
     setSelectedLeft(null);
@@ -1826,7 +1937,10 @@ export function TargetNumberRound({
     if (expression.length === 0) return;
     const currentResult = expression[expression.length - 1].result;
     startTx(async () => {
-      const res = await submitTargetNumberAction({ round_id: roundId, expression });
+      const res = await submitTargetNumberAction({
+        round_id: roundId,
+        expression,
+      });
       if (!res.ok) {
         toast.error(res.error.message);
         return;
@@ -1845,13 +1959,19 @@ export function TargetNumberRound({
       <RoundCountdown endsAt={endsAt} totalMs={TARGET_NUMBER_DURATION_MS} />
       <div className="flex items-baseline justify-between">
         <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Target</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Target
+          </div>
           <div className="text-4xl font-bold tabular-nums">{target}</div>
         </div>
         {bestResult !== null && (
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Your best</div>
-            <div className="text-2xl font-semibold tabular-nums">{bestResult}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Your best
+            </div>
+            <div className="text-2xl font-semibold tabular-nums">
+              {bestResult}
+            </div>
           </div>
         )}
       </div>
@@ -1863,7 +1983,9 @@ export function TargetNumberRound({
             type="button"
             onClick={() => pickChip(c)}
             className={`rounded-md border px-3 py-2 font-mono text-lg ${
-              selectedLeft?.key === c.key ? "border-primary bg-primary/10" : "border-border"
+              selectedLeft?.key === c.key
+                ? "border-primary bg-primary/10"
+                : "border-border"
             }`}
           >
             {c.value}
@@ -1883,10 +2005,19 @@ export function TargetNumberRound({
             {op}
           </Button>
         ))}
-        <Button type="button" variant="ghost" onClick={undoLast} disabled={expression.length === 0}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={undoLast}
+          disabled={expression.length === 0}
+        >
           Undo
         </Button>
-        <Button type="button" onClick={submit} disabled={expression.length === 0 || pending}>
+        <Button
+          type="button"
+          onClick={submit}
+          disabled={expression.length === 0 || pending}
+        >
           Submit
         </Button>
       </div>
@@ -1904,7 +2035,11 @@ export function TargetNumberRound({
   );
 }
 
-function applyOp(op: TargetNumberOp["op"], a: number, b: number): number | null {
+function applyOp(
+  op: TargetNumberOp["op"],
+  a: number,
+  b: number,
+): number | null {
   switch (op) {
     case "+":
       return a + b;
@@ -1936,9 +2071,11 @@ git commit -m "feat(games): target number round client with guided builder"
 ## Task 11: Zero In round client
 
 **Files:**
+
 - Create: `components/games/zero-in-round.tsx`
 
 **Interfaces:**
+
 - Consumes: `submitZeroInGuessAction`; `RoundCountdown`; `ZERO_IN_MAX_GUESSES`.
 - Produces: `<ZeroInRound roundId={} endsAt={} />` — number input, guess history with hi/lo tags.
 
@@ -1979,14 +2116,21 @@ export function ZeroInRound({
       return;
     }
     startTx(async () => {
-      const res = await submitZeroInGuessAction({ round_id: roundId, guess: n });
+      const res = await submitZeroInGuessAction({
+        round_id: roundId,
+        guess: n,
+      });
       if (!res.ok) {
         toast.error(res.error.message);
         return;
       }
-      setGuesses((prev) => [...prev, { value: n, feedback: res.data.feedback }]);
+      setGuesses((prev) => [
+        ...prev,
+        { value: n, feedback: res.data.feedback },
+      ]);
       setValue("");
-      if (res.data.feedback === "exact") toast.success("Exact! Wait for the reveal.");
+      if (res.data.feedback === "exact")
+        toast.success("Exact! Wait for the reveal.");
     });
   }
 
@@ -1994,10 +2138,14 @@ export function ZeroInRound({
     <div className="space-y-4">
       <RoundCountdown endsAt={endsAt} totalMs={ZERO_IN_DURATION_MS} />
       <div>
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">Secret number</div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          Secret number
+        </div>
         <div className="text-4xl font-bold">1 – 1000</div>
         <div className="text-sm text-muted-foreground">
-          {done ? "You're done — waiting for reveal." : `${guessesLeft} guesses left`}
+          {done
+            ? "You're done — waiting for reveal."
+            : `${guessesLeft} guesses left`}
         </div>
       </div>
 
@@ -2036,7 +2184,11 @@ export function ZeroInRound({
                     : "text-blue-600"
               }
             >
-              {g.feedback === "exact" ? "exact!" : g.feedback === "higher" ? "higher ↑" : "lower ↓"}
+              {g.feedback === "exact"
+                ? "exact!"
+                : g.feedback === "higher"
+                  ? "higher ↑"
+                  : "lower ↓"}
             </span>
           </li>
         ))}
@@ -2063,9 +2215,11 @@ git commit -m "feat(games): zero in round client with hi/lo history"
 ## Task 12: Live submission counter
 
 **Files:**
+
 - Create: `components/games/submission-counter.tsx`
 
 **Interfaces:**
+
 - Consumes: nothing (uses browser Supabase client directly).
 - Produces: `<SubmissionCounter roundId={} eligibleCount={} />` — shows "N of M submitted" and refreshes on any INSERT to `game_submissions` for this round. Uses the `useId()` instance suffix pattern from `ParticipationCounter`.
 
@@ -2143,9 +2297,11 @@ git commit -m "feat(games): live submission counter with per-instance channel"
 ## Task 13: Round scoreboard component
 
 **Files:**
+
 - Create: `components/games/round-scoreboard.tsx`
 
 **Interfaces:**
+
 - Consumes: `getLeaderboardAction` for the all-time toggle.
 - Produces: `<RoundScoreboard roundId={} initialResults={} kind={} />` — round table + toggle to all-time list. Subscribes to `round:{roundId}:{instanceId}` and calls `router.refresh()` on `round-finished`.
 
@@ -2242,23 +2398,39 @@ export function RoundScoreboard({
       {tab === "round" ? (
         <ol className="space-y-1">
           {sorted.map((r, i) => (
-            <li key={r.player_id} className="flex items-center justify-between rounded-md border px-3 py-2">
-              <span className="tabular-nums">{i + 1}. {r.display}</span>
+            <li
+              key={r.player_id}
+              className="flex items-center justify-between rounded-md border px-3 py-2"
+            >
+              <span className="tabular-nums">
+                {i + 1}. {r.display}
+              </span>
               <span className="font-semibold tabular-nums">+{r.points}</span>
             </li>
           ))}
           {sorted.length === 0 && (
-            <li className="text-sm text-muted-foreground">No one submitted this round.</li>
+            <li className="text-sm text-muted-foreground">
+              No one submitted this round.
+            </li>
           )}
         </ol>
       ) : loading || !alltime ? (
-        <div className="text-sm text-muted-foreground">Loading leaderboard…</div>
+        <div className="text-sm text-muted-foreground">
+          Loading leaderboard…
+        </div>
       ) : (
         <ol className="space-y-1">
           {alltime.slice(0, 20).map((r, i) => (
-            <li key={r.player_id} className="flex items-center justify-between rounded-md border px-3 py-2">
-              <span>{i + 1}. {r.display_name}</span>
-              <span className="font-semibold tabular-nums">{r.total_points}</span>
+            <li
+              key={r.player_id}
+              className="flex items-center justify-between rounded-md border px-3 py-2"
+            >
+              <span>
+                {i + 1}. {r.display_name}
+              </span>
+              <span className="font-semibold tabular-nums">
+                {r.total_points}
+              </span>
             </li>
           ))}
         </ol>
@@ -2285,10 +2457,12 @@ git commit -m "feat(games): round scoreboard with realtime finish + all-time tog
 ## Task 14: Game lobby panel + mount
 
 **Files:**
+
 - Create: `components/games/game-lobby-panel.tsx`
 - Modify: `app/(app)/meetings/[id]/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `ensureRoundAction`, `finalizeRoundAction`, all round + scoreboard components.
 - Produces: `<GameLobbyPanel meetingId scheduledStart status />` — server component that on mount decides which sub-view to render:
   - `status !== 'scheduled'` → renders nothing.
@@ -2365,19 +2539,25 @@ export async function GameLobbyPanel({
       .select("player_id, points, payload, profiles!inner(display_name)")
       .eq("round_id", round.round_id)
       .not("points", "is", null);
-    const results: PlayerResult[] = ((subs ?? []) as unknown as Array<{
-      player_id: string;
-      points: number;
-      payload: unknown;
-      profiles: { display_name: string };
-    }>).map((s) => ({
+    const results: PlayerResult[] = (
+      (subs ?? []) as unknown as Array<{
+        player_id: string;
+        points: number;
+        payload: unknown;
+        profiles: { display_name: string };
+      }>
+    ).map((s) => ({
       player_id: s.player_id,
       points: s.points ?? 0,
       display: formatDisplay(round.kind, s.payload, s.profiles.display_name),
     }));
     return (
       <section className="space-y-4 rounded-lg border p-4">
-        <RoundScoreboard roundId={round.round_id} kind={round.kind} initialResults={results} />
+        <RoundScoreboard
+          roundId={round.round_id}
+          kind={round.kind}
+          initialResults={results}
+        />
       </section>
     );
   }
@@ -2393,9 +2573,13 @@ export async function GameLobbyPanel({
               : "Guess the secret number. Three tries."}
           </p>
         </div>
-        <SubmissionCounter roundId={round.round_id} eligibleCount={eligibleCount} />
+        <SubmissionCounter
+          roundId={round.round_id}
+          eligibleCount={eligibleCount}
+        />
       </header>
-      {round.kind === "target_number" && round.puzzle.kind === "target_number" ? (
+      {round.kind === "target_number" &&
+      round.puzzle.kind === "target_number" ? (
         <TargetNumberRound
           roundId={round.round_id}
           target={round.puzzle.target}
@@ -2432,13 +2616,15 @@ The page already fetches `status,scheduled_start` (see `app/(app)/meetings/[id]/
 import { GameLobbyPanel } from "@/components/games/game-lobby-panel";
 
 // inside the JSX, immediately before the MeetingLiveView block:
-{m.status === "scheduled" && (
-  <GameLobbyPanel
-    meetingId={m.id}
-    scheduledStart={m.scheduled_start}
-    status={m.status}
-  />
-)}
+{
+  m.status === "scheduled" && (
+    <GameLobbyPanel
+      meetingId={m.id}
+      scheduledStart={m.scheduled_start}
+      status={m.status}
+    />
+  );
+}
 ```
 
 The `m.status === "scheduled"` guard is redundant with the panel's own guard but keeps the render tree clean (no wasted server-component render + `ensureRoundAction` call during live/ended meetings).
@@ -2460,9 +2646,11 @@ git commit -m "feat(games): mount pre-meeting game panel above meeting agenda"
 ## Task 15: Hook finalize into the start-meeting flow
 
 **Files:**
+
 - Modify: `lib/actions/meeting.ts` — extend `startMeeting(meeting_id: string)` (currently at ~line 76) to finalize the game round before flipping status to `'live'`.
 
 **Interfaces:**
+
 - Consumes: `finalizeRoundAction`.
 - Produces: none new — extends existing meeting-start behaviour.
 
@@ -2516,6 +2704,7 @@ Expected: no errors.
 - [ ] **Step 3: Manual test**
 
 Start a scheduled meeting via the UI (host clicks the Start button in `MeetingHeaderActions`). Verify:
+
 - `select id, status, finalized_at from game_rounds order by created_at desc limit 1;` shows `status='finished'`, `finalized_at` populated.
 - `select player_id, points from game_submissions where round_id = '…';` shows non-null points for every submission.
 - The lobby panel disappears from the page (meeting is now live).
@@ -2532,9 +2721,11 @@ git commit -m "feat(games): finalize active round when meeting starts"
 ## Task 16: All-time leaderboard page
 
 **Files:**
+
 - Create: `app/(app)/leaderboard/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `getLeaderboardAction`.
 - Produces: a server-rendered page listing all players ranked by total points.
 
@@ -2553,7 +2744,9 @@ export default async function LeaderboardPage() {
     return (
       <main className="mx-auto max-w-2xl p-6">
         <h1 className="text-2xl font-bold">Leaderboard</h1>
-        <p className="text-sm text-muted-foreground">Couldn&apos;t load: {res.error.message}</p>
+        <p className="text-sm text-muted-foreground">
+          Couldn&apos;t load: {res.error.message}
+        </p>
       </main>
     );
   }
@@ -2573,13 +2766,18 @@ export default async function LeaderboardPage() {
       ) : (
         <ol className="space-y-1">
           {rows.map((r, i) => (
-            <li key={r.player_id} className="flex items-center justify-between rounded-md border px-3 py-2">
+            <li
+              key={r.player_id}
+              className="flex items-center justify-between rounded-md border px-3 py-2"
+            >
               <span>
                 <span className="tabular-nums">{i + 1}.</span> {r.display_name}
               </span>
               <span className="tabular-nums">
                 <strong>{r.total_points}</strong>
-                <span className="ml-2 text-xs text-muted-foreground">{r.rounds_played} rounds</span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {r.rounds_played} rounds
+                </span>
               </span>
             </li>
           ))}
@@ -2610,6 +2808,7 @@ git commit -m "feat(games): all-time leaderboard page"
 ```bash
 pnpm test && pnpm typecheck && pnpm lint
 ```
+
 Expected: all pass.
 
 - [ ] **RLS tests**
@@ -2617,6 +2816,7 @@ Expected: all pass.
 ```bash
 pnpm test:rls
 ```
+
 Expected: all pass.
 
 - [ ] **Full manual smoke**

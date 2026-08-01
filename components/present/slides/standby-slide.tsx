@@ -22,7 +22,10 @@ export function StandbySlide({
   const startAgenda = useCallback(() => {
     if (items.length === 0) return;
     start(async () => {
-      await advanceMeetingAgenda({ meeting_id: meetingId, item_id: items[0].id });
+      await advanceMeetingAgenda({
+        meeting_id: meetingId,
+        item_id: items[0].id,
+      });
     });
   }, [items, meetingId]);
 
@@ -43,12 +46,17 @@ export function StandbySlide({
       </div>
 
       <div className="flex-1 flex flex-col justify-center max-w-3xl">
-        <h1 className="font-display font-black leading-none tracking-tight" style={{ fontSize: 64 }}>
+        <h1
+          className="font-display font-black leading-none tracking-tight"
+          style={{ fontSize: 64 }}
+        >
           Ready when you are
         </h1>
         <ul className="mt-8 space-y-2">
           {items.length === 0 && (
-            <li className="opacity-70">No agenda items yet — add some from the meeting page.</li>
+            <li className="opacity-70">
+              No agenda items yet — add some from the meeting page.
+            </li>
           )}
           {items.map((it) => (
             <li
@@ -69,11 +77,17 @@ export function StandbySlide({
       </div>
 
       <footer className="flex items-end justify-between">
-        <span className="opacity-70 text-xs">Press Esc to exit · → or Space to advance</span>
+        <span className="opacity-70 text-xs">
+          Press Esc to exit · → or Space to advance
+        </span>
         <button
           type="button"
           className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-          style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+          style={{
+            background: palette.accent,
+            color: palette.accentInk,
+            borderColor: palette.accentInk,
+          }}
           onClick={startAgenda}
           disabled={pending || items.length === 0}
         >

@@ -59,7 +59,7 @@ stream into the presenter's rail in realtime.
   1. Meeting exists.
   2. `meeting.status === "live"`.
   3. `viewer.id === meeting.host_user_id`.
-  Any failure → `redirect("/meetings/[id]")` with a session-flash toast.
+     Any failure → `redirect("/meetings/[id]")` with a session-flash toast.
 - New layout: `app/(app)/meetings/[id]/present/layout.tsx` that renders a bare
   `<html>`-descendant shell with no app sidebar and no page padding. Uses
   `overflow: hidden` on the body wrapper and `min-h-screen` on the shell so the
@@ -137,7 +137,7 @@ Notes:
   `advanceNext` in `meeting-live-view.tsx` already advances to `null` past the
   last item). To distinguish standby from curtain when
   `current_agenda_item_id === null`, we add a `meetings.has_started boolean not
-  null default false` column. `advanceMeetingAgenda` sets it to `true`
+null default false` column. `advanceMeetingAgenda` sets it to `true`
   unconditionally as part of its existing single UPDATE whenever `item_id`
   is non-null:
 
@@ -209,8 +209,8 @@ Handles both open and closed states.
   - Single/multi-choice / yes-no: bar list of options with counts and
     percentages, sorted by count desc, capped at top 6.
   - Rating: average as big number + a small histogram of the distribution.
-  The existing `reveal-view.tsx` is not reused — it assumes a full-page
-  context and its layout won't fit the slide.
+    The existing `reveal-view.tsx` is not reused — it assumes a full-page
+    context and its layout won't fit the slide.
 - Bottom-right: **Next item →** button.
 
 ### `picker-slide.tsx`
@@ -382,8 +382,8 @@ Policies:
     with check  (author_user_id = auth.uid() and deleted_at is not null);
   ```
 
-  USING restricts *which rows* can be updated (only my own, not yet deleted).
-  WITH CHECK restricts *what the row can become* (still mine, deleted_at
+  USING restricts _which rows_ can be updated (only my own, not yet deleted).
+  WITH CHECK restricts _what the row can become_ (still mine, deleted_at
   set). Together they permit exactly `deleted_at: null → not null` on rows
   the author owns. Any other column change trivially fails WITH CHECK because
   it would also require `author_user_id = auth.uid()` which is already true —
@@ -391,6 +391,7 @@ Policies:
   `{ deleted_at: <now> }` in its update payload. If tighter enforcement is
   needed later, add a `BEFORE UPDATE` trigger that raises unless only
   `deleted_at` changed.
+
 - `meeting_comments_no_delete`: no DELETE policy is created; soft-delete only.
 - `meeting_comment_reactions_read` (SELECT): the participant predicate,
   joined via `meeting_comments`:
@@ -412,6 +413,7 @@ Policies:
       )
   )
   ```
+
 - `meeting_comment_reactions_write` (INSERT, DELETE): the same predicate
   AND `user_id = auth.uid()`.
 
@@ -437,33 +439,78 @@ export function pickJoke(meetingId: string): string {
 ```ts
 export type Palette = {
   key: string;
-  bg: string;     // stage background
-  ink: string;    // primary text on stage
+  bg: string; // stage background
+  ink: string; // primary text on stage
   accent: string; // chips, dots, timer ring
   accentInk: string; // text on accent buttons
 };
 
 export const stagePalettes: readonly Palette[] = [
-  { key: "electric", bg: "#E5006A", ink: "#FFFFFF", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "sunburst", bg: "#FF7A1A", ink: "#1A0A00", accent: "#E5006A", accentInk: "#FFFFFF" },
-  { key: "aqua",     bg: "#007A82", ink: "#FFFFFF", accent: "#C6FF3D", accentInk: "#0B1F1A" },
-  { key: "grape",    bg: "#6B21A8", ink: "#FFFFFF", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "fire",     bg: "#DC2626", ink: "#FFF6E5", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "meadow",   bg: "#A3E635", ink: "#0B1F1A", accent: "#0B1F1A", accentInk: "#A3E635" },
+  {
+    key: "electric",
+    bg: "#E5006A",
+    ink: "#FFFFFF",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "sunburst",
+    bg: "#FF7A1A",
+    ink: "#1A0A00",
+    accent: "#E5006A",
+    accentInk: "#FFFFFF",
+  },
+  {
+    key: "aqua",
+    bg: "#007A82",
+    ink: "#FFFFFF",
+    accent: "#C6FF3D",
+    accentInk: "#0B1F1A",
+  },
+  {
+    key: "grape",
+    bg: "#6B21A8",
+    ink: "#FFFFFF",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "fire",
+    bg: "#DC2626",
+    ink: "#FFF6E5",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "meadow",
+    bg: "#A3E635",
+    ink: "#0B1F1A",
+    accent: "#0B1F1A",
+    accentInk: "#A3E635",
+  },
 ];
 
 export const standbyPalette: Palette = {
-  key: "standby", bg: "#0B1220", ink: "#F6F4EE", accent: "#FFE84D", accentInk: "#111111",
+  key: "standby",
+  bg: "#0B1220",
+  ink: "#F6F4EE",
+  accent: "#FFE84D",
+  accentInk: "#111111",
 };
 
 export const curtainPalette: Palette = {
   key: "curtain",
   bg: "linear-gradient(135deg,#E5006A 0%,#FF7A1A 60%,#FFE84D 100%)",
-  ink: "#1A0A00", accent: "#111111", accentInk: "#FFE84D",
+  ink: "#1A0A00",
+  accent: "#111111",
+  accentInk: "#FFE84D",
 };
 
 export function paletteForOrdinal(ordinal: number): Palette {
-  return stagePalettes[((ordinal - 1) % stagePalettes.length + stagePalettes.length) % stagePalettes.length];
+  return stagePalettes[
+    (((ordinal - 1) % stagePalettes.length) + stagePalettes.length) %
+      stagePalettes.length
+  ];
 }
 ```
 
@@ -490,8 +537,8 @@ New file `lib/actions/prompt-timer.ts`:
   any race with the poll-owner's own controls); in a single transaction:
   1. `update prompts set is_open = false where id = <linked prompt_id>`
   2. `update agenda_items set timer_ends_at = null where id = <agenda_item_id>`
-  Idempotent — if `is_open` is already false, both statements no-op safely
-  and the action returns `ok(null)`.
+     Idempotent — if `is_open` is already false, both statements no-op safely
+     and the action returns `ok(null)`.
 
 Note: this is a NEW action, distinct from the existing
 `lib/actions/prompt.ts#closePrompt(prompt_id)`. That existing action is

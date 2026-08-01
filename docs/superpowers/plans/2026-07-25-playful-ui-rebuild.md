@@ -7,6 +7,7 @@
 **Architecture:** Token-first migration. Rewire `app/globals.css` + `tailwind.config.ts` with a new semantic palette, chunky radii, hard offset shadows, and motion primitives. Rebuild shadcn primitives (`Button`, `Card`, `Input`, `Badge`, `Toast`) against the new tokens with same public APIs. Introduce a `<Sheet>` primitive built on `@base-ui/react`'s `Dialog`, routed via `?new=meeting|poll|series` query params, replacing three deleted `/new` routes. Migrate each feature surface in dependency-safe slices so every commit leaves the app working. Ship dark mode alongside light in every slice.
 
 **Tech Stack:**
+
 - Next.js 15 (App Router) + React 19 + TypeScript
 - `@base-ui/react` (already installed, Dialog is base for Sheet)
 - Tailwind CSS 3.4 + `tailwindcss-animate` + `tw-animate-css` (already installed)
@@ -88,11 +89,13 @@
 ### Task 1: Add `canvas-confetti` dependency + Nunito font loader
 
 **Files:**
+
 - Modify: `package.json`
 - Create: `lib/fonts.ts`
 - Modify: `app/layout.tsx`
 
 **Interfaces:**
+
 - Consumes: none (first task)
 - Produces: `lib/fonts.ts` exports `geist`, `nunito` — both are `NextFont` objects with `.variable` used as class names
 
@@ -137,9 +140,16 @@ export const metadata: Metadata = {
   description: "Team meeting rituals",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable, nunito.variable)}>
+    <html
+      lang="en"
+      className={cn("font-sans", geist.variable, nunito.variable)}
+    >
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
       </body>
@@ -153,6 +163,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```bash
 pnpm typecheck && pnpm build
 ```
+
 Expected: clean; new font subset is fetched at build time; no visual change yet.
 
 - [ ] **Step 5: Commit**
@@ -165,10 +176,12 @@ git commit -m "chore(ui): add nunito display font + canvas-confetti dep"
 ### Task 2: Design tokens in CSS + Tailwind
 
 **Files:**
+
 - Modify: `app/globals.css`
 - Modify: `tailwind.config.ts`
 
 **Interfaces:**
+
 - Consumes: Task 1's `--font-display` variable
 - Produces: CSS custom properties (`--surface`, `--surface-raised`, `--ink`, `--ink-soft`, `--primary`, `--primary-ink`, `--accent`, `--accent-ink`, `--success`, `--danger`, `--info`, `--radius-sm|md|lg|pill`, `--border-thin|chunk`, `--shadow-flat|lift|press`, `--ease-spring|soft`, `--dur-fast|med|slow`) and Tailwind classes: `bg-surface`, `bg-surface-raised`, `text-ink`, `text-ink-soft`, `bg-primary`, `text-primary-ink`, `bg-accent`, `text-accent-ink`, `border-ink`, `rounded-md|lg|pill`, `shadow-flat|lift|press`, `font-display`, `ease-spring|soft`, `duration-fast|med|slow`
 
@@ -180,21 +193,21 @@ Replace the entire `@layer base { :root { … } .dark { … } * { … } body { �
 @layer base {
   :root {
     /* Surface + text */
-    --surface: #FFF8EC;
-    --surface-raised: #FFFFFF;
+    --surface: #fff8ec;
+    --surface-raised: #ffffff;
     --ink: #111111;
-    --ink-soft: #5A5A5A;
+    --ink-soft: #5a5a5a;
 
     /* Brand */
-    --primary: #4B4DF7;
-    --primary-ink: #FFFFFF;
-    --accent: #FFD84A;
+    --primary: #4b4df7;
+    --primary-ink: #ffffff;
+    --accent: #ffd84a;
     --accent-ink: #111111;
 
     /* State */
-    --success: #58CC02;
-    --danger: #FF4B4B;
-    --info: #1CB0F6;
+    --success: #58cc02;
+    --danger: #ff4b4b;
+    --info: #1cb0f6;
 
     /* Semantic mappings kept for shadcn compatibility */
     --background: var(--surface);
@@ -229,46 +242,48 @@ Replace the entire `@layer base { :root { … } .dark { … } * { … } body { �
     --border-chunk: 3px;
 
     /* Hard offset shadows */
-    --shadow-flat:  0 3px 0 0 var(--ink);
-    --shadow-lift:  0 5px 0 0 var(--ink);
+    --shadow-flat: 0 3px 0 0 var(--ink);
+    --shadow-lift: 0 5px 0 0 var(--ink);
     --shadow-press: 0 1px 0 0 var(--ink);
 
     /* Motion */
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --ease-soft:   cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
     --dur-fast: 120ms;
-    --dur-med:  220ms;
+    --dur-med: 220ms;
     --dur-slow: 360ms;
 
     color-scheme: light;
   }
 
   .dark {
-    --surface: #0E1030;
-    --surface-raised: #171A3D;
-    --ink: #F3F1E8;
-    --ink-soft: #A5A8C7;
+    --surface: #0e1030;
+    --surface-raised: #171a3d;
+    --ink: #f3f1e8;
+    --ink-soft: #a5a8c7;
 
-    --primary: #8A8CFF;
-    --primary-ink: #0E1030;
-    --accent: #FFE264;
+    --primary: #8a8cff;
+    --primary-ink: #0e1030;
+    --accent: #ffe264;
     --accent-ink: #111111;
 
-    --success: #7EE84A;
-    --danger: #FF7070;
-    --info: #6ED2FF;
+    --success: #7ee84a;
+    --danger: #ff7070;
+    --info: #6ed2ff;
 
     --sticker-fill: var(--surface);
 
     /* Ink shadows invisible on navy — use pure black */
-    --shadow-flat:  0 3px 0 0 #000;
-    --shadow-lift:  0 5px 0 0 #000;
+    --shadow-flat: 0 3px 0 0 #000;
+    --shadow-lift: 0 5px 0 0 #000;
     --shadow-press: 0 1px 0 0 #000;
 
     color-scheme: dark;
   }
 
-  * { @apply border-border; }
+  * {
+    @apply border-border;
+  }
 
   body {
     @apply bg-background text-foreground;
@@ -276,7 +291,9 @@ Replace the entire `@layer base { :root { … } .dark { … } * { … } body { �
   }
 
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
@@ -309,14 +326,23 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
         card: { DEFAULT: "var(--card)", foreground: "var(--card-foreground)" },
-        popover: { DEFAULT: "var(--popover)", foreground: "var(--popover-foreground)" },
+        popover: {
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)",
+        },
         primary: {
           DEFAULT: "var(--primary)",
           ink: "var(--primary-ink)",
           foreground: "var(--primary-foreground)",
         },
-        secondary: { DEFAULT: "var(--secondary)", foreground: "var(--secondary-foreground)" },
-        muted: { DEFAULT: "var(--muted)", foreground: "var(--muted-foreground)" },
+        secondary: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)",
+        },
+        muted: {
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)",
+        },
         accent: {
           DEFAULT: "var(--accent)",
           ink: "var(--accent-ink)",
@@ -359,27 +385,39 @@ const config: Config = {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
       },
       keyframes: {
-        "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },
-        "accordion-up":   { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
-        "sheet-in":  { from: { transform: "translateX(100%)" }, to: { transform: "translateX(0)" } },
-        "sheet-out": { from: { transform: "translateX(0)" }, to: { transform: "translateX(100%)" } },
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "sheet-in": {
+          from: { transform: "translateX(100%)" },
+          to: { transform: "translateX(0)" },
+        },
+        "sheet-out": {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(100%)" },
+        },
         "dot-bounce": {
           "0%, 80%, 100%": { transform: "scale(0.6)", opacity: "0.5" },
           "40%": { transform: "scale(1)", opacity: "1" },
         },
         "rise-in": {
           from: { opacity: "0", transform: "translateY(8px)" },
-          to:   { opacity: "1", transform: "translateY(0)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
         "pulse-dot": {
           "0%, 100%": { transform: "scale(1)", opacity: "1" },
-          "50%":      { transform: "scale(1.3)", opacity: "0.6" },
+          "50%": { transform: "scale(1.3)", opacity: "0.6" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "sheet-in":  "sheet-in var(--dur-med) var(--ease-spring)",
+        "sheet-in": "sheet-in var(--dur-med) var(--ease-spring)",
         "sheet-out": "sheet-out 200ms var(--ease-soft)",
         "dot-bounce": "dot-bounce 1.2s infinite ease-in-out both",
         "rise-in": "rise-in var(--dur-med) var(--ease-soft) both",
@@ -397,6 +435,7 @@ export default config;
 ```bash
 pnpm dev
 ```
+
 Open `http://localhost:3000`. The app should now render on a cream background with the same layouts. Any hardcoded `#4B4DF7` in `components/atlas-logo.tsx` still works but should be swapped in a later task.
 
 - [ ] **Step 4: Typecheck**
@@ -404,6 +443,7 @@ Open `http://localhost:3000`. The app should now render on a cream background wi
 ```bash
 pnpm typecheck
 ```
+
 Expected: clean.
 
 - [ ] **Step 5: Commit**
@@ -416,11 +456,13 @@ git commit -m "feat(ui): playful design tokens + tailwind theme extension"
 ### Task 3: Adaptive logo + `next-themes` provider
 
 **Files:**
+
 - Modify: `components/atlas-logo.tsx`
 - Modify: `app/layout.tsx`
 - Create: `components/app/theme-provider.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 2's tokens
 - Produces: `<ThemeProvider>` wrapping the app; logo that inherits `currentColor` for outlines
 
@@ -463,11 +505,22 @@ import { cn } from "@/lib/utils";
 import { geist, nunito } from "@/lib/fonts";
 import { ThemeProvider } from "@/components/app/theme-provider";
 
-export const metadata: Metadata = { title: "Atlas", description: "Team meeting rituals" };
+export const metadata: Metadata = {
+  title: "Atlas",
+  description: "Team meeting rituals",
+};
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable, nunito.variable)}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn("font-sans", geist.variable, nunito.variable)}
+    >
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
@@ -495,10 +548,12 @@ git commit -m "feat(ui): theme provider + adaptive logo"
 ### Task 4: Sheet primitive + `useSheetParam` hook
 
 **Files:**
+
 - Create: `lib/hooks/use-sheet-param.ts`
 - Create: `components/ui/sheet.tsx`
 
 **Interfaces:**
+
 - Consumes: `@base-ui/react/dialog`, Task 2 tokens
 - Produces:
   - `useSheetParam(name: string): { open: boolean; setOpen: (v: boolean) => void }`
@@ -621,9 +676,7 @@ function SheetHeader({
         ) : null}
       </div>
       <DialogPrimitive.Close
-        render={
-          <Button variant="ghost" size="icon-sm" aria-label="Close" />
-        }
+        render={<Button variant="ghost" size="icon-sm" aria-label="Close" />}
       >
         <XIcon />
       </DialogPrimitive.Close>
@@ -638,7 +691,10 @@ function SheetBody({
   return (
     <div
       data-slot="sheet-body"
-      className={cn("flex-1 overflow-y-auto px-6 py-5 animate-rise-in", className)}
+      className={cn(
+        "flex-1 overflow-y-auto px-6 py-5 animate-rise-in",
+        className,
+      )}
     >
       {children}
     </div>
@@ -660,8 +716,14 @@ function SheetFooter({
 }) {
   return (
     <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-2 border-t border-ink/10 bg-surface-raised px-6 py-4 sm:flex-row sm:justify-end">
-      <DialogPrimitive.Close render={<Button variant="ghost">{secondary}</Button>} />
-      <Button variant="default" disabled={loading || disabled} onClick={onPrimary}>
+      <DialogPrimitive.Close
+        render={<Button variant="ghost">{secondary}</Button>}
+      />
+      <Button
+        variant="default"
+        disabled={loading || disabled}
+        onClick={onPrimary}
+      >
         {loading ? <BouncingDots /> : primary}
       </Button>
     </div>
@@ -696,6 +758,7 @@ test.skip("sheet opens via ?new=meeting param", async ({ page }) => {
 ```bash
 pnpm typecheck
 ```
+
 Expected: clean. Note: `BouncingDots` is imported but not yet created — that's fine because it's only referenced, not called. It will exist by Task 6. If typecheck fails, stub the import with a `null` component for now.
 
 - [ ] **Step 5: Commit**
@@ -708,10 +771,12 @@ git commit -m "feat(ui): right-side Sheet primitive + useSheetParam hook"
 ### Task 5: Textarea + Select primitives
 
 **Files:**
+
 - Create: `components/ui/textarea.tsx`
 - Create: `components/ui/select.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 2 tokens
 - Produces:
   - `<Textarea>` — extends `<textarea>` props, chunky styling
@@ -724,23 +789,24 @@ git commit -m "feat(ui): right-side Sheet primitive + useSheetParam hook"
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<"textarea">>(
-  ({ className, ...props }, ref) => (
-    <textarea
-      ref={ref}
-      data-slot="textarea"
-      className={cn(
-        "min-h-24 w-full rounded-md border-thin border-ink bg-surface-raised px-3 py-2 text-sm text-ink",
-        "placeholder:text-ink-soft",
-        "focus:outline-none focus:ring-[3px] focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface",
-        "disabled:opacity-50",
-        "aria-invalid:border-danger",
-        className,
-      )}
-      {...props}
-    />
-  ),
-);
+const Textarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.ComponentProps<"textarea">
+>(({ className, ...props }, ref) => (
+  <textarea
+    ref={ref}
+    data-slot="textarea"
+    className={cn(
+      "min-h-24 w-full rounded-md border-thin border-ink bg-surface-raised px-3 py-2 text-sm text-ink",
+      "placeholder:text-ink-soft",
+      "focus:outline-none focus:ring-[3px] focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface",
+      "disabled:opacity-50",
+      "aria-invalid:border-danger",
+      className,
+    )}
+    {...props}
+  />
+));
 Textarea.displayName = "Textarea";
 
 export { Textarea };
@@ -754,27 +820,28 @@ import * as React from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const Select = React.forwardRef<HTMLSelectElement, React.ComponentProps<"select">>(
-  ({ className, children, ...props }, ref) => (
-    <div className="relative">
-      <select
-        ref={ref}
-        data-slot="select"
-        className={cn(
-          "h-12 w-full appearance-none rounded-md border-thin border-ink bg-surface-raised pl-3 pr-9 text-sm text-ink",
-          "focus:outline-none focus:ring-[3px] focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface",
-          "disabled:opacity-50",
-          "aria-invalid:border-danger",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </select>
-      <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink" />
-    </div>
-  ),
-);
+const Select = React.forwardRef<
+  HTMLSelectElement,
+  React.ComponentProps<"select">
+>(({ className, children, ...props }, ref) => (
+  <div className="relative">
+    <select
+      ref={ref}
+      data-slot="select"
+      className={cn(
+        "h-12 w-full appearance-none rounded-md border-thin border-ink bg-surface-raised pl-3 pr-9 text-sm text-ink",
+        "focus:outline-none focus:ring-[3px] focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface",
+        "disabled:opacity-50",
+        "aria-invalid:border-danger",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </select>
+    <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink" />
+  </div>
+));
 Select.displayName = "Select";
 
 export { Select };
@@ -791,10 +858,12 @@ git commit -m "feat(ui): chunky textarea + select primitives"
 ### Task 6: BouncingDots + Skeleton
 
 **Files:**
+
 - Create: `components/ui/bouncing-dots.tsx`
 - Create: `components/ui/skeleton.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 2 tokens (`animate-dot-bounce` keyframe)
 - Produces:
   - `<BouncingDots className?>` — inline `<span>` with 3 dots
@@ -854,10 +923,12 @@ git commit -m "feat(ui): bouncing dots loader + skeleton"
 ### Task 7: Sticker component + 8 SVG assets
 
 **Files:**
+
 - Create: `public/stickers/calendar.svg`, `speech-bubble.svg`, `peace-hand.svg`, `eyes.svg`, `thumbs-up.svg`, `empty-box.svg`, `clouds.svg`, `bell.svg`
 - Create: `components/ui/sticker.tsx`
 
 **Interfaces:**
+
 - Consumes: `--sticker-fill` CSS var (Task 2), `currentColor` for outlines
 - Produces:
   - `<Sticker name size? rotate? className?>` — renders `<img>` from `/stickers/{name}.svg`
@@ -880,6 +951,7 @@ Example — `public/stickers/calendar.svg`:
 ```
 
 Create the remaining 7 following the same conventions:
+
 - `speech-bubble.svg` — rounded rectangle bubble with tail, three dots inside
 - `peace-hand.svg` — hand with index+middle up, other fingers curled, yellow burst behind
 - `eyes.svg` — two circles with pupils
@@ -897,8 +969,14 @@ Design in Figma or hand-write. Time-box: 45 min for the full set. Doesn't need t
 import { cn } from "@/lib/utils";
 
 export type StickerName =
-  | "calendar" | "speech-bubble" | "peace-hand" | "eyes"
-  | "thumbs-up" | "empty-box" | "clouds" | "bell";
+  | "calendar"
+  | "speech-bubble"
+  | "peace-hand"
+  | "eyes"
+  | "thumbs-up"
+  | "empty-box"
+  | "clouds"
+  | "bell";
 
 type Size = "sm" | "md" | "lg" | "xl";
 
@@ -948,9 +1026,11 @@ git commit -m "feat(ui): sticker set + Sticker component"
 ### Task 8: ConfettiBurst (client-only)
 
 **Files:**
+
 - Create: `components/ui/confetti-burst.tsx`
 
 **Interfaces:**
+
 - Consumes: `canvas-confetti` (Task 1)
 - Produces: `fireConfetti(options?: { origin?: { x: number; y: number } })` — imperative fn
 
@@ -1007,9 +1087,11 @@ git commit -m "feat(ui): imperative confetti burst helper"
 ### Task 9: Rebuild `<Button>` with the squish
 
 **Files:**
+
 - Modify: `components/ui/button.tsx`
 
 **Interfaces:**
+
 - Consumes: `@base-ui/react/button`, Task 2 tokens
 - Produces (public API unchanged): `<Button variant size>` where variant is `default | outline | ghost | destructive | link | accent`, size is `default | sm | lg | icon | icon-sm`
 - Note: new variant `accent` added, `secondary` deprecated → treat as alias to `outline`.
@@ -1037,19 +1119,20 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:     "bg-primary text-primary-ink",
-        accent:      "bg-accent text-accent-ink",
-        outline:     "bg-surface-raised text-ink",
-        secondary:   "bg-surface-raised text-ink", // alias for compat
-        ghost:       "border-transparent shadow-none bg-transparent text-ink hover:translate-y-0 hover:bg-ink/5 hover:shadow-none active:translate-y-0 active:shadow-none",
+        default: "bg-primary text-primary-ink",
+        accent: "bg-accent text-accent-ink",
+        outline: "bg-surface-raised text-ink",
+        secondary: "bg-surface-raised text-ink", // alias for compat
+        ghost:
+          "border-transparent shadow-none bg-transparent text-ink hover:translate-y-0 hover:bg-ink/5 hover:shadow-none active:translate-y-0 active:shadow-none",
         destructive: "bg-danger text-white",
-        link:        "border-transparent shadow-none bg-transparent text-primary underline-offset-4 hover:underline hover:translate-y-0 hover:shadow-none active:translate-y-0 active:shadow-none",
+        link: "border-transparent shadow-none bg-transparent text-primary underline-offset-4 hover:underline hover:translate-y-0 hover:shadow-none active:translate-y-0 active:shadow-none",
       },
       size: {
         default: "h-11 px-4 text-sm",
-        sm:      "h-9 px-3 text-sm",
-        lg:      "h-12 px-6 text-base",
-        icon:    "size-11 p-0",
+        sm: "h-9 px-3 text-sm",
+        lg: "h-12 px-6 text-base",
+        icon: "size-11 p-0",
         "icon-sm": "size-9 p-0",
       },
     },
@@ -1090,6 +1173,7 @@ Replace each with the nearest new size (`xs` → `sm`, `icon-xs` → `icon-sm`, 
 ```bash
 pnpm typecheck && pnpm build
 ```
+
 Expected: clean.
 
 - [ ] **Step 4: Manual smoke — Home page**
@@ -1097,6 +1181,7 @@ Expected: clean.
 ```bash
 pnpm dev
 ```
+
 Load `/`. Buttons should squish on hover/active, use Nunito, have chunky borders and cream-side hard shadows. Toggle `<html class="dark">` in devtools — verify shadows adapt.
 
 - [ ] **Step 5: Commit**
@@ -1109,9 +1194,11 @@ git commit -m "feat(ui): playful Button with press-squish"
 ### Task 10: Rebuild `<Card>` with `interactive` prop
 
 **Files:**
+
 - Modify: `components/ui/card.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 2 tokens
 - Produces (extended API): `<Card interactive?>` — when `interactive`, hover-lifts like a button; `<CardHeader>`, `<CardTitle>`, `<CardDescription>`, `<CardContent>`, `<CardFooter>`, `<CardAction>` unchanged.
 
@@ -1141,7 +1228,8 @@ function Card({
         "py-(--card-spacing) [--card-spacing:--spacing(5)]",
         "data-[size=sm]:[--card-spacing:--spacing(3)]",
         "has-data-[slot=card-footer]:pb-0",
-        interactive && "transition-all duration-fast ease-soft hover:-translate-y-[2px] hover:shadow-lift cursor-pointer",
+        interactive &&
+          "transition-all duration-fast ease-soft hover:-translate-y-[2px] hover:shadow-lift cursor-pointer",
         className,
       )}
       {...props}
@@ -1190,27 +1278,47 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-action"
-      className={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className,
+      )}
       {...props}
     />
   );
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="card-content" className={cn("px-(--card-spacing)", className)} {...props} />;
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-(--card-spacing)", className)}
+      {...props}
+    />
+  );
 }
 
 function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-footer"
-      className={cn("flex items-center border-t border-ink/10 p-(--card-spacing)", className)}
+      className={cn(
+        "flex items-center border-t border-ink/10 p-(--card-spacing)",
+        className,
+      )}
       {...props}
     />
   );
 }
 
-export { Card, CardHeader, CardFooter, CardTitle, CardAction, CardDescription, CardContent };
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+};
 ```
 
 - [ ] **Step 2: Typecheck + commit**
@@ -1224,9 +1332,11 @@ git commit -m "feat(ui): chunky Card with interactive prop"
 ### Task 11: Rebuild `<Input>`
 
 **Files:**
+
 - Modify: `components/ui/input.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 2 tokens
 - Produces: `<Input>` — API unchanged, styled chunky
 
@@ -1235,6 +1345,7 @@ git commit -m "feat(ui): chunky Card with interactive prop"
 ```bash
 cat components/ui/input.tsx
 ```
+
 Note the existing exports.
 
 - [ ] **Step 2: Rewrite input.tsx**
@@ -1278,9 +1389,11 @@ git commit -m "feat(ui): chunky Input"
 ### Task 12: Rebuild `<Badge>` with preset states
 
 **Files:**
+
 - Modify: `components/ui/badge.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 2 tokens, keyframe `animate-pulse-dot`
 - Produces: `<Badge variant>` where variant is `default | secondary | destructive | outline | ghost | link | live | scheduled | postponed | ended | open`. Existing variants preserved; new preset states added.
 
@@ -1301,17 +1414,17 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default:     "bg-surface-raised text-ink",
-        secondary:   "bg-surface-raised text-ink",
+        default: "bg-surface-raised text-ink",
+        secondary: "bg-surface-raised text-ink",
         destructive: "bg-danger text-white",
-        outline:     "bg-transparent text-ink",
-        ghost:       "border-transparent bg-transparent text-ink",
-        link:        "border-transparent bg-transparent text-primary underline-offset-4 hover:underline",
-        live:        "bg-success text-white",
-        scheduled:   "bg-surface text-ink",
-        postponed:   "bg-accent text-accent-ink",
-        ended:       "bg-surface-raised text-ink-soft",
-        open:        "bg-primary text-primary-ink",
+        outline: "bg-transparent text-ink",
+        ghost: "border-transparent bg-transparent text-ink",
+        link: "border-transparent bg-transparent text-primary underline-offset-4 hover:underline",
+        live: "bg-success text-white",
+        scheduled: "bg-surface text-ink",
+        postponed: "bg-accent text-accent-ink",
+        ended: "bg-surface-raised text-ink-soft",
+        open: "bg-primary text-primary-ink",
       },
     },
     defaultVariants: { variant: "default" },
@@ -1373,10 +1486,12 @@ git commit -m "feat(ui): Badge preset states + LiveBadge with pulse"
 ### Task 13: Playful sonner + EmptyState
 
 **Files:**
+
 - Modify: `components/ui/sonner.tsx`
 - Create: `components/ui/empty-state.tsx`
 
 **Interfaces:**
+
 - Produces:
   - `<EmptyState sticker headline body? action?>` — headline is a string, body optional string, action is `{ label: string; onClick?: () => void; href?: string }`
 
@@ -1397,7 +1512,8 @@ export function Toaster() {
       position="top-right"
       toastOptions={{
         classNames: {
-          toast: "!rounded-md !border-thin !border-ink !shadow-flat !bg-surface-raised !text-ink !font-medium",
+          toast:
+            "!rounded-md !border-thin !border-ink !shadow-flat !bg-surface-raised !text-ink !font-medium",
           success: "!bg-success !text-white !border-ink",
           error: "!bg-danger !text-white !border-ink",
         },
@@ -1435,7 +1551,9 @@ export function EmptyState({
     <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
       <Sticker name={sticker} size="xl" rotate={-4} />
       <div className="space-y-1">
-        <p className="font-display text-xl font-extrabold text-ink">{headline}</p>
+        <p className="font-display text-xl font-extrabold text-ink">
+          {headline}
+        </p>
         {body ? <p className="text-sm text-ink-soft">{body}</p> : null}
       </div>
       {action ? (
@@ -1465,6 +1583,7 @@ git commit -m "feat(ui): playful sonner + EmptyState component"
 ### Task 14: Rebuild `<Nav>` as a pill rail + add `<UserPill>`, `<ThemeToggle>`, `<MobileNav>`
 
 **Files:**
+
 - Modify: `components/app/nav.tsx`
 - Create: `components/app/user-pill.tsx`
 - Create: `components/app/theme-toggle.tsx`
@@ -1473,6 +1592,7 @@ git commit -m "feat(ui): playful sonner + EmptyState component"
 - Modify: `app/(app)/layout.tsx` — hide `<Nav>` under 768 px, show `<MobileNav>` above
 
 **Interfaces:**
+
 - Consumes: Tasks 9–13 primitives
 - Produces:
   - `<Nav userId: string>` — vertical rail
@@ -1491,8 +1611,14 @@ import { MoonIcon, SunIcon, MonitorIcon } from "lucide-react";
 
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const next = theme === "dark" ? "system" : theme === "system" ? "light" : "dark";
-  const Icon = resolvedTheme === "dark" ? MoonIcon : theme === "system" ? MonitorIcon : SunIcon;
+  const next =
+    theme === "dark" ? "system" : theme === "system" ? "light" : "dark";
+  const Icon =
+    resolvedTheme === "dark"
+      ? MoonIcon
+      : theme === "system"
+        ? MonitorIcon
+        : SunIcon;
 
   return (
     <button
@@ -1536,7 +1662,10 @@ export function UserPill({ displayName }: { displayName: string }) {
         <MenuPrimitive.Positioner sideOffset={4}>
           <MenuPrimitive.Popup className="w-52 rounded-md border-thin border-ink bg-surface-raised p-1 shadow-flat text-ink">
             <ThemeToggle />
-            <Link href="/settings" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-surface">
+            <Link
+              href="/settings"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-surface"
+            >
               <SettingsIcon className="size-4" /> Settings
             </Link>
             <form action="/auth/sign-out" method="post">
@@ -1561,14 +1690,23 @@ Note: `@base-ui/react/menu` may not be imported yet — verify with `pnpm list @
 import Link from "next/link";
 import type { Route } from "next";
 import {
-  HomeIcon, UsersIcon, CalendarDaysIcon, RepeatIcon, MessageSquareIcon,
-  BellIcon, WrenchIcon,
+  HomeIcon,
+  UsersIcon,
+  CalendarDaysIcon,
+  RepeatIcon,
+  MessageSquareIcon,
+  BellIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { AtlasLogo } from "@/components/atlas-logo";
 import { NotificationsBell } from "@/components/app/notifications-bell";
 import { UserPill } from "@/components/app/user-pill";
 
-type NavItem = { href: Route; label: string; Icon: React.ComponentType<{ className?: string }> };
+type NavItem = {
+  href: Route;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+};
 
 const items: NavItem[] = [
   { href: "/" as Route, label: "Home", Icon: HomeIcon },
@@ -1581,13 +1719,19 @@ const items: NavItem[] = [
 ];
 
 export function Nav({
-  userId, displayName,
-}: { userId: string; displayName: string }) {
+  userId,
+  displayName,
+}: {
+  userId: string;
+  displayName: string;
+}) {
   return (
     <nav className="hidden md:flex flex-col gap-2 border-r-chunk border-ink bg-surface p-4">
       <Link href="/" className="flex items-center gap-2 px-2 py-3">
         <AtlasLogo className="h-8 w-8 text-primary" />
-        <span className="font-display text-xl font-extrabold text-ink">Atlas</span>
+        <span className="font-display text-xl font-extrabold text-ink">
+          Atlas
+        </span>
       </Link>
       <div className="flex-1 space-y-1">
         {items.map((i) => (
@@ -1601,7 +1745,7 @@ export function Nav({
 }
 
 /* Client subcomponent for active state via usePathname */
-"use client";
+("use client");
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -1636,14 +1780,17 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export function NavLink({
-  href, label, Icon,
+  href,
+  label,
+  Icon,
 }: {
   href: Route;
   label: string;
   Icon: React.ComponentType<{ className?: string }>;
 }) {
   const pathname = usePathname();
-  const active = pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
+  const active =
+    pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
   return (
     <Link
       href={href}
@@ -1672,16 +1819,20 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import {
-  HomeIcon, CalendarDaysIcon, MessageSquareIcon, UsersIcon, MoreHorizontalIcon,
+  HomeIcon,
+  CalendarDaysIcon,
+  MessageSquareIcon,
+  UsersIcon,
+  MoreHorizontalIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { href: "/" as Route,           label: "Home",     Icon: HomeIcon },
-  { href: "/meetings" as Route,    label: "Meetings", Icon: CalendarDaysIcon },
-  { href: "/polls" as Route,       label: "Polls",    Icon: MessageSquareIcon },
-  { href: "/roster" as Route,      label: "Roster",   Icon: UsersIcon },
-  { href: "/settings" as Route,    label: "More",     Icon: MoreHorizontalIcon },
+  { href: "/" as Route, label: "Home", Icon: HomeIcon },
+  { href: "/meetings" as Route, label: "Meetings", Icon: CalendarDaysIcon },
+  { href: "/polls" as Route, label: "Polls", Icon: MessageSquareIcon },
+  { href: "/roster" as Route, label: "Roster", Icon: UsersIcon },
+  { href: "/settings" as Route, label: "More", Icon: MoreHorizontalIcon },
 ];
 
 export function MobileNav() {
@@ -1717,13 +1868,21 @@ import { requireUser } from "@/lib/auth/require";
 import { Nav } from "@/components/app/nav";
 import { MobileNav } from "@/components/app/mobile-nav";
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   let userId: string;
   let displayName = "You";
   try {
     const { user, supabase } = await requireUser();
     userId = user.id;
-    const { data } = await supabase.from("profiles").select("display_name").eq("id", user.id).single();
+    const { data } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single();
     if (data?.display_name) displayName = data.display_name;
   } catch {
     redirect("/sign-in");
@@ -1745,6 +1904,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 ```bash
 pnpm typecheck && pnpm dev
 ```
+
 Verify: rail visible ≥ 768 px with active accent-yellow pill; bottom bar visible < 768 px; user pill dropdown opens; theme toggle switches.
 
 - [ ] **Step 7: Commit**
@@ -1761,9 +1921,11 @@ git commit -m "feat(ui): pill-rail nav + mobile bottom bar + user pill"
 ### Task 15: Home page rebuild
 
 **Files:**
+
 - Modify: `app/(app)/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `<Card interactive>`, `<Badge>`, `<LiveBadge>`, `<EmptyState>`, `<Button>`, `<Sticker>`, `<AtlasLogo>`
 
 - [ ] **Step 1: Restructure into three cards**
@@ -1788,12 +1950,19 @@ return (
         <Card className="px-1">
           <CardHeader>
             <CardTitle>
-              <Link href={`/meetings/${nextMeeting.id}` as never} className="hover:underline">
+              <Link
+                href={`/meetings/${nextMeeting.id}` as never}
+                className="hover:underline"
+              >
                 {nextMeeting.title}
               </Link>
             </CardTitle>
             <CardDescription>
-              {fmtWhen(nextMeeting.scheduled_start, nextMeeting.timezone, viewerTz)}{" "}
+              {fmtWhen(
+                nextMeeting.scheduled_start,
+                nextMeeting.timezone,
+                viewerTz,
+              )}{" "}
               · host {hostRow?.display_name ?? "?"}
             </CardDescription>
             <CardAction>
@@ -1815,7 +1984,10 @@ return (
           sticker="calendar"
           headline="No meetings on the horizon"
           body="Schedule your team's next ritual."
-          action={{ label: "New meeting", href: "/meetings?new=meeting" as never }}
+          action={{
+            label: "New meeting",
+            href: "/meetings?new=meeting" as never,
+          }}
         />
       )}
     </section>
@@ -1835,7 +2007,10 @@ return (
             <Card key={p.id} interactive>
               <CardHeader>
                 <CardTitle>
-                  <Link href={`/polls/${p.id}` as never} className="hover:underline">
+                  <Link
+                    href={`/polls/${p.id}` as never}
+                    className="hover:underline"
+                  >
                     {p.question}
                   </Link>
                 </CardTitle>
@@ -1877,6 +2052,7 @@ Update imports at the top: add `Card, CardHeader, CardTitle, CardDescription, Ca
 ```bash
 pnpm typecheck && pnpm dev
 ```
+
 Load `/`. Verify three sections render, empty state shows sticker when no meeting, cards lift on hover.
 
 - [ ] **Step 3: Update screenshot baseline**
@@ -1895,11 +2071,13 @@ git commit -m "feat(ui): playful home dashboard"
 ### Task 16: Meetings list + `<NewMeetingForm>` sheet + delete `/meetings/new`
 
 **Files:**
+
 - Modify: `app/(app)/meetings/page.tsx`
 - Create: `components/meetings/new-meeting-form.tsx`
 - Delete: `app/(app)/meetings/new/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `<Sheet>`, `useSheetParam`, `<Button>`, `<Card interactive>`, `<Input>`, `<Select>`, `<Textarea>`, existing meeting-creation server action (locate in current `/meetings/new` page or `lib/`)
 
 - [ ] **Step 1: Locate the current meeting-create server action**
@@ -1907,6 +2085,7 @@ git commit -m "feat(ui): playful home dashboard"
 ```bash
 grep -rn "meetings.insert\|createMeeting\|action.*meeting" app lib components
 ```
+
 Note the function/action name and its inputs.
 
 - [ ] **Step 2: Build `<NewMeetingForm>`**
@@ -1976,15 +2155,21 @@ export function NewMeetingForm({
           <label className="block space-y-1">
             <span className="text-sm font-medium text-ink">Host</span>
             <Select name="host_user_id" defaultValue="">
-              <option value="" disabled>Choose a host</option>
+              <option value="" disabled>
+                Choose a host
+              </option>
               {hosts.map((h) => (
-                <option key={h.id} value={h.id}>{h.display_name}</option>
+                <option key={h.id} value={h.id}>
+                  {h.display_name}
+                </option>
               ))}
             </Select>
           </label>
 
           <label className="block space-y-1">
-            <span className="text-sm font-medium text-ink">Notes (optional)</span>
+            <span className="text-sm font-medium text-ink">
+              Notes (optional)
+            </span>
             <Textarea name="notes" />
           </label>
 
@@ -1996,9 +2181,11 @@ export function NewMeetingForm({
         loading={pending}
         onPrimary={() => {
           // trigger form submit
-          document.getElementById("new-meeting-form")?.dispatchEvent(
-            new Event("submit", { cancelable: true, bubbles: true }),
-          );
+          document
+            .getElementById("new-meeting-form")
+            ?.dispatchEvent(
+              new Event("submit", { cancelable: true, bubbles: true }),
+            );
         }}
       />
     </>
@@ -2021,7 +2208,10 @@ import { NewMeetingTrigger } from "./_ui/new-meeting-trigger";
 export default async function MeetingsPage() {
   const { user, supabase } = await requireUser();
   const [{ data: meetings }, { data: hosts }] = await Promise.all([
-    supabase.from("meetings").select("...").order("scheduled_start", { ascending: true }),
+    supabase
+      .from("meetings")
+      .select("...")
+      .order("scheduled_start", { ascending: true }),
     supabase.from("profiles").select("id,display_name"),
   ]);
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
@@ -2030,8 +2220,12 @@ export default async function MeetingsPage() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-extrabold text-ink">Meetings</h1>
-          <p className="text-sm text-ink-soft">Upcoming rituals for your team.</p>
+          <h1 className="font-display text-3xl font-extrabold text-ink">
+            Meetings
+          </h1>
+          <p className="text-sm text-ink-soft">
+            Upcoming rituals for your team.
+          </p>
         </div>
         <NewMeetingTrigger hosts={hosts ?? []} defaultTimezone={viewerTz} />
       </header>
@@ -2048,14 +2242,13 @@ And the client trigger (splits so the server page can pass server data in):
 // app/(app)/meetings/_ui/new-meeting-trigger.tsx
 "use client";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet, SheetContent, SheetHeader,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { NewMeetingForm } from "@/components/meetings/new-meeting-form";
 import { useSheetParam } from "@/lib/hooks/use-sheet-param";
 
 export function NewMeetingTrigger({
-  hosts, defaultTimezone,
+  hosts,
+  defaultTimezone,
 }: {
   hosts: { id: string; display_name: string }[];
   defaultTimezone: string;
@@ -2063,10 +2256,15 @@ export function NewMeetingTrigger({
   const { open, setOpen } = useSheetParam("new", "meeting");
   return (
     <>
-      <Button variant="default" onClick={() => setOpen(true)}>New meeting</Button>
+      <Button variant="default" onClick={() => setOpen(true)}>
+        New meeting
+      </Button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent>
-          <SheetHeader title="New meeting" description="Schedule a ritual for your team." />
+          <SheetHeader
+            title="New meeting"
+            description="Schedule a ritual for your team."
+          />
           <NewMeetingForm
             hosts={hosts}
             defaultTimezone={defaultTimezone}
@@ -2090,6 +2288,7 @@ rm -rf app/(app)/meetings/new
 ```bash
 rg -n '"/meetings/new"|href={.*meetings/new' app components
 ```
+
 Each hit gets rewritten to a button that triggers the sheet, or to `href="/meetings?new=meeting"` if it needs to be a deep link.
 
 - [ ] **Step 6: Typecheck + build + smoke**
@@ -2097,6 +2296,7 @@ Each hit gets rewritten to a button that triggers the sheet, or to `href="/meeti
 ```bash
 pnpm typecheck && pnpm build && pnpm dev
 ```
+
 Verify: `/meetings` shows the "New meeting" button; clicking opens the sheet from the right; submitting closes it, shows toast, refreshes list; back-button closes the sheet.
 
 - [ ] **Step 7: Commit**
@@ -2109,15 +2309,18 @@ git commit -m "feat(meetings): right-side New Meeting sheet, drop /meetings/new"
 ### Task 17: Meetings detail + past (visual pass)
 
 **Files:**
+
 - Modify: `app/(app)/meetings/[id]/page.tsx`
 - Modify: `app/(app)/meetings/past/page.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 10 (`<Card>`), Task 12 (Badge presets)
 
 - [ ] **Step 1: Detail page**
 
 Update the JSX in `app/(app)/meetings/[id]/page.tsx` to use the new visual language:
+
 - Page header block with Nunito 800 title, `Badge` for status (`LiveBadge` if live), meta line in `text-ink-soft`.
 - Action buttons (Start / Postpone / Cancel) become `<Button variant="default|accent|destructive">` with the squish.
 - Prompts list becomes `<Card interactive>` cards.
@@ -2141,12 +2344,14 @@ git commit -m "feat(meetings): playful detail + past pages"
 ### Task 18: Polls list + `<NewPollForm>` sheet + delete `/polls/new`
 
 **Files:**
+
 - Modify: `app/(app)/polls/page.tsx`
 - Create: `components/polls/new-poll-form.tsx`
 - Create: `app/(app)/polls/_ui/new-poll-trigger.tsx`
 - Delete: `app/(app)/polls/new/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `<Sheet>`, `useSheetParam`, existing `createPromptAction` (or equivalent — search codebase)
 
 - [ ] **Step 1: Locate current create-prompt action**
@@ -2158,6 +2363,7 @@ grep -rn "prompts.insert\|createPrompt\|action.*poll" app lib components
 - [ ] **Step 2: Build `<NewPollForm>`**
 
 Follow the same structure as `<NewMeetingForm>` (Task 16 Step 2), with fields:
+
 - `question` (`<Textarea>` required)
 - `response_type` (`<Select>`: text / scale_1_5 / single_choice / multi_choice)
 - `anonymity` (`<Select>`: identified / hard_anonymous / soft_anonymous)
@@ -2191,10 +2397,12 @@ git commit -m "feat(polls): right-side New Poll sheet, drop /polls/new"
 ### Task 19: Polls detail (respond flow) + past
 
 **Files:**
+
 - Modify: `app/(app)/polls/[id]/page.tsx`
 - Modify: `app/(app)/polls/past/page.tsx`
 
 **Interfaces:**
+
 - Consumes: Tasks 10, 12, 13 (`<EmptyState>`), Task 8 (`fireConfetti`)
 
 - [ ] **Step 1: Detail page (respond flow)**
@@ -2217,12 +2425,14 @@ git commit -m "feat(polls): playful detail + past pages"
 ### Task 20: Series list + `<NewSeriesForm>` sheet + delete `/series/new`
 
 **Files:**
+
 - Modify: `app/(app)/series/page.tsx`
 - Create: `components/series/new-series-form.tsx`
 - Create: `app/(app)/series/_ui/new-series-trigger.tsx`
 - Delete: `app/(app)/series/new/page.tsx`
 
 **Interfaces:**
+
 - Same pattern as Task 16 & 18.
 
 - [ ] **Step 1: Locate current create-series action, build form**
@@ -2243,6 +2453,7 @@ git commit -m "feat(series): right-side New Series sheet, drop /series/new"
 ### Task 21: Series detail
 
 **Files:**
+
 - Modify: `app/(app)/series/[id]/page.tsx`
 
 - [ ] **Step 1: JSX pass**
@@ -2261,6 +2472,7 @@ git commit -m "feat(series): playful detail page"
 ### Task 22: Roster (list + detail)
 
 **Files:**
+
 - Modify: `app/(app)/roster/page.tsx`
 - Modify: `app/(app)/roster/[id]/page.tsx`
 - Modify: `components/app/roster-table.tsx` (or replace with tile grid)
@@ -2305,6 +2517,7 @@ git commit -m "feat(roster): tile grid list + playful detail"
 ### Task 23: Notifications + Settings
 
 **Files:**
+
 - Modify: `app/(app)/notifications/page.tsx`
 - Modify: `components/app/notifications-feed.tsx`
 - Modify: `app/(app)/settings/page.tsx`
@@ -2313,6 +2526,7 @@ git commit -m "feat(roster): tile grid list + playful detail"
 - [ ] **Step 1: Notifications feed**
 
 Each item becomes `<Card interactive>` with a small sticker on the left based on notification type:
+
 - `meeting_*` → `calendar`
 - `poll_*` → `speech-bubble`
 - `reveal_*` → `eyes`
@@ -2336,10 +2550,12 @@ git commit -m "feat(ui): playful notifications feed + settings sections"
 ### Task 24: Tools (pick + shuffle) with delight
 
 **Files:**
+
 - Modify: `app/(app)/tools/pick/page.tsx`
 - Modify: `app/(app)/tools/shuffle/page.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 8 (`fireConfetti`), Task 7 (`<Sticker>`)
 
 - [ ] **Step 1: Pick-someone slot machine**
@@ -2364,9 +2580,11 @@ git commit -m "feat(tools): pick slot-machine + shuffle stagger"
 ### Task 25: Sign-in page
 
 **Files:**
+
 - Modify: `app/(auth)/sign-in/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `<Sticker>`, `<AtlasLogo>`, `<Button>`, `<Input>`, `<Card>`
 
 - [ ] **Step 1: Rewrite JSX**
@@ -2376,12 +2594,21 @@ export default function SignInPage() {
   return (
     <div className="relative min-h-screen bg-surface overflow-hidden">
       <Sticker name="clouds" size="xl" className="absolute top-0 left-0" />
-      <Sticker name="clouds" size="xl" rotate={12} className="absolute top-4 right-0" />
+      <Sticker
+        name="clouds"
+        size="xl"
+        rotate={12}
+        className="absolute top-4 right-0"
+      />
       <main className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 px-6">
         <AtlasLogo className="h-20 w-20 text-primary" />
         <div className="text-center space-y-1">
-          <h1 className="font-display text-4xl font-extrabold text-ink">Welcome to Atlas</h1>
-          <p className="text-sm text-ink-soft">Team meeting rituals, made playful.</p>
+          <h1 className="font-display text-4xl font-extrabold text-ink">
+            Welcome to Atlas
+          </h1>
+          <p className="text-sm text-ink-soft">
+            Team meeting rituals, made playful.
+          </p>
         </div>
         <Card className="w-full">
           <CardContent className="space-y-4 pt-6">
@@ -2391,7 +2618,9 @@ export default function SignInPage() {
                 <span className="text-sm font-medium text-ink">Email</span>
                 <Input type="email" name="email" required autoFocus />
               </label>
-              <Button variant="default" size="lg" className="w-full">Sign in</Button>
+              <Button variant="default" size="lg" className="w-full">
+                Sign in
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -2408,6 +2637,7 @@ Keep whatever server action / OTP flow currently exists — just restyle.
 ```bash
 pnpm test:e2e -- --grep axe
 ```
+
 Expected: zero critical/serious violations.
 
 - [ ] **Step 3: Screenshot + commit**
@@ -2425,10 +2655,12 @@ git commit -m "feat(auth): playful sign-in with cloud stickers"
 ### Task 26: Dark mode audit
 
 **Files:**
+
 - Modify: any surface with contrast / readability issues surfaced by the audit
 - (No new files)
 
 **Interfaces:**
+
 - Consumes: all previous tasks
 
 - [ ] **Step 1: Force dark mode and screenshot every surface**
@@ -2442,6 +2674,7 @@ pnpm test:e2e -- --grep design-qa --update-snapshots
 - [ ] **Step 2: Manually review each dark screenshot**
 
 For each screenshot in `qa-screenshots/` where dark variant looks wrong (unreadable text, invisible border, broken sticker), open the corresponding page and adjust. Common fixes:
+
 - `text-ink-soft` too dim → nudge `--ink-soft` in `.dark` to `#B8BCE0`.
 - Sticker outline disappearing → wrapper should be `text-ink`, not left as inherited.
 - Yellow badge unreadable on navy card → verify `accent-ink` stays `#111111`.
@@ -2450,6 +2683,7 @@ For each screenshot in `qa-screenshots/` where dark variant looks wrong (unreada
 - [ ] **Step 3: WCAG contrast check**
 
 For every unique foreground/background pair in the dark palette, verify AA:
+
 ```
 --ink (F3F1E8) on --surface (0E1030)          — target ≥ 4.5
 --ink-soft (A5A8C7) on --surface (0E1030)     — target ≥ 4.5
@@ -2459,6 +2693,7 @@ For every unique foreground/background pair in the dark palette, verify AA:
 --white on --success (7EE84A)                 — target ≥ 4.5 (may need adjusting)
 --white on --danger (FF7070)                  — target ≥ 4.5 (may need adjusting)
 ```
+
 Use a CLI tool like `pnpm dlx wcag-contrast <fg> <bg>` or a browser extension. Adjust tokens in `globals.css` as needed and re-run the screenshot suite.
 
 - [ ] **Step 4: Commit**
@@ -2471,9 +2706,11 @@ git commit -m "fix(ui): dark-mode contrast and readability sweep"
 ### Task 27: Motion + confetti wire-up sweep
 
 **Files:**
+
 - Any create/reveal path where confetti or bouncy checks were promised but not yet wired
 
 **Interfaces:**
+
 - Consumes: `fireConfetti`, `fireConfettiFrom`
 
 - [ ] **Step 1: Enumerate celebration points**
@@ -2486,6 +2723,7 @@ git commit -m "fix(ui): dark-mode contrast and readability sweep"
 - Pick-someone lands on a name → `fireConfetti()` (done in Task 24).
 
 For each not-yet-wired point, add the call. Locate:
+
 ```bash
 rg -n "revealAction\|reveal_prompt\|last respondent" app components
 ```
@@ -2508,9 +2746,11 @@ git commit -m "feat(ui): celebration confetti + bouncy checkmarks"
 ### Task 28: Empty-state coverage sweep
 
 **Files:**
+
 - Any list surface still showing plain text on empty
 
 **Interfaces:**
+
 - Consumes: `<EmptyState>`, `<Sticker>`
 
 - [ ] **Step 1: Find remaining empty states**
@@ -2522,6 +2762,7 @@ rg -n "No .* yet\|No .* found\|Nothing waiting\|is empty" app components
 - [ ] **Step 2: Replace each with `<EmptyState>`**
 
 Recommended pairings:
+
 - No meetings → `sticker="calendar"`, action links to sheet trigger.
 - No polls → `sticker="speech-bubble"`.
 - No series → `sticker="empty-box"`.
@@ -2540,6 +2781,7 @@ git commit -m "feat(ui): empty-state coverage across all lists"
 ### Task 29: Final QA + axe + performance sanity
 
 **Files:**
+
 - (None — verification only)
 
 - [ ] **Step 1: Full test suite**
@@ -2550,6 +2792,7 @@ pnpm lint
 pnpm test
 pnpm test:e2e
 ```
+
 Expected: all pass.
 
 - [ ] **Step 2: Bundle sanity**
@@ -2557,7 +2800,9 @@ Expected: all pass.
 ```bash
 pnpm build
 ```
+
 Look at Next.js's build output for `First Load JS`. Compare against the pre-rebuild baseline (see the last passing CI on `main`). Bundle increase should be ≤ 10 KB gzipped total. If it's more, likely culprits:
+
 - Nunito subsetting — verify `weight: ["700","800","900"]` in `lib/fonts.ts` (no 400/500/600 duplication with Geist).
 - Accidental `framer-motion` import.
 
@@ -2572,6 +2817,7 @@ pnpm test:e2e -- --grep axe
 - [ ] **Step 4: Manual keyboard walkthrough**
 
 Tab through each page and verify:
+
 - Focus ring visible on every interactive element.
 - Sheet opens, focus lands in first input, Esc closes, focus restored to trigger.
 - Nav is navigable.
@@ -2586,12 +2832,14 @@ git commit -m "test(ui): extend axe coverage + update final baseline"
 ### Task 30: Update docs
 
 **Files:**
+
 - Modify: `docs/deploy.md` or `README.md` if any developer instructions changed
 - Modify: `docs/qa/atlas.md` — note the new visual language + how to run screenshot updates
 
 - [ ] **Step 1: Add a "Design system" note**
 
 Add a short section pointing to the spec + summarizing:
+
 - Palette tokens (Atlas blue, duo yellow, cream/navy surfaces).
 - Sheet routing via `?new=` params.
 - How to add a new sticker (drop SVG in `public/stickers/`, extend `StickerName` union).
@@ -2609,6 +2857,7 @@ git commit -m "docs(ui): playful UI rebuild reference"
 ## Self-Review
 
 **Spec coverage (each section of the spec → task that implements it):**
+
 - Playfulness + restrained direction → Tasks 9–13 (chunky primitives) + Task 7 (sparse stickers).
 - Sheets replace `/new` routes → Tasks 16, 18, 20.
 - Atlas blue + duo yellow palette → Task 2.
@@ -2630,6 +2879,7 @@ git commit -m "docs(ui): playful UI rebuild reference"
 **Placeholder scan:** No "TBD" / "TODO" / "similar to task N" / vague "handle errors" language. Task 20 mentions leaving a code comment `TODO: proper member picker` — that's an in-code note, not a plan placeholder.
 
 **Type consistency:**
+
 - `useSheetParam(name, value)` — declared Task 4, called Tasks 16, 18, 20 with the exact same 2-arg signature. ✓
 - `fireConfetti(options?)` + `fireConfettiFrom(el)` — declared Task 8, called Tasks 16, 19, 24, 27. ✓
 - `<Button variant="default"|"accent"|"outline"|"ghost"|"destructive"|"link">` — declared Task 9, used consistently everywhere. ✓

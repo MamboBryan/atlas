@@ -40,10 +40,29 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 
 function StatusBadge({ status }: { status: MeetingRow["status"] }) {
   if (status === "live") return <LiveBadge size="lg" />;
-  if (status === "scheduled") return <Badge variant="scheduled" size="lg">Scheduled</Badge>;
-  if (status === "ended") return <Badge variant="ended" size="lg">Ended</Badge>;
-  if (status === "postponed") return <Badge variant="postponed" size="lg">Postponed</Badge>;
-  return <Badge variant="outline" size="lg">Cancelled</Badge>;
+  if (status === "scheduled")
+    return (
+      <Badge variant="scheduled" size="lg">
+        Scheduled
+      </Badge>
+    );
+  if (status === "ended")
+    return (
+      <Badge variant="ended" size="lg">
+        Ended
+      </Badge>
+    );
+  if (status === "postponed")
+    return (
+      <Badge variant="postponed" size="lg">
+        Postponed
+      </Badge>
+    );
+  return (
+    <Badge variant="outline" size="lg">
+      Cancelled
+    </Badge>
+  );
 }
 
 function MeetingCard({
@@ -144,11 +163,18 @@ export default async function MeetingsPage() {
     <div className="space-y-8">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-extrabold text-ink">Meetings</h1>
-          <p className="text-sm text-ink-soft">Upcoming rituals for your team.</p>
+          <h1 className="font-display text-3xl font-extrabold text-ink">
+            Meetings
+          </h1>
+          <p className="text-sm text-ink-soft">
+            Upcoming rituals for your team.
+          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" render={<Link href={"/meetings/past" as never} />}>
+          <Button
+            variant="outline"
+            render={<Link href={"/meetings/past" as never} />}
+          >
             Past
           </Button>
           <NewMeetingTrigger defaultTimezone={viewerTz} />
@@ -167,7 +193,9 @@ export default async function MeetingsPage() {
               <MeetingCard
                 key={m.id}
                 m={m}
-                host={m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"}
+                host={
+                  m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
+                }
                 viewerTz={viewerTz}
                 participantCount={pc(m)}
               />
@@ -181,14 +209,18 @@ export default async function MeetingsPage() {
           Upcoming ({upcoming.length})
         </h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-ink-soft">No upcoming meetings. Schedule one!</p>
+          <p className="text-sm text-ink-soft">
+            No upcoming meetings. Schedule one!
+          </p>
         ) : (
           <div className="space-y-2">
             {upcoming.map((m) => (
               <MeetingCard
                 key={m.id}
                 m={m}
-                host={m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"}
+                host={
+                  m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
+                }
                 viewerTz={viewerTz}
                 participantCount={pc(m)}
               />
@@ -202,14 +234,20 @@ export default async function MeetingsPage() {
           Recent past ({past.length})
         </h2>
         {past.length === 0 ? (
-          <EmptyState icon={MeetingRoomIcon} headline="No past meetings yet" body="Completed meetings will show up here." />
+          <EmptyState
+            icon={MeetingRoomIcon}
+            headline="No past meetings yet"
+            body="Completed meetings will show up here."
+          />
         ) : (
           <div className="space-y-2">
             {past.map((m) => (
               <MeetingCard
                 key={m.id}
                 m={m}
-                host={m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"}
+                host={
+                  m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
+                }
                 viewerTz={viewerTz}
                 participantCount={pc(m)}
               />

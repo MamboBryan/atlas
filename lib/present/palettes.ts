@@ -7,12 +7,48 @@ export type Palette = {
 };
 
 export const stagePalettes: readonly Palette[] = [
-  { key: "electric", bg: "#E5006A", ink: "#FFFFFF", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "sunburst", bg: "#FF7A1A", ink: "#1A0A00", accent: "#E5006A", accentInk: "#FFFFFF" },
-  { key: "aqua",     bg: "#007A82", ink: "#FFFFFF", accent: "#C6FF3D", accentInk: "#0B1F1A" },
-  { key: "grape",    bg: "#6B21A8", ink: "#FFFFFF", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "fire",     bg: "#DC2626", ink: "#FFF6E5", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "meadow",   bg: "#A3E635", ink: "#0B1F1A", accent: "#0B1F1A", accentInk: "#A3E635" },
+  {
+    key: "electric",
+    bg: "#E5006A",
+    ink: "#FFFFFF",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "sunburst",
+    bg: "#FF7A1A",
+    ink: "#1A0A00",
+    accent: "#E5006A",
+    accentInk: "#FFFFFF",
+  },
+  {
+    key: "aqua",
+    bg: "#007A82",
+    ink: "#FFFFFF",
+    accent: "#C6FF3D",
+    accentInk: "#0B1F1A",
+  },
+  {
+    key: "grape",
+    bg: "#6B21A8",
+    ink: "#FFFFFF",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "fire",
+    bg: "#DC2626",
+    ink: "#FFF6E5",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "meadow",
+    bg: "#A3E635",
+    ink: "#0B1F1A",
+    accent: "#0B1F1A",
+    accentInk: "#A3E635",
+  },
 ];
 
 export const standbyPalette: Palette = {
@@ -33,6 +69,6 @@ export const curtainPalette: Palette = {
 
 export function paletteForOrdinal(ordinal: number): Palette {
   const n = stagePalettes.length;
-  const idx = ((((ordinal - 1) % n) + n) % n);
+  const idx = (((ordinal - 1) % n) + n) % n;
   return stagePalettes[idx];
 }

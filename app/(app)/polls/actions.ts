@@ -23,8 +23,7 @@ export async function createPollAction(
 ): Promise<{ error?: string; id?: string }> {
   const question = (fd.get("question") as string | null)?.trim() ?? "";
   const response_type = (fd.get("response_type") as string | null) ?? "text";
-  const anonymity =
-    (fd.get("anonymity") as string | null) ?? "attributed";
+  const anonymity = (fd.get("anonymity") as string | null) ?? "attributed";
   const timing = (fd.get("timing") as string | null) ?? "async";
   const opens_at_raw = (fd.get("opens_at") as string | null)?.trim() ?? "";
   const closes_at_raw = (fd.get("closes_at") as string | null)?.trim() ?? "";

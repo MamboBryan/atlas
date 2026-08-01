@@ -16,10 +16,7 @@ test("sign-in has no critical or serious a11y violations", async ({ page }) => {
   const blocking = results.violations.filter(
     (v) => v.impact === "critical" || v.impact === "serious",
   );
-  expect(
-    blocking,
-    JSON.stringify(blocking, null, 2),
-  ).toEqual([]);
+  expect(blocking, JSON.stringify(blocking, null, 2)).toEqual([]);
 });
 
 // ---------------------------------------------------------------------------
@@ -89,7 +86,9 @@ test.describe("authenticated axe scans", () => {
 
   test.afterAll(async () => {
     // Clean up axe test user + their data
-    await resetUsers().catch(() => {/* best-effort */});
+    await resetUsers().catch(() => {
+      /* best-effort */
+    });
   });
 
   test("/ (home) has no critical or serious a11y violations", async ({
@@ -102,7 +101,9 @@ test.describe("authenticated axe scans", () => {
       await signIn(ctx, adminEmail, baseURL);
       const page = await ctx.newPage();
       await page.goto("/");
-      await page.getByRole("heading", { name: "Home" }).waitFor({ timeout: 10_000 });
+      await page
+        .getByRole("heading", { name: "Home" })
+        .waitFor({ timeout: 10_000 });
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa"])
         .analyze();
@@ -125,7 +126,9 @@ test.describe("authenticated axe scans", () => {
       await signIn(ctx, adminEmail, baseURL);
       const page = await ctx.newPage();
       await page.goto("/meetings");
-      await page.getByRole("heading", { name: "Meetings" }).waitFor({ timeout: 10_000 });
+      await page
+        .getByRole("heading", { name: "Meetings" })
+        .waitFor({ timeout: 10_000 });
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa"])
         .analyze();

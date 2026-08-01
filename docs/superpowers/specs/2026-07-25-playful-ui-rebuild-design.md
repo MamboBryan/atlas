@@ -42,22 +42,22 @@ downstream reads from these.
 
 ### Color (semantic, both themes)
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| `--surface` | `#FFF8EC` cream | `#0E1030` deep navy | Page background |
-| `--surface-raised` | `#FFFFFF` | `#171A3D` | Cards, sheet body |
-| `--ink` | `#111111` | `#F3F1E8` | Primary text, outlines |
-| `--ink-soft` | `#5A5A5A` | `#A5A8C7` | Secondary text |
-| `--primary` | `#4B4DF7` | `#8A8CFF` | CTAs, links, headings-accent |
-| `--primary-ink` | `#FFFFFF` | `#0E1030` | Text on primary |
-| `--accent` | `#FFD84A` | `#FFE264` | Highlights, celebration |
-| `--accent-ink` | `#111111` | `#111111` | Text on accent (dark both modes) |
-| `--success` | `#58CC02` | `#7EE84A` | Confirmation, live, streaks |
-| `--success-ink` | `#111111` | `#111111` | Text on success backgrounds |
-| `--danger` | `#FF4B4B` | `#FF7070` | Destructive, errors (backgrounds/borders) |
-| `--danger-ink` | `#111111` | `#111111` | Text on danger backgrounds |
-| `--danger-text` | `#D42222` | `var(--danger)` | Danger text on light surfaces (WCAG AA) |
-| `--info` | `#1CB0F6` | `#6ED2FF` | Neutral notice |
+| Token              | Light           | Dark                | Use                                       |
+| ------------------ | --------------- | ------------------- | ----------------------------------------- |
+| `--surface`        | `#FFF8EC` cream | `#0E1030` deep navy | Page background                           |
+| `--surface-raised` | `#FFFFFF`       | `#171A3D`           | Cards, sheet body                         |
+| `--ink`            | `#111111`       | `#F3F1E8`           | Primary text, outlines                    |
+| `--ink-soft`       | `#5A5A5A`       | `#A5A8C7`           | Secondary text                            |
+| `--primary`        | `#4B4DF7`       | `#8A8CFF`           | CTAs, links, headings-accent              |
+| `--primary-ink`    | `#FFFFFF`       | `#0E1030`           | Text on primary                           |
+| `--accent`         | `#FFD84A`       | `#FFE264`           | Highlights, celebration                   |
+| `--accent-ink`     | `#111111`       | `#111111`           | Text on accent (dark both modes)          |
+| `--success`        | `#58CC02`       | `#7EE84A`           | Confirmation, live, streaks               |
+| `--success-ink`    | `#111111`       | `#111111`           | Text on success backgrounds               |
+| `--danger`         | `#FF4B4B`       | `#FF7070`           | Destructive, errors (backgrounds/borders) |
+| `--danger-ink`     | `#111111`       | `#111111`           | Text on danger backgrounds                |
+| `--danger-text`    | `#D42222`       | `var(--danger)`     | Danger text on light surfaces (WCAG AA)   |
+| `--info`           | `#1CB0F6`       | `#6ED2FF`           | Neutral notice                            |
 
 All combinations verified against WCAG AA (4.5:1 body, 3:1 large text) before
 merge. Yellow-on-cream restricted to elements ≥ 18px bold.
@@ -85,9 +85,9 @@ is the visual signature.
 Hard offset shadows in `--ink`, not soft blurs:
 
 ```css
---shadow-flat:  0 3px 0 0 var(--ink);   /* resting */
---shadow-lift:  0 5px 0 0 var(--ink);   /* hover */
---shadow-press: 0 1px 0 0 var(--ink);   /* active */
+--shadow-flat: 0 3px 0 0 var(--ink); /* resting */
+--shadow-lift: 0 5px 0 0 var(--ink); /* hover */
+--shadow-press: 0 1px 0 0 var(--ink); /* active */
 ```
 
 Buttons/cards translate downward 2px on hover, 2px more on press — the "squish"
@@ -106,11 +106,11 @@ unchanged.
 ### Motion
 
 ```css
---ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);   /* overshoot */
---ease-soft:   cubic-bezier(0.4, 0, 0.2, 1);
---dur-fast:    120ms;
---dur-med:     220ms;
---dur-slow:    360ms;
+--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoot */
+--ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+--dur-fast: 120ms;
+--dur-med: 220ms;
+--dur-slow: 360ms;
 ```
 
 All motion behind `@media (prefers-reduced-motion: reduce)` — swaps every

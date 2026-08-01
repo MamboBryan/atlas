@@ -63,11 +63,7 @@ export function AgendaRunner({
 
   if (current.kind === "picker") {
     return (
-      <PickerAgendaItem
-        item={current}
-        meetingId={meetingId}
-        isHost={isHost}
-      />
+      <PickerAgendaItem item={current} meetingId={meetingId} isHost={isHost} />
     );
   }
 
@@ -109,12 +105,9 @@ function PickerAgendaItem({
   const [err, setErr] = useState<string | null>(null);
   const [pickName, setPickName] = useState<string | null>(null);
 
-  const oneshotUserId =
-    result && "user_id" in result ? result.user_id : null;
+  const oneshotUserId = result && "user_id" in result ? result.user_id : null;
   const shuffleSessionId =
-    result && "shuffle_session_id" in result
-      ? result.shuffle_session_id
-      : null;
+    result && "shuffle_session_id" in result ? result.shuffle_session_id : null;
 
   const resolveName = useCallback(async (id: string) => {
     const s = createSupabaseBrowserClient();

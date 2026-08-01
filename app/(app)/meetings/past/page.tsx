@@ -41,7 +41,8 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 
 function StatusBadge({ status }: { status: MeetingRow["status"] }) {
   if (status === "ended") return <Badge variant="ended">Ended</Badge>;
-  if (status === "postponed") return <Badge variant="postponed">Postponed</Badge>;
+  if (status === "postponed")
+    return <Badge variant="postponed">Postponed</Badge>;
   return <Badge variant="destructive">Cancelled</Badge>;
 }
 
@@ -82,8 +83,7 @@ export default async function PastMeetingsPage() {
     .eq("is_active", true);
   const activeCount = (roster ?? []).length;
 
-  const viewerTz =
-    Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+  const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -112,7 +112,7 @@ export default async function PastMeetingsPage() {
         <div className="space-y-3">
           {meetings.map((m) => {
             const host = m.host_user_id
-              ? nameById.get(m.host_user_id) ?? "?"
+              ? (nameById.get(m.host_user_id) ?? "?")
               : "?";
             const pc = m.participants_override
               ? m.participants_override.length

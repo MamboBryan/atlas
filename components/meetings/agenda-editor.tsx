@@ -102,7 +102,9 @@ export function AgendaEditor({
               <div className="w-6 text-xs text-ink-soft">{i + 1}.</div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-ink">{it.title}</div>
-                <div className="text-xs text-ink-soft capitalize">{it.kind}</div>
+                <div className="text-xs text-ink-soft capitalize">
+                  {it.kind}
+                </div>
               </div>
             </CardContent>
           </Card>

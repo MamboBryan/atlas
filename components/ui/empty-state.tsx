@@ -34,7 +34,9 @@ export function EmptyState({
         <Sticker name={sticker} size="xl" rotate={-4} />
       ) : null}
       <div className="space-y-1">
-        <p className="font-display text-xl font-extrabold text-ink">{headline}</p>
+        <p className="font-display text-xl font-extrabold text-ink">
+          {headline}
+        </p>
         {body ? <p className="text-sm text-ink-soft">{body}</p> : null}
       </div>
       {action ? (

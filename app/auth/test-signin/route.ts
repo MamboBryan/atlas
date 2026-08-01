@@ -14,8 +14,7 @@ const TEST_PASSWORD = "atlas-test-password-1234";
 
 function disabled() {
   return (
-    process.env.NODE_ENV === "production" ||
-    process.env.ATLAS_TEST_MODE !== "1"
+    process.env.NODE_ENV === "production" || process.env.ATLAS_TEST_MODE !== "1"
   );
 }
 
@@ -28,9 +27,10 @@ export async function POST(req: NextRequest) {
   if (disabled()) {
     return NextResponse.json({ error: "disabled" }, { status: 404 });
   }
-  const body = (await req.json().catch(() => null)) as
-    | { email?: unknown; password?: unknown }
-    | null;
+  const body = (await req.json().catch(() => null)) as {
+    email?: unknown;
+    password?: unknown;
+  } | null;
   const email = typeof body?.email === "string" ? body.email : "";
   const password = typeof body?.password === "string" ? body.password : "";
   if (!email || !password) {

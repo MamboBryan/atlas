@@ -9,10 +9,21 @@ describe("smoothPath", () => {
     expect(smoothPath([[10, 20]])).toBe("M 10.0,20.0");
   });
   it("starts with a moveto to the first point", () => {
-    expect(smoothPath([[0, 0], [10, 5], [20, 0]])).toMatch(/^M 0\.0,0\.0/);
+    expect(
+      smoothPath([
+        [0, 0],
+        [10, 5],
+        [20, 0],
+      ]),
+    ).toMatch(/^M 0\.0,0\.0/);
   });
   it("emits one cubic-bezier (C) segment per gap between points", () => {
-    const d = smoothPath([[0, 0], [10, 5], [20, 0], [30, 8]]);
+    const d = smoothPath([
+      [0, 0],
+      [10, 5],
+      [20, 0],
+      [30, 8],
+    ]);
     expect((d.match(/C /g) ?? []).length).toBe(3);
   });
 });

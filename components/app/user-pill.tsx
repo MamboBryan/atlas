@@ -28,7 +28,9 @@ export function UserPill({
         </span>
         {!collapsed && (
           <>
-            <span className="flex-1 truncate text-sm text-ink">{displayName}</span>
+            <span className="flex-1 truncate text-sm text-ink">
+              {displayName}
+            </span>
             <ChevronUpIcon className="size-4 text-ink-soft" />
           </>
         )}

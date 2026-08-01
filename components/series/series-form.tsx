@@ -141,7 +141,9 @@ export function SeriesForm({
       return;
     }
     if (restrictParticipants && participants.size === 0) {
-      setFormErr("Choose at least one default participant, or turn off restriction.");
+      setFormErr(
+        "Choose at least one default participant, or turn off restriction.",
+      );
       return;
     }
     const payload = {
@@ -312,10 +314,7 @@ export function SeriesForm({
               </div>
             )}
             {roster.map((r) => (
-              <label
-                key={r.id}
-                className="flex items-center gap-2 p-2 text-sm"
-              >
+              <label key={r.id} className="flex items-center gap-2 p-2 text-sm">
                 <input
                   type="checkbox"
                   checked={participants.has(r.id)}

@@ -3,7 +3,11 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import type { Palette } from "@/lib/present/palettes";
 import type { PresentComment } from "@/components/present/present-shell";
-import { postComment, deleteMyComment, toggleReaction } from "@/lib/actions/comment";
+import {
+  postComment,
+  deleteMyComment,
+  toggleReaction,
+} from "@/lib/actions/comment";
 
 const EMOJIS = ["👍", "❤️", "😂", "🔥"] as const;
 
@@ -62,7 +66,10 @@ export function PresentRail({
       {showComposer && (
         <form
           className="border-t-2 border-solid border-black/40 p-3 flex gap-2"
-          onSubmit={(e) => { e.preventDefault(); submit(); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
         >
           <input
             value={body}
@@ -112,7 +119,10 @@ function CommentRow({
   const toggle = useCallback(
     (emoji: string) => {
       start(async () => {
-        await toggleReaction({ comment_id: comment.id, emoji: emoji as "👍" | "❤️" | "😂" | "🔥" });
+        await toggleReaction({
+          comment_id: comment.id,
+          emoji: emoji as "👍" | "❤️" | "😂" | "🔥",
+        });
       });
     },
     [comment.id],

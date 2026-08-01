@@ -30,8 +30,7 @@ export default async function MeetingRight({
     );
   }
   // Any participant can add items during a live meeting; otherwise host-only.
-  const canAdd =
-    meeting.status === "live" || meeting.host_user_id === user.id;
+  const canAdd = meeting.status === "live" || meeting.host_user_id === user.id;
 
   const { data: promptRows } = canAdd
     ? await supabase
@@ -44,10 +43,12 @@ export default async function MeetingRight({
         .limit(50)
     : { data: null };
 
-  const availablePrompts: PromptOption[] = ((promptRows ?? []) as {
-    id: string;
-    question: string;
-  }[]).map((p) => ({ id: p.id, question: p.question }));
+  const availablePrompts: PromptOption[] = (
+    (promptRows ?? []) as {
+      id: string;
+      question: string;
+    }[]
+  ).map((p) => ({ id: p.id, question: p.question }));
 
   return (
     <div key={id} className="space-y-8">
@@ -56,10 +57,7 @@ export default async function MeetingRight({
           <h2 className="font-display text-xl font-extrabold text-ink">
             Add agenda item
           </h2>
-          <AgendaAddItem
-            meetingId={id}
-            availablePrompts={availablePrompts}
-          />
+          <AgendaAddItem meetingId={id} availablePrompts={availablePrompts} />
         </div>
       ) : (
         <p className="text-sm text-ink-soft">

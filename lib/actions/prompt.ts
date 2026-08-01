@@ -125,9 +125,7 @@ export async function revealPrompt(
     .select("user_id")
     .eq("prompt_id", prompt_id);
   const respIds = Array.from(
-    new Set(
-      (responders ?? []).map((r: { user_id: string }) => r.user_id),
-    ),
+    new Set((responders ?? []).map((r: { user_id: string }) => r.user_id)),
   );
   try {
     await emit(

@@ -16,14 +16,21 @@ type Roster = { id: string; display_name: string };
 
 async function fetchName(id: string): Promise<string> {
   const s = createSupabaseBrowserClient();
-  const { data } = await s.from("profiles").select("display_name").eq("id", id).single();
+  const { data } = await s
+    .from("profiles")
+    .select("display_name")
+    .eq("id", id)
+    .single();
   return (data?.display_name as string) ?? "?";
 }
 
 async function fetchProfiles(ids: string[]): Promise<Record<string, string>> {
   if (ids.length === 0) return {};
   const s = createSupabaseBrowserClient();
-  const { data } = await s.from("profiles").select("id,display_name").in("id", ids);
+  const { data } = await s
+    .from("profiles")
+    .select("id,display_name")
+    .in("id", ids);
   const map: Record<string, string> = {};
   for (const row of data ?? []) {
     map[row.id as string] = (row.display_name as string) ?? "?";
@@ -43,7 +50,8 @@ export function PickerSlide({
 }: {
   palette: Palette;
   item: AgendaItemLite;
-  state: "oneshot-idle" | "oneshot-revealed" | "shuffle-idle" | "shuffle-revealed";
+  state:
+    "oneshot-idle" | "oneshot-revealed" | "shuffle-idle" | "shuffle-revealed";
   index: number;
   total: number;
   meetingTitle: string;
@@ -53,12 +61,17 @@ export function PickerSlide({
   const [pending, start] = useTransition();
 
   const oneshotUserId =
-    item.picker_result && typeof item.picker_result === "object" && "user_id" in item.picker_result
-      ? ((item.picker_result as { user_id: string }).user_id)
+    item.picker_result &&
+    typeof item.picker_result === "object" &&
+    "user_id" in item.picker_result
+      ? (item.picker_result as { user_id: string }).user_id
       : null;
   const shuffleSessionId =
-    item.picker_result && typeof item.picker_result === "object" && "shuffle_session_id" in item.picker_result
-      ? ((item.picker_result as { shuffle_session_id: string }).shuffle_session_id)
+    item.picker_result &&
+    typeof item.picker_result === "object" &&
+    "shuffle_session_id" in item.picker_result
+      ? (item.picker_result as { shuffle_session_id: string })
+          .shuffle_session_id
       : null;
 
   const [pickName, setPickName] = useState<string | null>(null);
@@ -121,11 +134,18 @@ export function PickerSlide({
       .channel(`shuffle:${shuffleSessionId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as never,
-        { event: "UPDATE", schema: "public", table: "shuffle_sessions", filter: `id=eq.${shuffleSessionId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "shuffle_sessions",
+          filter: `id=eq.${shuffleSessionId}`,
+        },
         () => void load(),
       )
       .subscribe();
-    return () => { void s.removeChannel(ch); };
+    return () => {
+      void s.removeChannel(ch);
+    };
   }, [shuffleSessionId]);
 
   const advanceShuffle = useCallback(() => {
@@ -149,12 +169,18 @@ export function PickerSlide({
       <Confetti trigger={oneshotUserId ?? shuffleState?.current?.id ?? null} />
 
       <div className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
-        <span>Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}</span>
+        <span>
+          Item {String(index).padStart(2, "0")} of{" "}
+          {String(total).padStart(2, "0")} · {meetingTitle}
+        </span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
           style={{ borderColor: palette.ink }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
           Picker · {state.startsWith("oneshot") ? "oneshot" : "shuffle"}
         </span>
       </div>
@@ -166,7 +192,11 @@ export function PickerSlide({
             disabled={pending}
             onClick={doOneShot}
             className="rounded-2xl border-2 px-8 py-5 font-black text-2xl shadow-[6px_6px_0_rgba(0,0,0,0.7)] disabled:opacity-60"
-            style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+            style={{
+              background: palette.accent,
+              color: palette.accentInk,
+              borderColor: palette.accentInk,
+            }}
           >
             {pending ? "…" : "Pick"}
           </button>
@@ -176,8 +206,13 @@ export function PickerSlide({
             className="rounded-2xl border-[3px] bg-white/95 px-8 py-6 text-center shadow-[4px_4px_0_rgba(0,0,0,0.8)]"
             style={{ borderColor: "#111", color: "#111" }}
           >
-            <div className="text-xs uppercase tracking-widest font-extrabold opacity-70">Now presenting</div>
-            <div className="font-black tracking-tight leading-none mt-1" style={{ fontSize: 64 }}>
+            <div className="text-xs uppercase tracking-widest font-extrabold opacity-70">
+              Now presenting
+            </div>
+            <div
+              className="font-black tracking-tight leading-none mt-1"
+              style={{ fontSize: 64 }}
+            >
               {pickName ?? "…"}
             </div>
           </div>
@@ -188,7 +223,11 @@ export function PickerSlide({
             disabled={pending}
             onClick={doStartShuffle}
             className="rounded-2xl border-2 px-8 py-5 font-black text-2xl shadow-[6px_6px_0_rgba(0,0,0,0.7)] disabled:opacity-60"
-            style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+            style={{
+              background: palette.accent,
+              color: palette.accentInk,
+              borderColor: palette.accentInk,
+            }}
           >
             {pending ? "…" : "Start shuffle"}
           </button>
@@ -199,9 +238,14 @@ export function PickerSlide({
             style={{ borderColor: "#111", color: "#111" }}
           >
             <div className="text-xs uppercase tracking-widest font-extrabold opacity-70">
-              {shuffleState.finished ? "Done" : `Round ${shuffleState.round} of ${shuffleState.outOf}`}
+              {shuffleState.finished
+                ? "Done"
+                : `Round ${shuffleState.round} of ${shuffleState.outOf}`}
             </div>
-            <div className="font-black tracking-tight leading-none mt-1" style={{ fontSize: 56 }}>
+            <div
+              className="font-black tracking-tight leading-none mt-1"
+              style={{ fontSize: 56 }}
+            >
               {shuffleState.current?.display_name ?? "?"}
             </div>
           </div>
@@ -211,7 +255,9 @@ export function PickerSlide({
       <footer className="flex items-end justify-between">
         <span className="text-xs font-extrabold uppercase tracking-widest opacity-80">
           {state === "shuffle-revealed" && shuffleState
-            ? shuffleState.finished ? "Everyone's had a turn" : `Round ${shuffleState.round} of ${shuffleState.outOf}`
+            ? shuffleState.finished
+              ? "Everyone's had a turn"
+              : `Round ${shuffleState.round} of ${shuffleState.outOf}`
             : ""}
         </span>
         {state === "oneshot-revealed" && (
@@ -229,29 +275,43 @@ export function PickerSlide({
               type="button"
               onClick={onNext}
               className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)]"
-              style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+              style={{
+                background: palette.accent,
+                color: palette.accentInk,
+                borderColor: palette.accentInk,
+              }}
             >
               Next item →
             </button>
           </div>
         )}
-        {state === "shuffle-revealed" && shuffleState && !shuffleState.finished && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={advanceShuffle}
-            className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)]"
-            style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
-          >
-            Next person →
-          </button>
-        )}
+        {state === "shuffle-revealed" &&
+          shuffleState &&
+          !shuffleState.finished && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={advanceShuffle}
+              className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)]"
+              style={{
+                background: palette.accent,
+                color: palette.accentInk,
+                borderColor: palette.accentInk,
+              }}
+            >
+              Next person →
+            </button>
+          )}
         {state === "shuffle-revealed" && shuffleState?.finished && (
           <button
             type="button"
             onClick={onNext}
             className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)]"
-            style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+            style={{
+              background: palette.accent,
+              color: palette.accentInk,
+              borderColor: palette.accentInk,
+            }}
           >
             Next item →
           </button>

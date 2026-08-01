@@ -1,9 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { postComment, deleteMyComment, toggleReaction } from "@/lib/actions/comment";
+import {
+  postComment,
+  deleteMyComment,
+  toggleReaction,
+} from "@/lib/actions/comment";
 
 const EMOJIS = ["👍", "❤️", "😂", "🔥"] as const;
 
@@ -23,9 +34,16 @@ type Props = {
   currentAgendaItemId: string | null;
 };
 
-export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaItemId }: Props) {
+export function MeetingCommentBox({
+  meetingId,
+  viewerId,
+  isHost,
+  currentAgendaItemId,
+}: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
-  const [reactions, setReactions] = useState<Record<string, { emoji: string; user_id: string }[]>>({});
+  const [reactions, setReactions] = useState<
+    Record<string, { emoji: string; user_id: string }[]>
+  >({});
   const [body, setBody] = useState("");
   const [pending, start] = useTransition();
   const knownCommentIds = useRef<Set<string>>(new Set());
@@ -35,7 +53,9 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
     const cap = isHost ? 8 : 20;
     const { data } = await s
       .from("meeting_comments")
-      .select("id,agenda_item_id,author_user_id,body,created_at,deleted_at, profiles:profiles!meeting_comments_author_user_id_fkey(display_name)")
+      .select(
+        "id,agenda_item_id,author_user_id,body,created_at,deleted_at, profiles:profiles!meeting_comments_author_user_id_fkey(display_name)",
+      )
       .eq("meeting_id", meetingId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -46,14 +66,18 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
       agenda_item_id: c.agenda_item_id as string | null,
       author_user_id: c.author_user_id as string,
       author_name:
-        (c as unknown as { profiles: { display_name: string } | null }).profiles?.display_name ?? "?",
+        (c as unknown as { profiles: { display_name: string } | null }).profiles
+          ?.display_name ?? "?",
       body: c.body as string,
       created_at: c.created_at as string,
     }));
     setComments(rows);
     knownCommentIds.current = new Set(rows.map((r) => r.id));
     const ids = rows.map((r) => r.id);
-    if (ids.length === 0) { setReactions({}); return; }
+    if (ids.length === 0) {
+      setReactions({});
+      return;
+    }
     const { data: rx } = await s
       .from("meeting_comment_reactions")
       .select("comment_id,user_id,emoji")
@@ -61,18 +85,26 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
     const grouped: Record<string, { emoji: string; user_id: string }[]> = {};
     for (const r of rx ?? []) {
       const cid = r.comment_id as string;
-      (grouped[cid] ??= []).push({ emoji: r.emoji as string, user_id: r.user_id as string });
+      (grouped[cid] ??= []).push({
+        emoji: r.emoji as string,
+        user_id: r.user_id as string,
+      });
     }
     setReactions(grouped);
   }, [meetingId, isHost]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   useEffect(() => {
     const s = createSupabaseBrowserClient();
     // Guard: meeting_comment_reactions has no meeting_id column so we can't
     // server-side-filter. Skip refresh when the changed comment isn't ours.
-    const loadIfKnown = (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+    const loadIfKnown = (payload: {
+      new?: Record<string, unknown>;
+      old?: Record<string, unknown>;
+    }) => {
       const commentId =
         (payload.new?.comment_id as string | undefined) ??
         (payload.old?.comment_id as string | undefined);
@@ -83,10 +115,25 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
     // (already-subscribed) channel that Supabase keeps by name.
     const ch = s
       .channel(`meeting-comments:${meetingId}:${crypto.randomUUID()}`)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comments", filter: `meeting_id=eq.${meetingId}` }, load)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comment_reactions" }, loadIfKnown)
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "*",
+          schema: "public",
+          table: "meeting_comments",
+          filter: `meeting_id=eq.${meetingId}`,
+        },
+        load,
+      )
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "meeting_comment_reactions" },
+        loadIfKnown,
+      )
       .subscribe();
-    return () => { s.removeChannel(ch); };
+    return () => {
+      s.removeChannel(ch);
+    };
   }, [meetingId, load]);
 
   const submit = useCallback(() => {
@@ -122,12 +169,20 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
           <li className="text-sm text-ink-soft">No comments yet.</li>
         )}
         {comments.map((c) => (
-          <CommentRow key={c.id} c={c} viewerId={viewerId} reactions={reactions[c.id] ?? []} />
+          <CommentRow
+            key={c.id}
+            c={c}
+            viewerId={viewerId}
+            reactions={reactions[c.id] ?? []}
+          />
         ))}
       </ol>
       <form
         className="flex gap-2"
-        onSubmit={(e) => { e.preventDefault(); submit(); }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
       >
         <input
           value={body}
@@ -169,12 +224,14 @@ function CommentRow({
     return map;
   }, [reactions, viewerId]);
 
-  const toggle = (emoji: (typeof EMOJIS)[number]) => start(async () => {
-    await toggleReaction({ comment_id: c.id, emoji });
-  });
-  const remove = () => start(async () => {
-    await deleteMyComment({ comment_id: c.id });
-  });
+  const toggle = (emoji: (typeof EMOJIS)[number]) =>
+    start(async () => {
+      await toggleReaction({ comment_id: c.id, emoji });
+    });
+  const remove = () =>
+    start(async () => {
+      await deleteMyComment({ comment_id: c.id });
+    });
 
   return (
     <li className="rounded-xl border-2 border-ink/40 px-3 py-2 text-sm">
@@ -184,7 +241,13 @@ function CommentRow({
           <span>{c.body}</span>
         </div>
         {c.author_user_id === viewerId && (
-          <button type="button" onClick={remove} disabled={pending} aria-label="Delete comment" className="text-xs text-ink-soft hover:text-ink">
+          <button
+            type="button"
+            onClick={remove}
+            disabled={pending}
+            aria-label="Delete comment"
+            className="text-xs text-ink-soft hover:text-ink"
+          >
             ×
           </button>
         )}

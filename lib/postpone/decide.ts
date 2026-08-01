@@ -1,9 +1,5 @@
 export type MeetingStatus =
-  | "scheduled"
-  | "live"
-  | "ended"
-  | "postponed"
-  | "cancelled";
+  "scheduled" | "live" | "ended" | "postponed" | "cancelled";
 
 export type PostponeInput = {
   status: MeetingStatus;

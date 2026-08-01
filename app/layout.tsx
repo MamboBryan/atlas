@@ -10,9 +10,17 @@ export const metadata: Metadata = {
   description: "Team meeting rituals",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans", googleSans.variable)}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn("font-sans", googleSans.variable)}
+    >
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ThemeProvider>
           {children}

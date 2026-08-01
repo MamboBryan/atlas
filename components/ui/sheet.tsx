@@ -78,7 +78,11 @@ function SheetHeader({
         ) : null}
       </div>
       <DialogPrimitive.Close
-        render={<Button variant="outline" size="sm">Close</Button>}
+        render={
+          <Button variant="outline" size="sm">
+            Close
+          </Button>
+        }
       />
     </div>
   );
@@ -91,7 +95,10 @@ function SheetBody({
   return (
     <div
       data-slot="sheet-body"
-      className={cn("flex-1 overflow-y-auto px-6 py-5 animate-rise-in", className)}
+      className={cn(
+        "flex-1 overflow-y-auto px-6 py-5 animate-rise-in",
+        className,
+      )}
     >
       {children}
     </div>
@@ -113,8 +120,14 @@ function SheetFooter({
 }) {
   return (
     <div className="sticky bottom-0 z-10 flex flex-col-reverse gap-2 border-t border-ink/10 bg-surface-raised px-6 py-4 sm:flex-row sm:justify-end">
-      <DialogPrimitive.Close render={<Button variant="outline">{secondary}</Button>} />
-      <Button variant="default" disabled={loading || disabled} onClick={onPrimary}>
+      <DialogPrimitive.Close
+        render={<Button variant="outline">{secondary}</Button>}
+      />
+      <Button
+        variant="default"
+        disabled={loading || disabled}
+        onClick={onPrimary}
+      >
         {loading ? <BouncingDots /> : primary}
       </Button>
     </div>

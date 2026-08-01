@@ -3,19 +3,39 @@
 import { useState } from "react";
 import { smoothPath } from "@/lib/thamani/chart-path";
 
-const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 const W = 600;
 const H = 140;
 const PAD_X = 12;
 const PAD_TOP = 20;
 const PAD_BOTTOM = 16;
 
-export function AccountsChart({ values, year }: { values: number[]; year: number }) {
+export function AccountsChart({
+  values,
+  year,
+}: {
+  values: number[];
+  year: number;
+}) {
   const [hover, setHover] = useState<number | null>(null);
   const n = values.length;
   const max = Math.max(1, ...values);
   const xAt = (i: number) => PAD_X + (i / Math.max(1, n - 1)) * (W - 2 * PAD_X);
-  const yAt = (v: number) => PAD_TOP + (1 - v / max) * (H - PAD_TOP - PAD_BOTTOM);
+  const yAt = (v: number) =>
+    PAD_TOP + (1 - v / max) * (H - PAD_TOP - PAD_BOTTOM);
   const d = smoothPath(values.map((v, i) => [xAt(i), yAt(v)]));
 
   const showBelow = hover !== null && yAt(values[hover]) < H * 0.3;
@@ -51,7 +71,12 @@ export function AccountsChart({ values, year }: { values: number[]; year: number
             vectorEffect="non-scaling-stroke"
           />
           {hover !== null && (
-            <circle cx={xAt(hover)} cy={yAt(values[hover])} r={4} fill="currentColor" />
+            <circle
+              cx={xAt(hover)}
+              cy={yAt(values[hover])}
+              r={4}
+              fill="currentColor"
+            />
           )}
         </svg>
 

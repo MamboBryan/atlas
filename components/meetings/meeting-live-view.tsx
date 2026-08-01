@@ -2,16 +2,16 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckmarkCircle02Icon, MeetingRoomIcon } from "@hugeicons/core-free-icons";
+import {
+  CheckmarkCircle02Icon,
+  MeetingRoomIcon,
+} from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import {
-  advanceMeetingAgenda,
-  endMeeting,
-} from "@/lib/actions/meeting";
+import { advanceMeetingAgenda, endMeeting } from "@/lib/actions/meeting";
 import { AgendaRunner } from "@/components/meetings/agenda-runner";
 import { AgendaSummary } from "@/components/meetings/agenda-summary";
 import type { AgendaItem } from "@/components/meetings/agenda-editor";
@@ -135,7 +135,11 @@ export function MeetingLiveView({
     advanceTo(next ? next.id : null);
   }
 
-  if (meeting.status === "ended" || meeting.status === "cancelled" || meeting.status === "postponed") {
+  if (
+    meeting.status === "ended" ||
+    meeting.status === "cancelled" ||
+    meeting.status === "postponed"
+  ) {
     return <AgendaSummary items={items} status={meeting.status} />;
   }
 
@@ -320,12 +324,7 @@ function AgendaTrackCard({
           </Badge>
         )}
         {isHost && !isCurrent && !isDone && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onGo}
-            disabled={pending}
-          >
+          <Button variant="outline" size="sm" onClick={onGo} disabled={pending}>
             Go
           </Button>
         )}

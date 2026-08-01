@@ -53,7 +53,12 @@ export function NewMeetingForm({
 
           <label className="block space-y-1">
             <span className="text-sm font-medium text-ink">Timezone</span>
-            <Input name="timezone" defaultValue={defaultTimezone} required placeholder="UTC" />
+            <Input
+              name="timezone"
+              defaultValue={defaultTimezone}
+              required
+              placeholder="UTC"
+            />
           </label>
 
           {error && (
@@ -74,7 +79,9 @@ export function NewMeetingForm({
         onPrimary={() => {
           document
             .getElementById("new-meeting-form")
-            ?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+            ?.dispatchEvent(
+              new Event("submit", { cancelable: true, bubbles: true }),
+            );
         }}
       />
     </>

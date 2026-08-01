@@ -46,7 +46,8 @@ export async function emit(
       link: input.link,
     })),
   );
-  if (notifErr) throw new Error(`notify.emit notifications: ${notifErr.message}`);
+  if (notifErr)
+    throw new Error(`notify.emit notifications: ${notifErr.message}`);
 
   let queued = 0;
   if (input.email) {

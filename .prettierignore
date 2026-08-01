@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+build/
+
+# Lockfiles (managed by pnpm)
+pnpm-lock.yaml
+
+# Tooling / local state
+.claude/
+.vercel/
+coverage/
+playwright-report/
+test-results/
+
+# Supabase local state
+db/supabase/supabase/.branches/
+db/supabase/supabase/.temp/

@@ -2,12 +2,7 @@ import { requireUser } from "@/lib/auth/require";
 import { SettingsForm } from "@/components/app/settings-form";
 import { UnavailabilityEditor } from "@/components/app/unavailability-editor";
 import { EmailPrefsForm } from "@/components/app/email-prefs-form";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DangerZone } from "@/components/app/danger-zone";
 
 export default async function SettingsPage() {

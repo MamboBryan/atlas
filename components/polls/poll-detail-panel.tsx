@@ -9,11 +9,7 @@ type PromptRow = {
   id: string;
   question: string;
   response_type:
-    | "text"
-    | "single_choice"
-    | "multi_choice"
-    | "yes_no"
-    | "rating";
+    "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
   options: { id: string; label: string }[] | null;
   rating_min: number | null;
   rating_max: number | null;
@@ -58,9 +54,7 @@ export async function PollDetailPanel({ pollId }: { pollId: string }) {
 
   if (!prompt) {
     return (
-      <p className="text-sm text-ink-soft">
-        This poll isn&apos;t available.
-      </p>
+      <p className="text-sm text-ink-soft">This poll isn&apos;t available.</p>
     );
   }
 
@@ -108,10 +102,7 @@ export async function PollDetailPanel({ pollId }: { pollId: string }) {
       </header>
 
       {canManage && !prompt.is_revealed && (
-        <PromptOwnerControls
-          promptId={prompt.id}
-          isOpen={prompt.is_open}
-        />
+        <PromptOwnerControls promptId={prompt.id} isOpen={prompt.is_open} />
       )}
 
       <hr className="border-t border-ink/15" />

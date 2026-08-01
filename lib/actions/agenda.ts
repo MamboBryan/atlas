@@ -36,8 +36,7 @@ export async function addAgendaItemAction(
     .single();
   if (!meeting) return err("not_found", "meeting");
   // Any participant can add an item while the meeting is live; otherwise host-only.
-  const canAdd =
-    meeting.status === "live" || meeting.host_user_id === user.id;
+  const canAdd = meeting.status === "live" || meeting.host_user_id === user.id;
   if (!canAdd) return err("forbidden", "host only");
 
   const { data: maxRow } = await supabase

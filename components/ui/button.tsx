@@ -32,8 +32,7 @@ const buttonVariants = cva(
           "bg-danger text-danger-ink shadow-[-6px_6px_0_0_var(--danger-shadow)] hover:shadow-[-3px_3px_0_0_var(--danger-shadow)] active:shadow-none",
         "destructive-outline":
           "bg-surface-raised text-danger-text border-[0.1px] border-[var(--danger-shadow)] shadow-[-6px_6px_0_0_var(--danger-shadow)] hover:shadow-[-3px_3px_0_0_var(--danger-shadow)] active:shadow-none",
-        link:
-          "bg-transparent text-primary shadow-none underline-offset-4 hover:underline hover:translate-x-0 hover:translate-y-0 hover:shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none",
+        link: "bg-transparent text-primary shadow-none underline-offset-4 hover:underline hover:translate-x-0 hover:translate-y-0 hover:shadow-none active:translate-x-0 active:translate-y-0 active:shadow-none",
       },
       size: {
         default: "h-11 px-4 text-sm",

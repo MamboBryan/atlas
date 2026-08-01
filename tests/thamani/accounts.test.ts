@@ -17,13 +17,17 @@ describe("bucketAccounts", () => {
 
   it("counts January's month bucket as 1", () => {
     const rows = bucketAccounts(createdAts, now);
-    const jan = rows.find((r) => r.grain === "month" && r.period_start === "2026-01-01");
+    const jan = rows.find(
+      (r) => r.grain === "month" && r.period_start === "2026-01-01",
+    );
     expect(jan?.value).toBe(1);
   });
 
   it("counts July's month bucket as 2", () => {
     const rows = bucketAccounts(createdAts, now);
-    const jul = rows.find((r) => r.grain === "month" && r.period_start === "2026-07-01");
+    const jul = rows.find(
+      (r) => r.grain === "month" && r.period_start === "2026-07-01",
+    );
     expect(jul?.value).toBe(2);
   });
 
@@ -35,7 +39,9 @@ describe("bucketAccounts", () => {
 
   it("counts today's day bucket as 1", () => {
     const rows = bucketAccounts(createdAts, now);
-    const today = rows.find((r) => r.grain === "day" && r.period_start === "2026-07-30");
+    const today = rows.find(
+      (r) => r.grain === "day" && r.period_start === "2026-07-30",
+    );
     expect(today?.value).toBe(1);
   });
 
@@ -46,14 +52,21 @@ describe("bucketAccounts", () => {
   });
 
   it("emits each (grain, period_start) at most once (no upsert-conflict dupes)", () => {
-    const rows = bucketAccounts(["2026-07-15T09:00:00Z"], new Date("2026-07-30T18:05:00Z"));
+    const rows = bucketAccounts(
+      ["2026-07-15T09:00:00Z"],
+      new Date("2026-07-30T18:05:00Z"),
+    );
     const keys = rows.map((r) => `${r.grain}|${r.period_start}`);
     expect(new Set(keys).size).toBe(keys.length);
   });
 
   it("includes previous-period buckets (e.g. last month 2026-06-01)", () => {
     const rows = bucketAccounts([], new Date("2026-07-30T18:05:00Z"));
-    expect(rows.some((r) => r.grain === "month" && r.period_start === "2026-06-01")).toBe(true);
-    expect(rows.some((r) => r.grain === "year" && r.period_start === "2025-01-01")).toBe(true);
+    expect(
+      rows.some((r) => r.grain === "month" && r.period_start === "2026-06-01"),
+    ).toBe(true);
+    expect(
+      rows.some((r) => r.grain === "year" && r.period_start === "2025-01-01"),
+    ).toBe(true);
   });
 });

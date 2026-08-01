@@ -19,8 +19,7 @@ export function MeetingsTabs() {
   return (
     <div className="flex flex-wrap gap-3">
       {tabs.map((t) => {
-        const active =
-          pathname === t.href || pathname.startsWith(t.href + "/");
+        const active = pathname === t.href || pathname.startsWith(t.href + "/");
         return (
           <Link
             key={t.href}

@@ -7,6 +7,7 @@
 **Architecture:** Add one migration (schema + RLS + column extensions), a small set of pure helpers (palettes, joke picker, slide-state derivation), two new server-action modules (comments, prompt-timer), a dedicated route `app/(app)/meetings/[id]/present/` with its own layout, a client `PresentShell` that owns realtime subscriptions and slide selection, and one slide component per state. Non-hosts get a `MeetingCommentBox` rendered in the existing `@right` parallel-route slot.
 
 **Tech Stack:**
+
 - Next.js 15 (App Router) + React 19 + TypeScript
 - Supabase (Postgres + Auth + Realtime + RLS)
 - Zod for input validation on server actions
@@ -41,26 +42,32 @@
 **New files:**
 
 Database:
+
 - `db/supabase/supabase/migrations/0022_present_mode.sql` — comments + reactions + `meetings.has_started` + `agenda_items.timer_ends_at` + RLS
 
 Domain helpers:
+
 - `lib/present/palettes.ts` — `Palette` type, `stagePalettes`, `standbyPalette`, `curtainPalette`, `paletteForOrdinal(ordinal)`
 - `lib/present/jokes.ts` — static `jokes` const + `pickJoke(meetingId)`
 - `lib/present/slide-state.ts` — pure `deriveSlideState(inputs)` returning a discriminated union
 
 Zod:
+
 - `lib/zod/comment.ts` — `postComment`, `deleteMyComment`, `toggleReaction` shapes
 - `lib/zod/prompt-timer.ts` — `startPromptTimer`, `expirePromptTimer` shapes
 
 Server actions:
+
 - `lib/actions/comment.ts` — `postComment`, `deleteMyComment`, `toggleReaction`
 - `lib/actions/prompt-timer.ts` — `startPromptTimer`, `expirePromptTimer`
 
 Route:
+
 - `app/(app)/meetings/[id]/present/layout.tsx` — bare-shell layout (no app chrome)
 - `app/(app)/meetings/[id]/present/page.tsx` — server component, guards, data fetch
 
 Client components:
+
 - `components/present/present-shell.tsx` — owns realtime + keyboard + slide selection
 - `components/present/present-rail.tsx` — comments feed + composer + reactions
 - `components/present/confetti.tsx` — imperative confetti wrapper
@@ -74,6 +81,7 @@ Client components:
 - `components/meetings/meeting-comment-box.tsx` — for the `@right` slot
 
 Tests:
+
 - `tests/lib/present-palettes.test.ts`
 - `tests/lib/present-jokes.test.ts`
 - `tests/lib/present-slide-state.test.ts`
@@ -92,10 +100,12 @@ Tests:
 ### Task 1: Palette constants + `paletteForOrdinal`
 
 **Files:**
+
 - Create: `lib/present/palettes.ts`
 - Test: `tests/lib/present-palettes.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing
 - Produces:
   - `type Palette = { key: string; bg: string; ink: string; accent: string; accentInk: string }`
@@ -162,12 +172,48 @@ export type Palette = {
 };
 
 export const stagePalettes: readonly Palette[] = [
-  { key: "electric", bg: "#E5006A", ink: "#FFFFFF", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "sunburst", bg: "#FF7A1A", ink: "#1A0A00", accent: "#E5006A", accentInk: "#FFFFFF" },
-  { key: "aqua",     bg: "#007A82", ink: "#FFFFFF", accent: "#C6FF3D", accentInk: "#0B1F1A" },
-  { key: "grape",    bg: "#6B21A8", ink: "#FFFFFF", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "fire",     bg: "#DC2626", ink: "#FFF6E5", accent: "#FFE84D", accentInk: "#111111" },
-  { key: "meadow",   bg: "#A3E635", ink: "#0B1F1A", accent: "#0B1F1A", accentInk: "#A3E635" },
+  {
+    key: "electric",
+    bg: "#E5006A",
+    ink: "#FFFFFF",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "sunburst",
+    bg: "#FF7A1A",
+    ink: "#1A0A00",
+    accent: "#E5006A",
+    accentInk: "#FFFFFF",
+  },
+  {
+    key: "aqua",
+    bg: "#007A82",
+    ink: "#FFFFFF",
+    accent: "#C6FF3D",
+    accentInk: "#0B1F1A",
+  },
+  {
+    key: "grape",
+    bg: "#6B21A8",
+    ink: "#FFFFFF",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "fire",
+    bg: "#DC2626",
+    ink: "#FFF6E5",
+    accent: "#FFE84D",
+    accentInk: "#111111",
+  },
+  {
+    key: "meadow",
+    bg: "#A3E635",
+    ink: "#0B1F1A",
+    accent: "#0B1F1A",
+    accentInk: "#A3E635",
+  },
 ];
 
 export const standbyPalette: Palette = {
@@ -188,7 +234,7 @@ export const curtainPalette: Palette = {
 
 export function paletteForOrdinal(ordinal: number): Palette {
   const n = stagePalettes.length;
-  const idx = ((((ordinal - 1) % n) + n) % n);
+  const idx = (((ordinal - 1) % n) + n) % n;
   return stagePalettes[idx];
 }
 ```
@@ -215,10 +261,12 @@ git commit -m "feat(present): stage/standby/curtain palettes + ordinal cycle"
 ### Task 2: Joke pool + `pickJoke`
 
 **Files:**
+
 - Create: `lib/present/jokes.ts`
 - Test: `tests/lib/present-jokes.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing
 - Produces:
   - `jokes: readonly string[]` (length 20)
@@ -315,10 +363,12 @@ git commit -m "feat(present): static joke pool + deterministic picker"
 ### Task 3: Slide-state derivation (pure function)
 
 **Files:**
+
 - Create: `lib/present/slide-state.ts`
 - Test: `tests/lib/present-slide-state.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing (types are self-contained)
 - Produces:
   - `type AgendaItemLite = { id: string; ordinal: number; kind: "discussion" | "prompt" | "picker"; prompt_id: string | null; picker_config: { mode: "oneshot" | "shuffle" } | null; picker_result: unknown; timer_ends_at: string | null }`
@@ -347,27 +397,46 @@ const baseMeeting: MeetingLite = {
 };
 
 const disc: AgendaItemLite = {
-  id: "d1", ordinal: 1, kind: "discussion",
-  prompt_id: null, picker_config: null, picker_result: null, timer_ends_at: null,
+  id: "d1",
+  ordinal: 1,
+  kind: "discussion",
+  prompt_id: null,
+  picker_config: null,
+  picker_result: null,
+  timer_ends_at: null,
 };
 const pr: AgendaItemLite = {
-  id: "p1", ordinal: 2, kind: "prompt",
-  prompt_id: "q1", picker_config: null, picker_result: null, timer_ends_at: null,
+  id: "p1",
+  ordinal: 2,
+  kind: "prompt",
+  prompt_id: "q1",
+  picker_config: null,
+  picker_result: null,
+  timer_ends_at: null,
 };
 const pkOne: AgendaItemLite = {
-  id: "k1", ordinal: 3, kind: "picker",
-  prompt_id: null, picker_config: { mode: "oneshot" },
-  picker_result: null, timer_ends_at: null,
+  id: "k1",
+  ordinal: 3,
+  kind: "picker",
+  prompt_id: null,
+  picker_config: { mode: "oneshot" },
+  picker_result: null,
+  timer_ends_at: null,
 };
 const pkShuf: AgendaItemLite = {
-  id: "k2", ordinal: 4, kind: "picker",
-  prompt_id: null, picker_config: { mode: "shuffle" },
-  picker_result: null, timer_ends_at: null,
+  id: "k2",
+  ordinal: 4,
+  kind: "picker",
+  prompt_id: null,
+  picker_config: { mode: "shuffle" },
+  picker_result: null,
+  timer_ends_at: null,
 };
 
 test("not-live when meeting is not live", () => {
-  expect(deriveSlideState({ ...baseMeeting, status: "scheduled" }, [], {}).kind)
-    .toBe("not-live");
+  expect(
+    deriveSlideState({ ...baseMeeting, status: "scheduled" }, [], {}).kind,
+  ).toBe("not-live");
 });
 
 test("standby when live, no current item, has_started false", () => {
@@ -380,35 +449,69 @@ test("curtain when live, no current item, has_started true", () => {
 });
 
 test("discussion state when current item is discussion", () => {
-  const m = { ...baseMeeting, current_agenda_item_id: disc.id, has_started: true };
+  const m = {
+    ...baseMeeting,
+    current_agenda_item_id: disc.id,
+    has_started: true,
+  };
   const s = deriveSlideState(m, [disc], {});
   expect(s.kind).toBe("discussion");
 });
 
 test("prompt-open when prompt is_open true", () => {
-  const m = { ...baseMeeting, current_agenda_item_id: pr.id, has_started: true };
-  const prompts: Record<string, PromptLite> = { q1: { id: "q1", is_open: true } };
+  const m = {
+    ...baseMeeting,
+    current_agenda_item_id: pr.id,
+    has_started: true,
+  };
+  const prompts: Record<string, PromptLite> = {
+    q1: { id: "q1", is_open: true },
+  };
   expect(deriveSlideState(m, [pr], prompts).kind).toBe("prompt-open");
 });
 
 test("prompt-closed when prompt is_open false", () => {
-  const m = { ...baseMeeting, current_agenda_item_id: pr.id, has_started: true };
-  const prompts: Record<string, PromptLite> = { q1: { id: "q1", is_open: false } };
+  const m = {
+    ...baseMeeting,
+    current_agenda_item_id: pr.id,
+    has_started: true,
+  };
+  const prompts: Record<string, PromptLite> = {
+    q1: { id: "q1", is_open: false },
+  };
   expect(deriveSlideState(m, [pr], prompts).kind).toBe("prompt-closed");
 });
 
 test("picker-oneshot idle vs revealed", () => {
-  const m1 = { ...baseMeeting, current_agenda_item_id: pkOne.id, has_started: true };
+  const m1 = {
+    ...baseMeeting,
+    current_agenda_item_id: pkOne.id,
+    has_started: true,
+  };
   expect(deriveSlideState(m1, [pkOne], {}).kind).toBe("picker-oneshot-idle");
-  const revealed: AgendaItemLite = { ...pkOne, picker_result: { user_id: "u1" } };
-  expect(deriveSlideState(m1, [revealed], {}).kind).toBe("picker-oneshot-revealed");
+  const revealed: AgendaItemLite = {
+    ...pkOne,
+    picker_result: { user_id: "u1" },
+  };
+  expect(deriveSlideState(m1, [revealed], {}).kind).toBe(
+    "picker-oneshot-revealed",
+  );
 });
 
 test("picker-shuffle idle vs revealed", () => {
-  const m1 = { ...baseMeeting, current_agenda_item_id: pkShuf.id, has_started: true };
+  const m1 = {
+    ...baseMeeting,
+    current_agenda_item_id: pkShuf.id,
+    has_started: true,
+  };
   expect(deriveSlideState(m1, [pkShuf], {}).kind).toBe("picker-shuffle-idle");
-  const revealed: AgendaItemLite = { ...pkShuf, picker_result: { shuffle_session_id: "s1" } };
-  expect(deriveSlideState(m1, [revealed], {}).kind).toBe("picker-shuffle-revealed");
+  const revealed: AgendaItemLite = {
+    ...pkShuf,
+    picker_result: { shuffle_session_id: "s1" },
+  };
+  expect(deriveSlideState(m1, [revealed], {}).kind).toBe(
+    "picker-shuffle-revealed",
+  );
 });
 ```
 
@@ -468,7 +571,12 @@ export function deriveSlideState(
 
   if (item.kind === "prompt") {
     const prompt = item.prompt_id ? promptsById[item.prompt_id] : undefined;
-    if (!prompt) return { kind: "prompt-closed", item, prompt: { id: item.prompt_id ?? "", is_open: false } };
+    if (!prompt)
+      return {
+        kind: "prompt-closed",
+        item,
+        prompt: { id: item.prompt_id ?? "", is_open: false },
+      };
     return prompt.is_open
       ? { kind: "prompt-open", item, prompt }
       : { kind: "prompt-closed", item, prompt };
@@ -511,9 +619,11 @@ git commit -m "feat(present): pure slide-state derivation"
 ### Task 4: Migration 0022 — comments, reactions, column extensions, RLS
 
 **Files:**
+
 - Create: `db/supabase/supabase/migrations/0022_present_mode.sql`
 
 **Interfaces:**
+
 - Consumes: existing `public.meetings`, `public.agenda_items`, `public.profiles`
 - Produces:
   - `public.meeting_comments` table with columns `id, meeting_id, agenda_item_id, author_user_id, body, created_at, deleted_at`
@@ -649,16 +759,20 @@ Expected: all existing migrations + 0022 apply cleanly, no errors.
 - [ ] **Step 3: Sanity-query the new tables**
 
 Run:
+
 ```bash
 pnpm supabase db execute --sql "select column_name, data_type from information_schema.columns where table_schema='public' and table_name in ('meeting_comments','meeting_comment_reactions') order by table_name, ordinal_position;"
 ```
+
 Expected: all columns from the migration listed.
 
 Run:
+
 ```bash
 pnpm supabase db execute --sql "select column_name from information_schema.columns where table_schema='public' and table_name='meetings' and column_name='has_started';"
 pnpm supabase db execute --sql "select column_name from information_schema.columns where table_schema='public' and table_name='agenda_items' and column_name='timer_ends_at';"
 ```
+
 Expected: both return one row.
 
 - [ ] **Step 4: Regenerate DB types if the repo has generated types**
@@ -678,9 +792,11 @@ git commit -m "feat(db): 0022 meeting comments + reactions + present-mode column
 ### Task 5: Extend `advanceMeetingAgenda` to set `has_started`
 
 **Files:**
+
 - Modify: `lib/actions/meeting.ts` (only the `advanceMeetingAgenda` function body — lines around 212–228)
 
 **Interfaces:**
+
 - Consumes: `public.meetings.has_started` (from Task 4)
 - Produces: unchanged signature — `advanceMeetingAgenda(input: unknown): Promise<ActionResult<null>>`; side-effect: also sets `has_started = true` whenever `item_id` is non-null.
 
@@ -701,9 +817,10 @@ export async function advanceMeetingAgenda(
 
   const { user, supabase } = await requireUser();
 
-  const payload: { current_agenda_item_id: string | null; has_started?: true } = {
-    current_agenda_item_id: parsed.data.item_id,
-  };
+  const payload: { current_agenda_item_id: string | null; has_started?: true } =
+    {
+      current_agenda_item_id: parsed.data.item_id,
+    };
   if (parsed.data.item_id != null) {
     payload.has_started = true;
   }
@@ -728,9 +845,11 @@ Expected: no errors. (`has_started` should appear on the generated `meetings` up
 - [ ] **Step 4: Manual smoke via supabase execute**
 
 Run:
+
 ```bash
 pnpm supabase db execute --sql "update public.meetings set has_started = false where has_started = true;"
 ```
+
 Expected: no error.
 
 - [ ] **Step 5: Commit**
@@ -747,10 +866,12 @@ git commit -m "feat(meeting): advance sets has_started when item is non-null"
 ### Task 6: Zod schemas for new actions
 
 **Files:**
+
 - Create: `lib/zod/comment.ts`
 - Create: `lib/zod/prompt-timer.ts`
 
 **Interfaces:**
+
 - Consumes: nothing
 - Produces:
   - `lib/zod/comment.ts`: `postComment` (`{ meeting_id: uuid, agenda_item_id: uuid | null, body: string(1..500) }`), `deleteMyComment` (`{ comment_id: uuid }`), `toggleReaction` (`{ comment_id: uuid, emoji: enum(👍,❤️,😂,🔥) }`)
@@ -790,7 +911,12 @@ import { z } from "zod";
 
 export const startPromptTimer = z.object({
   agenda_item_id: z.string().uuid(),
-  seconds: z.union([z.literal(30), z.literal(60), z.literal(120), z.literal(300)]),
+  seconds: z.union([
+    z.literal(30),
+    z.literal(60),
+    z.literal(120),
+    z.literal(300),
+  ]),
 });
 export type StartPromptTimerInput = z.infer<typeof startPromptTimer>;
 
@@ -816,9 +942,11 @@ git commit -m "feat(zod): schemas for comments and prompt timer actions"
 ### Task 7: Comment server actions
 
 **Files:**
+
 - Create: `lib/actions/comment.ts`
 
 **Interfaces:**
+
 - Consumes: `lib/zod/comment.ts` schemas, `lib/actions/_result.ts` helpers, `lib/auth/require.ts#requireUser`, `public.meeting_comments`, `public.meeting_comment_reactions`
 - Produces:
   - `postComment(input: unknown): Promise<ActionResult<{ id: string }>>`
@@ -943,9 +1071,11 @@ git commit -m "feat(actions): post/delete/react meeting comments"
 ### Task 8: Prompt timer server actions
 
 **Files:**
+
 - Create: `lib/actions/prompt-timer.ts`
 
 **Interfaces:**
+
 - Consumes: `lib/zod/prompt-timer.ts`, `lib/actions/_result.ts`, `requireUser`, `public.agenda_items`, `public.prompts`, `public.meetings`
 - Produces:
   - `startPromptTimer(input: unknown): Promise<ActionResult<{ timer_ends_at: string }>>`
@@ -970,7 +1100,9 @@ async function loadAgendaItem(
 ) {
   return supabase
     .from("agenda_items")
-    .select("id, meeting_id, prompt_id, kind, meetings:meetings!inner(id,host_user_id)")
+    .select(
+      "id, meeting_id, prompt_id, kind, meetings:meetings!inner(id,host_user_id)",
+    )
     .eq("id", agendaItemId)
     .single();
 }
@@ -991,11 +1123,14 @@ export async function startPromptTimer(
   if (!item) return err("not_found", "agenda item not found");
   if (item.kind !== "prompt") return err("invalid_state", "not a prompt item");
 
-  const hostId = (item as unknown as { meetings: { host_user_id: string | null } })
-    .meetings.host_user_id;
+  const hostId = (
+    item as unknown as { meetings: { host_user_id: string | null } }
+  ).meetings.host_user_id;
   if (hostId !== user.id) return err("forbidden", "host only");
 
-  const endsAt = new Date(Date.now() + parsed.data.seconds * 1000).toISOString();
+  const endsAt = new Date(
+    Date.now() + parsed.data.seconds * 1000,
+  ).toISOString();
 
   const { error: updErr } = await supabase
     .from("agenda_items")
@@ -1023,8 +1158,9 @@ export async function expirePromptTimer(
   if (!item) return err("not_found", "agenda item not found");
   if (item.kind !== "prompt") return err("invalid_state", "not a prompt item");
 
-  const hostId = (item as unknown as { meetings: { host_user_id: string | null } })
-    .meetings.host_user_id;
+  const hostId = (
+    item as unknown as { meetings: { host_user_id: string | null } }
+  ).meetings.host_user_id;
 
   let permitted = hostId === user.id;
   if (!permitted && item.prompt_id) {
@@ -1074,9 +1210,11 @@ git commit -m "feat(actions): start/expire prompt timer"
 ### Task 9: Confetti helper
 
 **Files:**
+
 - Create: `components/present/confetti.tsx`
 
 **Interfaces:**
+
 - Consumes: `canvas-confetti` (installed)
 - Produces:
   - `<Confetti trigger={key} />` — fires a confetti burst whenever `trigger` changes to a truthy value distinct from the previous one. `null | undefined` never fires.
@@ -1140,10 +1278,12 @@ git commit -m "feat(present): confetti helper keyed by trigger"
 ### Task 10: Present route — layout + page (server component + guards)
 
 **Files:**
+
 - Create: `app/(app)/meetings/[id]/present/layout.tsx`
 - Create: `app/(app)/meetings/[id]/present/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `requireUser`, palette helpers, `deriveSlideState` types
 - Produces: renders `<PresentShell />` (Task 11) with server-fetched initial data. Redirects to `/meetings/[id]` when guard fails.
 
@@ -1245,16 +1385,22 @@ export default async function PresentPage({
     .limit(100);
 
   const commentIds = (initialComments ?? []).map((c) => c.id as string);
-  let reactionsByComment: Record<string, { emoji: string; user_id: string }[]> = {};
+  let reactionsByComment: Record<string, { emoji: string; user_id: string }[]> =
+    {};
   if (commentIds.length > 0) {
     const { data: reactions } = await supabase
       .from("meeting_comment_reactions")
       .select("comment_id,user_id,emoji")
       .in("comment_id", commentIds);
     if (reactions) {
-      reactionsByComment = reactions.reduce<Record<string, { emoji: string; user_id: string }[]>>((acc, r) => {
+      reactionsByComment = reactions.reduce<
+        Record<string, { emoji: string; user_id: string }[]>
+      >((acc, r) => {
         const cid = r.comment_id as string;
-        (acc[cid] ??= []).push({ emoji: r.emoji as string, user_id: r.user_id as string });
+        (acc[cid] ??= []).push({
+          emoji: r.emoji as string,
+          user_id: r.user_id as string,
+        });
         return acc;
       }, {});
     }
@@ -1276,8 +1422,8 @@ export default async function PresentPage({
         agenda_item_id: c.agenda_item_id as string | null,
         author_user_id: c.author_user_id as string,
         author_name:
-          (c as unknown as { profiles: { display_name: string } | null }).profiles
-            ?.display_name ?? "?",
+          (c as unknown as { profiles: { display_name: string } | null })
+            .profiles?.display_name ?? "?",
         body: c.body as string,
         created_at: c.created_at as string,
       }))}
@@ -1321,7 +1467,10 @@ export type PresentShellProps = {
   initialItems: AgendaItemLite[];
   initialPromptsById: Record<string, PromptLite>;
   initialComments: PresentComment[];
-  initialReactionsByComment: Record<string, { emoji: string; user_id: string }[]>;
+  initialReactionsByComment: Record<
+    string,
+    { emoji: string; user_id: string }[]
+  >;
 };
 
 export function PresentShell(_props: PresentShellProps) {
@@ -1350,9 +1499,11 @@ git commit -m "feat(present): route + layout + server data fetch + shell stub"
 ### Task 11: PresentShell — realtime + state derivation + keyboard
 
 **Files:**
+
 - Modify: `components/present/present-shell.tsx` (replace the stub)
 
 **Interfaces:**
+
 - Consumes: props from Task 10, `deriveSlideState`, palette helpers, all slide components (stubs OK for now), server actions
 - Produces:
   - `<PresentShell {...PresentShellProps} />` — subscribes to `meeting:<id>` and `meeting-comments:<id>`, renders `<Stage />` (palette + slide) + `<PresentRail />`, handles keyboard (`Esc` → back, `→`/`Space` → advance).
@@ -1362,60 +1513,110 @@ git commit -m "feat(present): route + layout + server data fetch + shell stub"
 Create the following as one-line stubs (they'll be fleshed out in Phase 4):
 
 `components/present/slides/standby-slide.tsx`:
+
 ```tsx
 "use client";
 import type { Palette } from "@/lib/present/palettes";
-export function StandbySlide(_: { palette: Palette; meetingId: string; meetingTitle: string; items: { id: string; ordinal: number; kind: string; title?: string }[] }) {
+export function StandbySlide(_: {
+  palette: Palette;
+  meetingId: string;
+  meetingTitle: string;
+  items: { id: string; ordinal: number; kind: string; title?: string }[];
+}) {
   return <div>StandbySlide stub</div>;
 }
 ```
 
 `components/present/slides/discussion-slide.tsx`:
+
 ```tsx
 "use client";
 import type { Palette } from "@/lib/present/palettes";
 import type { AgendaItemLite } from "@/lib/present/slide-state";
-export function DiscussionSlide(_: { palette: Palette; item: AgendaItemLite; index: number; total: number; meetingTitle: string }) {
+export function DiscussionSlide(_: {
+  palette: Palette;
+  item: AgendaItemLite;
+  index: number;
+  total: number;
+  meetingTitle: string;
+}) {
   return <div>DiscussionSlide stub</div>;
 }
 ```
 
 `components/present/slides/prompt-slide.tsx`:
+
 ```tsx
 "use client";
 import type { Palette } from "@/lib/present/palettes";
 import type { AgendaItemLite, PromptLite } from "@/lib/present/slide-state";
-export function PromptSlide(_: { palette: Palette; item: AgendaItemLite; prompt: PromptLite; state: "open" | "closed"; index: number; total: number; meetingTitle: string; meetingId: string }) {
+export function PromptSlide(_: {
+  palette: Palette;
+  item: AgendaItemLite;
+  prompt: PromptLite;
+  state: "open" | "closed";
+  index: number;
+  total: number;
+  meetingTitle: string;
+  meetingId: string;
+}) {
   return <div>PromptSlide stub</div>;
 }
 ```
 
 `components/present/slides/picker-slide.tsx`:
+
 ```tsx
 "use client";
 import type { Palette } from "@/lib/present/palettes";
 import type { AgendaItemLite } from "@/lib/present/slide-state";
-export function PickerSlide(_: { palette: Palette; item: AgendaItemLite; state: "oneshot-idle" | "oneshot-revealed" | "shuffle-idle" | "shuffle-revealed"; index: number; total: number; meetingTitle: string; meetingId: string }) {
+export function PickerSlide(_: {
+  palette: Palette;
+  item: AgendaItemLite;
+  state:
+    "oneshot-idle" | "oneshot-revealed" | "shuffle-idle" | "shuffle-revealed";
+  index: number;
+  total: number;
+  meetingTitle: string;
+  meetingId: string;
+}) {
   return <div>PickerSlide stub</div>;
 }
 ```
 
 `components/present/slides/curtain-slide.tsx`:
+
 ```tsx
 "use client";
 import type { Palette } from "@/lib/present/palettes";
-export function CurtainSlide(_: { palette: Palette; meetingId: string; meetingTitle: string }) {
+export function CurtainSlide(_: {
+  palette: Palette;
+  meetingId: string;
+  meetingTitle: string;
+}) {
   return <div>CurtainSlide stub</div>;
 }
 ```
 
 `components/present/present-rail.tsx`:
+
 ```tsx
 "use client";
 import type { Palette } from "@/lib/present/palettes";
 import type { PresentComment } from "@/components/present/present-shell";
-export function PresentRail(_: { palette: Palette; viewerId: string; meetingId: string; currentAgendaItemId: string | null; comments: PresentComment[]; reactionsByComment: Record<string, { emoji: string; user_id: string }[]> }) {
-  return <aside style={{ width: 320, background: "white", color: "black" }}>PresentRail stub</aside>;
+export function PresentRail(_: {
+  palette: Palette;
+  viewerId: string;
+  meetingId: string;
+  currentAgendaItemId: string | null;
+  comments: PresentComment[];
+  reactionsByComment: Record<string, { emoji: string; user_id: string }[]>;
+}) {
+  return (
+    <aside style={{ width: 320, background: "white", color: "black" }}>
+      PresentRail stub
+    </aside>
+  );
 }
 ```
 
@@ -1432,7 +1633,14 @@ Overwrite `components/present/present-shell.tsx`:
 ```tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { advanceMeetingAgenda, endMeeting } from "@/lib/actions/meeting";
@@ -1441,7 +1649,12 @@ import {
   type AgendaItemLite,
   type PromptLite,
 } from "@/lib/present/slide-state";
-import { paletteForOrdinal, standbyPalette, curtainPalette, type Palette } from "@/lib/present/palettes";
+import {
+  paletteForOrdinal,
+  standbyPalette,
+  curtainPalette,
+  type Palette,
+} from "@/lib/present/palettes";
 import { StandbySlide } from "@/components/present/slides/standby-slide";
 import { DiscussionSlide } from "@/components/present/slides/discussion-slide";
 import { PromptSlide } from "@/components/present/slides/prompt-slide";
@@ -1470,7 +1683,10 @@ export type PresentShellProps = {
   initialItems: AgendaItemLite[];
   initialPromptsById: Record<string, PromptLite>;
   initialComments: PresentComment[];
-  initialReactionsByComment: Record<string, { emoji: string; user_id: string }[]>;
+  initialReactionsByComment: Record<
+    string,
+    { emoji: string; user_id: string }[]
+  >;
 };
 
 export function PresentShell(props: PresentShellProps) {
@@ -1479,7 +1695,9 @@ export function PresentShell(props: PresentShellProps) {
   const [items, setItems] = useState(props.initialItems);
   const [promptsById, setPromptsById] = useState(props.initialPromptsById);
   const [comments, setComments] = useState(props.initialComments);
-  const [reactionsByComment, setReactionsByComment] = useState(props.initialReactionsByComment);
+  const [reactionsByComment, setReactionsByComment] = useState(
+    props.initialReactionsByComment,
+  );
   const [_pending, start] = useTransition();
   const shellRef = useRef<HTMLDivElement | null>(null);
 
@@ -1497,14 +1715,18 @@ export function PresentShell(props: PresentShellProps) {
     const s = createSupabaseBrowserClient();
     const { data } = await s
       .from("agenda_items")
-      .select("id,ordinal,title,kind,prompt_id,picker_config,picker_result,timer_ends_at")
+      .select(
+        "id,ordinal,title,kind,prompt_id,picker_config,picker_result,timer_ends_at",
+      )
       .eq("meeting_id", props.meetingId)
       .order("ordinal", { ascending: true });
     if (data) setItems(data as AgendaItemLite[]);
   }, [props.meetingId]);
 
   const refreshPrompts = useCallback(async () => {
-    const promptIds = items.filter((i) => i.prompt_id).map((i) => i.prompt_id as string);
+    const promptIds = items
+      .filter((i) => i.prompt_id)
+      .map((i) => i.prompt_id as string);
     if (promptIds.length === 0) return;
     const s = createSupabaseBrowserClient();
     const { data } = await s
@@ -1512,7 +1734,9 @@ export function PresentShell(props: PresentShellProps) {
       .select("id,is_open,question,response_type,options,rating_min,rating_max")
       .in("id", promptIds);
     if (data) {
-      setPromptsById(Object.fromEntries((data as PromptLite[]).map((p) => [p.id, p])));
+      setPromptsById(
+        Object.fromEntries((data as PromptLite[]).map((p) => [p.id, p])),
+      );
     }
   }, [items]);
 
@@ -1523,13 +1747,26 @@ export function PresentShell(props: PresentShellProps) {
       .channel(`meeting:${props.meetingId}`)
       .on(
         "postgres_changes" as never,
-        { event: "UPDATE", schema: "public", table: "meetings", filter: `id=eq.${props.meetingId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "meetings",
+          filter: `id=eq.${props.meetingId}`,
+        },
         () => refreshMeeting(),
       )
       .on(
         "postgres_changes" as never,
-        { event: "*", schema: "public", table: "agenda_items", filter: `meeting_id=eq.${props.meetingId}` },
-        () => { refreshItems(); refreshPrompts(); },
+        {
+          event: "*",
+          schema: "public",
+          table: "agenda_items",
+          filter: `meeting_id=eq.${props.meetingId}`,
+        },
+        () => {
+          refreshItems();
+          refreshPrompts();
+        },
       )
       .on(
         "postgres_changes" as never,
@@ -1537,7 +1774,9 @@ export function PresentShell(props: PresentShellProps) {
         () => refreshPrompts(),
       )
       .subscribe();
-    return () => { s.removeChannel(ch); };
+    return () => {
+      s.removeChannel(ch);
+    };
   }, [props.meetingId, refreshMeeting, refreshItems, refreshPrompts]);
 
   // comments + reactions channel
@@ -1546,7 +1785,9 @@ export function PresentShell(props: PresentShellProps) {
     const refreshComments = async () => {
       const { data } = await s
         .from("meeting_comments")
-        .select("id,agenda_item_id,author_user_id,body,created_at,deleted_at, profiles:profiles!meeting_comments_author_user_id_fkey(display_name)")
+        .select(
+          "id,agenda_item_id,author_user_id,body,created_at,deleted_at, profiles:profiles!meeting_comments_author_user_id_fkey(display_name)",
+        )
         .eq("meeting_id", props.meetingId)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -1558,7 +1799,8 @@ export function PresentShell(props: PresentShellProps) {
             agenda_item_id: c.agenda_item_id as string | null,
             author_user_id: c.author_user_id as string,
             author_name:
-              (c as unknown as { profiles: { display_name: string } | null }).profiles?.display_name ?? "?",
+              (c as unknown as { profiles: { display_name: string } | null })
+                .profiles?.display_name ?? "?",
             body: c.body as string,
             created_at: c.created_at as string,
           })),
@@ -1576,16 +1818,34 @@ export function PresentShell(props: PresentShellProps) {
       const grouped: Record<string, { emoji: string; user_id: string }[]> = {};
       for (const r of rx ?? []) {
         const cid = r.comment_id as string;
-        (grouped[cid] ??= []).push({ emoji: r.emoji as string, user_id: r.user_id as string });
+        (grouped[cid] ??= []).push({
+          emoji: r.emoji as string,
+          user_id: r.user_id as string,
+        });
       }
       setReactionsByComment(grouped);
     };
     const ch = s
       .channel(`meeting-comments:${props.meetingId}`)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comments", filter: `meeting_id=eq.${props.meetingId}` }, refreshComments)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comment_reactions" }, refreshComments)
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "*",
+          schema: "public",
+          table: "meeting_comments",
+          filter: `meeting_id=eq.${props.meetingId}`,
+        },
+        refreshComments,
+      )
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "meeting_comment_reactions" },
+        refreshComments,
+      )
       .subscribe();
-    return () => { s.removeChannel(ch); };
+    return () => {
+      s.removeChannel(ch);
+    };
   }, [props.meetingId]);
 
   const slideState = useMemo(
@@ -1595,13 +1855,17 @@ export function PresentShell(props: PresentShellProps) {
 
   // "not-live" means the guard was raced. Send back.
   useEffect(() => {
-    if (slideState.kind === "not-live") router.replace(`/meetings/${props.meetingId}`);
+    if (slideState.kind === "not-live")
+      router.replace(`/meetings/${props.meetingId}`);
   }, [slideState, router, props.meetingId]);
 
   const advance = useCallback(
     (itemId: string | null) => {
       start(async () => {
-        await advanceMeetingAgenda({ meeting_id: props.meetingId, item_id: itemId });
+        await advanceMeetingAgenda({
+          meeting_id: props.meetingId,
+          item_id: itemId,
+        });
       });
     },
     [props.meetingId],
@@ -1625,7 +1889,8 @@ export function PresentShell(props: PresentShellProps) {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName.toLowerCase();
-      const editable = tag === "input" || tag === "textarea" || target?.isContentEditable;
+      const editable =
+        tag === "input" || tag === "textarea" || target?.isContentEditable;
       if (e.key === "Escape") {
         router.push(`/meetings/${props.meetingId}`);
         return;
@@ -1651,7 +1916,9 @@ export function PresentShell(props: PresentShellProps) {
           : standbyPalette;
 
   const total = items.length;
-  const index = currentItem ? items.findIndex((i) => i.id === currentItem.id) + 1 : 0;
+  const index = currentItem
+    ? items.findIndex((i) => i.id === currentItem.id) + 1
+    : 0;
 
   return (
     <div
@@ -1680,7 +1947,8 @@ export function PresentShell(props: PresentShellProps) {
             meetingTitle={props.meetingTitle}
           />
         )}
-        {(slideState.kind === "prompt-open" || slideState.kind === "prompt-closed") && (
+        {(slideState.kind === "prompt-open" ||
+          slideState.kind === "prompt-closed") && (
           <PromptSlide
             palette={palette}
             item={slideState.item}
@@ -1700,10 +1968,13 @@ export function PresentShell(props: PresentShellProps) {
             palette={palette}
             item={slideState.item}
             state={
-              slideState.kind === "picker-oneshot-idle" ? "oneshot-idle"
-              : slideState.kind === "picker-oneshot-revealed" ? "oneshot-revealed"
-              : slideState.kind === "picker-shuffle-idle" ? "shuffle-idle"
-              : "shuffle-revealed"
+              slideState.kind === "picker-oneshot-idle"
+                ? "oneshot-idle"
+                : slideState.kind === "picker-oneshot-revealed"
+                  ? "oneshot-revealed"
+                  : slideState.kind === "picker-shuffle-idle"
+                    ? "shuffle-idle"
+                    : "shuffle-revealed"
             }
             index={index}
             total={total}
@@ -1756,9 +2027,11 @@ git commit -m "feat(present): shell with realtime + keyboard + slide selection"
 ### Task 12: StandbySlide
 
 **Files:**
+
 - Modify: `components/present/slides/standby-slide.tsx`
 
 **Interfaces:**
+
 - Consumes: `Palette`, items list (id, ordinal, kind, title)
 - Produces: `<StandbySlide />` rendered when meeting is live with no current item and `has_started === false`. Big "Ready when you are" headline, agenda preview list, Start Agenda button.
 
@@ -1789,7 +2062,10 @@ export function StandbySlide({
   const startAgenda = useCallback(() => {
     if (items.length === 0) return;
     start(async () => {
-      await advanceMeetingAgenda({ meeting_id: meetingId, item_id: items[0].id });
+      await advanceMeetingAgenda({
+        meeting_id: meetingId,
+        item_id: items[0].id,
+      });
     });
   }, [items, meetingId]);
 
@@ -1810,12 +2086,17 @@ export function StandbySlide({
       </header>
 
       <div className="flex-1 flex flex-col justify-center max-w-3xl">
-        <h1 className="font-display font-black leading-none tracking-tight" style={{ fontSize: 64 }}>
+        <h1
+          className="font-display font-black leading-none tracking-tight"
+          style={{ fontSize: 64 }}
+        >
           Ready when you are
         </h1>
         <ul className="mt-8 space-y-2">
           {items.length === 0 && (
-            <li className="opacity-70">No agenda items yet — add some from the meeting page.</li>
+            <li className="opacity-70">
+              No agenda items yet — add some from the meeting page.
+            </li>
           )}
           {items.map((it) => (
             <li
@@ -1836,11 +2117,17 @@ export function StandbySlide({
       </div>
 
       <footer className="flex items-end justify-between">
-        <span className="opacity-70 text-xs">Press Esc to exit · → or Space to advance</span>
+        <span className="opacity-70 text-xs">
+          Press Esc to exit · → or Space to advance
+        </span>
         <button
           type="button"
           className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-          style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+          style={{
+            background: palette.accent,
+            color: palette.accentInk,
+            borderColor: palette.accentInk,
+          }}
           onClick={startAgenda}
           disabled={pending || items.length === 0}
         >
@@ -1872,9 +2159,11 @@ git commit -m "feat(present): standby slide with agenda preview + start button"
 ### Task 13: DiscussionSlide
 
 **Files:**
+
 - Modify: `components/present/slides/discussion-slide.tsx`
 
 **Interfaces:**
+
 - Consumes: `Palette`, `AgendaItemLite`, index/total counters, meeting title
 - Produces: full-bleed slide with big title, kind chip, "Next item →" button.
 
@@ -1918,18 +2207,27 @@ export function DiscussionSlide({
   return (
     <div className="flex h-full flex-col p-10">
       <header className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
-        <span>Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}</span>
+        <span>
+          Item {String(index).padStart(2, "0")} of{" "}
+          {String(total).padStart(2, "0")} · {meetingTitle}
+        </span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
           style={{ borderColor: palette.ink }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
           Discussion
         </span>
       </header>
 
       <div className="flex-1 flex items-center">
-        <h1 className="font-display font-black leading-none tracking-tight" style={{ fontSize: 88 }}>
+        <h1
+          className="font-display font-black leading-none tracking-tight"
+          style={{ fontSize: 88 }}
+        >
           {item.title}
         </h1>
       </div>
@@ -1944,12 +2242,24 @@ export function DiscussionSlide({
   );
 }
 
-function NextButton({ palette, disabled, onClick }: { palette: Palette; disabled?: boolean; onClick: () => void }) {
+function NextButton({
+  palette,
+  disabled,
+  onClick,
+}: {
+  palette: Palette;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-      style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+      style={{
+        background: palette.accent,
+        color: palette.accentInk,
+        borderColor: palette.accentInk,
+      }}
       onClick={onClick}
       disabled={disabled}
     >
@@ -1999,10 +2309,12 @@ git commit -m "feat(present): discussion slide + wire next callback"
 ### Task 14: PromptSlide (open + closed) + inline responses tally
 
 **Files:**
+
 - Modify: `components/present/slides/prompt-slide.tsx`
 - Create: `components/present/slides/prompt-responses-inline.tsx`
 
 **Interfaces:**
+
 - Consumes: `Palette`, `AgendaItemLite`, `PromptLite` (extended with `question`, `response_type`, `options`, `rating_min`, `rating_max`), `startPromptTimer`, `expirePromptTimer`
 - Produces:
   - `<PromptSlide />` with an `open` and `closed` visual state
@@ -2017,7 +2329,8 @@ export type PromptLite = {
   id: string;
   is_open: boolean;
   question?: string;
-  response_type?: "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
+  response_type?:
+    "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
   options?: unknown;
   rating_min?: number | null;
   rating_max?: number | null;
@@ -2038,7 +2351,8 @@ import type { Palette } from "@/lib/present/palettes";
 type Props = {
   palette: Palette;
   promptId: string;
-  responseType: "text" | "single_choice" | "multi_choice" | "yes_no" | "rating" | undefined;
+  responseType:
+    "text" | "single_choice" | "multi_choice" | "yes_no" | "rating" | undefined;
   options: unknown;
   ratingMin?: number | null;
   ratingMax?: number | null;
@@ -2046,7 +2360,14 @@ type Props = {
 
 type ChoiceOption = { id: string; label: string };
 
-export function PromptResponsesInline({ palette, promptId, responseType, options, ratingMin, ratingMax }: Props) {
+export function PromptResponsesInline({
+  palette,
+  promptId,
+  responseType,
+  options,
+  ratingMin,
+  ratingMax,
+}: Props) {
   const [rows, setRows] = useState<{ response: unknown }[]>([]);
   const [total, setTotal] = useState(0);
 
@@ -2054,8 +2375,14 @@ export function PromptResponsesInline({ palette, promptId, responseType, options
     const load = async () => {
       const s = createSupabaseBrowserClient();
       const [{ data: attr }, { data: anon }] = await Promise.all([
-        s.from("responses_attributed").select("response").eq("prompt_id", promptId),
-        s.from("responses_anonymous").select("response").eq("prompt_id", promptId),
+        s
+          .from("responses_attributed")
+          .select("response")
+          .eq("prompt_id", promptId),
+        s
+          .from("responses_anonymous")
+          .select("response")
+          .eq("prompt_id", promptId),
       ]);
       const all = [...(attr ?? []), ...(anon ?? [])] as { response: unknown }[];
       setRows(all);
@@ -2069,7 +2396,10 @@ export function PromptResponsesInline({ palette, promptId, responseType, options
       const opts = (Array.isArray(options) ? options : []) as ChoiceOption[];
       const counts = new Map<string, number>();
       for (const r of rows) {
-        const val = r.response as { choice_ids?: string[]; choice_id?: string } | null;
+        const val = r.response as {
+          choice_ids?: string[];
+          choice_id?: string;
+        } | null;
         if (!val) continue;
         const ids = val.choice_ids ?? (val.choice_id ? [val.choice_id] : []);
         for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
@@ -2080,13 +2410,17 @@ export function PromptResponsesInline({ palette, promptId, responseType, options
         .slice(0, 6);
     }
     if (responseType === "yes_no") {
-      let y = 0, n = 0;
+      let y = 0,
+        n = 0;
       for (const r of rows) {
         const val = r.response as { yes?: boolean } | null;
         if (val?.yes === true) y++;
         else if (val?.yes === false) n++;
       }
-      return [{ label: "Yes", count: y }, { label: "No", count: n }];
+      return [
+        { label: "Yes", count: y },
+        { label: "No", count: n },
+      ];
     }
     return [];
   }, [rows, options, responseType]);
@@ -2094,7 +2428,8 @@ export function PromptResponsesInline({ palette, promptId, responseType, options
   if (responseType === "text") {
     return (
       <p className="text-2xl font-extrabold opacity-90">
-        {total} response{total === 1 ? "" : "s"} · open the poll page to read them
+        {total} response{total === 1 ? "" : "s"} · open the poll page to read
+        them
       </p>
     );
   }
@@ -2105,7 +2440,9 @@ export function PromptResponsesInline({ palette, promptId, responseType, options
       const val = r.response as { value?: number } | null;
       if (typeof val?.value === "number") values.push(val.value);
     }
-    const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+    const avg = values.length
+      ? values.reduce((a, b) => a + b, 0) / values.length
+      : 0;
     const min = ratingMin ?? 1;
     const max = ratingMax ?? 10;
     const buckets = new Array(max - min + 1).fill(0);
@@ -2114,13 +2451,30 @@ export function PromptResponsesInline({ palette, promptId, responseType, options
     return (
       <div className="flex items-end gap-6">
         <div>
-          <div className="text-xs uppercase tracking-widest opacity-70 font-extrabold">Average</div>
-          <div className="font-display font-black leading-none" style={{ fontSize: 72 }}>{avg.toFixed(1)}</div>
-          <div className="text-xs opacity-70">{values.length} rating{values.length === 1 ? "" : "s"}</div>
+          <div className="text-xs uppercase tracking-widest opacity-70 font-extrabold">
+            Average
+          </div>
+          <div
+            className="font-display font-black leading-none"
+            style={{ fontSize: 72 }}
+          >
+            {avg.toFixed(1)}
+          </div>
+          <div className="text-xs opacity-70">
+            {values.length} rating{values.length === 1 ? "" : "s"}
+          </div>
         </div>
         <div className="flex items-end gap-1" style={{ height: 96 }}>
           {buckets.map((count, i) => (
-            <div key={i} className="w-4 rounded-t" title={`${min + i}: ${count}`} style={{ background: palette.accent, height: `${(count / bMax) * 100}%` }} />
+            <div
+              key={i}
+              className="w-4 rounded-t"
+              title={`${min + i}: ${count}`}
+              style={{
+                background: palette.accent,
+                height: `${(count / bMax) * 100}%`,
+              }}
+            />
           ))}
         </div>
       </div>
@@ -2137,13 +2491,28 @@ export function PromptResponsesInline({ palette, promptId, responseType, options
       {bars.map((b) => {
         const pct = total > 0 ? Math.round((b.count / total) * 100) : 0;
         return (
-          <li key={b.label} className="rounded-xl border-2 px-4 py-2" style={{ borderColor: palette.ink }}>
+          <li
+            key={b.label}
+            className="rounded-xl border-2 px-4 py-2"
+            style={{ borderColor: palette.ink }}
+          >
             <div className="flex justify-between text-sm font-extrabold">
               <span>{b.label}</span>
-              <span>{b.count} · {pct}%</span>
+              <span>
+                {b.count} · {pct}%
+              </span>
             </div>
-            <div className="mt-1 h-2 w-full rounded" style={{ background: `${palette.ink}22` }}>
-              <div className="h-full rounded" style={{ background: palette.accent, width: `${(b.count / barMax) * 100}%` }} />
+            <div
+              className="mt-1 h-2 w-full rounded"
+              style={{ background: `${palette.ink}22` }}
+            >
+              <div
+                className="h-full rounded"
+                style={{
+                  background: palette.accent,
+                  width: `${(b.count / barMax) * 100}%`,
+                }}
+              />
             </div>
           </li>
         );
@@ -2158,10 +2527,19 @@ export function PromptResponsesInline({ palette, promptId, responseType, options
 ```tsx
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import type { Palette } from "@/lib/present/palettes";
 import type { AgendaItemLite, PromptLite } from "@/lib/present/slide-state";
-import { startPromptTimer, expirePromptTimer } from "@/lib/actions/prompt-timer";
+import {
+  startPromptTimer,
+  expirePromptTimer,
+} from "@/lib/actions/prompt-timer";
 import { PromptResponsesInline } from "@/components/present/slides/prompt-responses-inline";
 
 const DURATIONS = [30, 60, 120, 300] as const;
@@ -2202,7 +2580,9 @@ export function PromptSlide({
     return () => clearInterval(id);
   }, [state, item.timer_ends_at]);
 
-  const ends = item.timer_ends_at ? new Date(item.timer_ends_at).getTime() : null;
+  const ends = item.timer_ends_at
+    ? new Date(item.timer_ends_at).getTime()
+    : null;
   const remaining = ends != null ? ends - now : null;
   const expired = ends != null && ends <= now;
 
@@ -2233,31 +2613,49 @@ export function PromptSlide({
   return (
     <div className="flex h-full flex-col p-10">
       <header className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
-        <span>Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}</span>
+        <span>
+          Item {String(index).padStart(2, "0")} of{" "}
+          {String(total).padStart(2, "0")} · {meetingTitle}
+        </span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
           style={{ borderColor: palette.ink }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
           Prompt · {state}
         </span>
       </header>
 
       {state === "open" ? (
         <div className="flex-1 flex items-center gap-10">
-          <h1 className="flex-1 font-display font-black leading-none tracking-tight" style={{ fontSize: 72 }}>
+          <h1
+            className="flex-1 font-display font-black leading-none tracking-tight"
+            style={{ fontSize: 72 }}
+          >
             {questionText}
           </h1>
           <div
             className="grid place-items-center rounded-full border-8 font-black tracking-tight"
-            style={{ width: 128, height: 128, borderColor: palette.accent, fontSize: 32, color: palette.accent }}
+            style={{
+              width: 128,
+              height: 128,
+              borderColor: palette.accent,
+              fontSize: 32,
+              color: palette.accent,
+            }}
           >
             {remaining != null ? fmtRemaining(remaining) : "--:--"}
           </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col gap-8">
-          <h1 className="font-display font-black leading-tight tracking-tight" style={{ fontSize: 48 }}>
+          <h1
+            className="font-display font-black leading-tight tracking-tight"
+            style={{ fontSize: 48 }}
+          >
             {questionText}
           </h1>
           <PromptResponsesInline
@@ -2293,7 +2691,11 @@ export function PromptSlide({
               disabled={pending}
               onClick={closeNow}
               className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-              style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+              style={{
+                background: palette.accent,
+                color: palette.accentInk,
+                borderColor: palette.accentInk,
+              }}
             >
               Close now
             </button>
@@ -2308,7 +2710,11 @@ export function PromptSlide({
               disabled={pending}
               onClick={onNext}
               className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-              style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+              style={{
+                background: palette.accent,
+                color: palette.accentInk,
+                borderColor: palette.accentInk,
+              }}
             >
               Next item →
             </button>
@@ -2351,10 +2757,12 @@ git commit -m "feat(present): prompt slide (open + closed) with inline tally"
 ### Task 15: PickerSlide (oneshot + shuffle) + NextUpCard
 
 **Files:**
+
 - Modify: `components/present/slides/picker-slide.tsx`
 - Create: `components/present/next-up-card.tsx`
 
 **Interfaces:**
+
 - Consumes: `Palette`, `AgendaItemLite`, existing picker actions (`oneShotPick`, `startShuffle`, `setAgendaPickerResult`), existing `ShuffleRunner` semantics (we reimplement inline for present because ShuffleRunner isn't full-bleed), `Confetti` from Task 9
 - Produces: `<PickerSlide />` and `<NextUpCard />`. Handles all 4 sub-states.
 
@@ -2369,7 +2777,9 @@ export function NextUpCard({ name, color }: { name: string; color: string }) {
       className="absolute bottom-6 right-6 rounded-2xl border-[2.5px] bg-white/95 px-4 py-3 shadow-[4px_4px_0_rgba(0,0,0,0.8)]"
       style={{ borderColor: color, color: "#111" }}
     >
-      <div className="text-[10px] uppercase tracking-widest font-extrabold opacity-70">Up next</div>
+      <div className="text-[10px] uppercase tracking-widest font-extrabold opacity-70">
+        Up next
+      </div>
       <div className="text-base font-black leading-tight">{name}</div>
     </div>
   );
@@ -2397,7 +2807,11 @@ type Roster = { id: string; display_name: string };
 
 async function fetchName(id: string): Promise<string> {
   const s = createSupabaseBrowserClient();
-  const { data } = await s.from("profiles").select("display_name").eq("id", id).single();
+  const { data } = await s
+    .from("profiles")
+    .select("display_name")
+    .eq("id", id)
+    .single();
   return (data?.display_name as string) ?? "?";
 }
 
@@ -2413,7 +2827,8 @@ export function PickerSlide({
 }: {
   palette: Palette;
   item: AgendaItemLite;
-  state: "oneshot-idle" | "oneshot-revealed" | "shuffle-idle" | "shuffle-revealed";
+  state:
+    "oneshot-idle" | "oneshot-revealed" | "shuffle-idle" | "shuffle-revealed";
   index: number;
   total: number;
   meetingTitle: string;
@@ -2423,12 +2838,17 @@ export function PickerSlide({
   const [pending, start] = useTransition();
 
   const oneshotUserId =
-    item.picker_result && typeof item.picker_result === "object" && "user_id" in item.picker_result
-      ? ((item.picker_result as { user_id: string }).user_id)
+    item.picker_result &&
+    typeof item.picker_result === "object" &&
+    "user_id" in item.picker_result
+      ? (item.picker_result as { user_id: string }).user_id
       : null;
   const shuffleSessionId =
-    item.picker_result && typeof item.picker_result === "object" && "shuffle_session_id" in item.picker_result
-      ? ((item.picker_result as { shuffle_session_id: string }).shuffle_session_id)
+    item.picker_result &&
+    typeof item.picker_result === "object" &&
+    "shuffle_session_id" in item.picker_result
+      ? (item.picker_result as { shuffle_session_id: string })
+          .shuffle_session_id
       : null;
 
   const [pickName, setPickName] = useState<string | null>(null);
@@ -2486,11 +2906,18 @@ export function PickerSlide({
       .channel(`shuffle:${shuffleSessionId}`)
       .on(
         "postgres_changes" as never,
-        { event: "UPDATE", schema: "public", table: "shuffle_sessions", filter: `id=eq.${shuffleSessionId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "shuffle_sessions",
+          filter: `id=eq.${shuffleSessionId}`,
+        },
         load,
       )
       .subscribe();
-    return () => { s.removeChannel(ch); };
+    return () => {
+      s.removeChannel(ch);
+    };
   }, [shuffleSessionId]);
 
   const advanceShuffle = useCallback(() => {
@@ -2514,12 +2941,18 @@ export function PickerSlide({
       <Confetti trigger={oneshotUserId ?? shuffleState?.current?.id ?? null} />
 
       <header className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
-        <span>Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}</span>
+        <span>
+          Item {String(index).padStart(2, "0")} of{" "}
+          {String(total).padStart(2, "0")} · {meetingTitle}
+        </span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
           style={{ borderColor: palette.ink }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
           Picker · {state.startsWith("oneshot") ? "oneshot" : "shuffle"}
         </span>
       </header>
@@ -2531,7 +2964,11 @@ export function PickerSlide({
             disabled={pending}
             onClick={doOneShot}
             className="rounded-2xl border-2 px-8 py-5 font-black text-2xl shadow-[6px_6px_0_rgba(0,0,0,0.7)] disabled:opacity-60"
-            style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+            style={{
+              background: palette.accent,
+              color: palette.accentInk,
+              borderColor: palette.accentInk,
+            }}
           >
             {pending ? "…" : "Pick"}
           </button>
@@ -2541,8 +2978,13 @@ export function PickerSlide({
             className="rounded-2xl border-[3px] bg-white/95 px-8 py-6 text-center shadow-[4px_4px_0_rgba(0,0,0,0.8)]"
             style={{ borderColor: "#111", color: "#111" }}
           >
-            <div className="text-xs uppercase tracking-widest font-extrabold opacity-70">Now presenting</div>
-            <div className="font-black tracking-tight leading-none mt-1" style={{ fontSize: 64 }}>
+            <div className="text-xs uppercase tracking-widest font-extrabold opacity-70">
+              Now presenting
+            </div>
+            <div
+              className="font-black tracking-tight leading-none mt-1"
+              style={{ fontSize: 64 }}
+            >
               {pickName ?? "…"}
             </div>
           </div>
@@ -2553,7 +2995,11 @@ export function PickerSlide({
             disabled={pending}
             onClick={doStartShuffle}
             className="rounded-2xl border-2 px-8 py-5 font-black text-2xl shadow-[6px_6px_0_rgba(0,0,0,0.7)] disabled:opacity-60"
-            style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+            style={{
+              background: palette.accent,
+              color: palette.accentInk,
+              borderColor: palette.accentInk,
+            }}
           >
             {pending ? "…" : "Start shuffle"}
           </button>
@@ -2564,9 +3010,14 @@ export function PickerSlide({
             style={{ borderColor: "#111", color: "#111" }}
           >
             <div className="text-xs uppercase tracking-widest font-extrabold opacity-70">
-              {shuffleState.finished ? "Done" : `Round ${shuffleState.round} of ${shuffleState.outOf}`}
+              {shuffleState.finished
+                ? "Done"
+                : `Round ${shuffleState.round} of ${shuffleState.outOf}`}
             </div>
-            <div className="font-black tracking-tight leading-none mt-1" style={{ fontSize: 56 }}>
+            <div
+              className="font-black tracking-tight leading-none mt-1"
+              style={{ fontSize: 56 }}
+            >
               {shuffleState.current?.display_name ?? "?"}
             </div>
           </div>
@@ -2576,7 +3027,9 @@ export function PickerSlide({
       <footer className="flex items-end justify-between">
         <span className="text-xs font-extrabold uppercase tracking-widest opacity-80">
           {state === "shuffle-revealed" && shuffleState
-            ? shuffleState.finished ? "Everyone's had a turn" : `Round ${shuffleState.round} of ${shuffleState.outOf}`
+            ? shuffleState.finished
+              ? "Everyone's had a turn"
+              : `Round ${shuffleState.round} of ${shuffleState.outOf}`
             : ""}
         </span>
         {state === "oneshot-revealed" && (
@@ -2594,29 +3047,43 @@ export function PickerSlide({
               type="button"
               onClick={onNext}
               className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)]"
-              style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+              style={{
+                background: palette.accent,
+                color: palette.accentInk,
+                borderColor: palette.accentInk,
+              }}
             >
               Next item →
             </button>
           </div>
         )}
-        {state === "shuffle-revealed" && shuffleState && !shuffleState.finished && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={advanceShuffle}
-            className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)]"
-            style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
-          >
-            Next person →
-          </button>
-        )}
+        {state === "shuffle-revealed" &&
+          shuffleState &&
+          !shuffleState.finished && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={advanceShuffle}
+              className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)]"
+              style={{
+                background: palette.accent,
+                color: palette.accentInk,
+                borderColor: palette.accentInk,
+              }}
+            >
+              Next person →
+            </button>
+          )}
         {state === "shuffle-revealed" && shuffleState?.finished && (
           <button
             type="button"
             onClick={onNext}
             className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)]"
-            style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+            style={{
+              background: palette.accent,
+              color: palette.accentInk,
+              borderColor: palette.accentInk,
+            }}
           >
             Next item →
           </button>
@@ -2657,9 +3124,11 @@ git commit -m "feat(present): picker slide (oneshot + shuffle) with confetti and
 ### Task 16: CurtainSlide
 
 **Files:**
+
 - Modify: `components/present/slides/curtain-slide.tsx`
 
 **Interfaces:**
+
 - Consumes: `Palette`, `pickJoke`, existing `endMeeting`
 - Produces: gradient slide with a joke + End meeting button that redirects to detail page on success.
 
@@ -2702,7 +3171,10 @@ export function CurtainSlide({
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
           style={{ borderColor: palette.ink }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
           End
         </span>
       </header>
@@ -2722,7 +3194,11 @@ export function CurtainSlide({
           disabled={pending}
           onClick={onEnd}
           className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-          style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+          style={{
+            background: palette.accent,
+            color: palette.accentInk,
+            borderColor: palette.accentInk,
+          }}
         >
           End meeting
         </button>
@@ -2754,9 +3230,11 @@ git commit -m "feat(present): curtain slide with joke and end button"
 ### Task 17: PresentRail — real feed + composer + reactions + delete
 
 **Files:**
+
 - Modify: `components/present/present-rail.tsx` (replace stub)
 
 **Interfaces:**
+
 - Consumes: `postComment`, `deleteMyComment`, `toggleReaction`
 - Produces: real rail — chronological feed (newest first), composer at the bottom, hover-to-react and delete-own affordances.
 
@@ -2768,7 +3246,11 @@ git commit -m "feat(present): curtain slide with joke and end button"
 import { useCallback, useMemo, useState, useTransition } from "react";
 import type { Palette } from "@/lib/present/palettes";
 import type { PresentComment } from "@/components/present/present-shell";
-import { postComment, deleteMyComment, toggleReaction } from "@/lib/actions/comment";
+import {
+  postComment,
+  deleteMyComment,
+  toggleReaction,
+} from "@/lib/actions/comment";
 
 const EMOJIS = ["👍", "❤️", "😂", "🔥"] as const;
 
@@ -2824,7 +3306,10 @@ export function PresentRail({
       </ol>
       <form
         className="border-t-2 border-dashed border-black/40 p-3 flex gap-2"
-        onSubmit={(e) => { e.preventDefault(); submit(); }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
       >
         <input
           value={body}
@@ -2873,7 +3358,10 @@ function CommentRow({
   const toggle = useCallback(
     (emoji: string) => {
       start(async () => {
-        await toggleReaction({ comment_id: comment.id, emoji: emoji as "👍" | "❤️" | "😂" | "🔥" });
+        await toggleReaction({
+          comment_id: comment.id,
+          emoji: emoji as "👍" | "❤️" | "😂" | "🔥",
+        });
       });
     },
     [comment.id],
@@ -2964,9 +3452,11 @@ git commit -m "feat(present): rail with composer, reactions, delete-own"
 ### Task 18: MeetingCommentBox for the `@right` slot
 
 **Files:**
+
 - Create: `components/meetings/meeting-comment-box.tsx`
 
 **Interfaces:**
+
 - Consumes: `postComment`, `deleteMyComment`, `toggleReaction`, realtime channel
 - Produces: `<MeetingCommentBox meetingId viewerId currentAgendaItemId initialComments initialReactionsByComment />`. Live feed capped at 8 for hosts (with a "See all in Present →" link) and 20 for non-hosts, plus a composer.
 
@@ -2976,9 +3466,19 @@ git commit -m "feat(present): rail with composer, reactions, delete-own"
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { postComment, deleteMyComment, toggleReaction } from "@/lib/actions/comment";
+import {
+  postComment,
+  deleteMyComment,
+  toggleReaction,
+} from "@/lib/actions/comment";
 
 const EMOJIS = ["👍", "❤️", "😂", "🔥"] as const;
 
@@ -2998,9 +3498,16 @@ type Props = {
   currentAgendaItemId: string | null;
 };
 
-export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaItemId }: Props) {
+export function MeetingCommentBox({
+  meetingId,
+  viewerId,
+  isHost,
+  currentAgendaItemId,
+}: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
-  const [reactions, setReactions] = useState<Record<string, { emoji: string; user_id: string }[]>>({});
+  const [reactions, setReactions] = useState<
+    Record<string, { emoji: string; user_id: string }[]>
+  >({});
   const [body, setBody] = useState("");
   const [pending, start] = useTransition();
 
@@ -3009,7 +3516,9 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
     const cap = isHost ? 8 : 20;
     const { data } = await s
       .from("meeting_comments")
-      .select("id,agenda_item_id,author_user_id,body,created_at,deleted_at, profiles:profiles!meeting_comments_author_user_id_fkey(display_name)")
+      .select(
+        "id,agenda_item_id,author_user_id,body,created_at,deleted_at, profiles:profiles!meeting_comments_author_user_id_fkey(display_name)",
+      )
       .eq("meeting_id", meetingId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
@@ -3020,13 +3529,17 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
       agenda_item_id: c.agenda_item_id as string | null,
       author_user_id: c.author_user_id as string,
       author_name:
-        (c as unknown as { profiles: { display_name: string } | null }).profiles?.display_name ?? "?",
+        (c as unknown as { profiles: { display_name: string } | null }).profiles
+          ?.display_name ?? "?",
       body: c.body as string,
       created_at: c.created_at as string,
     }));
     setComments(rows);
     const ids = rows.map((r) => r.id);
-    if (ids.length === 0) { setReactions({}); return; }
+    if (ids.length === 0) {
+      setReactions({});
+      return;
+    }
     const { data: rx } = await s
       .from("meeting_comment_reactions")
       .select("comment_id,user_id,emoji")
@@ -3034,21 +3547,41 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
     const grouped: Record<string, { emoji: string; user_id: string }[]> = {};
     for (const r of rx ?? []) {
       const cid = r.comment_id as string;
-      (grouped[cid] ??= []).push({ emoji: r.emoji as string, user_id: r.user_id as string });
+      (grouped[cid] ??= []).push({
+        emoji: r.emoji as string,
+        user_id: r.user_id as string,
+      });
     }
     setReactions(grouped);
   }, [meetingId, isHost]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   useEffect(() => {
     const s = createSupabaseBrowserClient();
     const ch = s
       .channel(`meeting-comments:${meetingId}`)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comments", filter: `meeting_id=eq.${meetingId}` }, load)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comment_reactions" }, load)
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "*",
+          schema: "public",
+          table: "meeting_comments",
+          filter: `meeting_id=eq.${meetingId}`,
+        },
+        load,
+      )
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "meeting_comment_reactions" },
+        load,
+      )
       .subscribe();
-    return () => { s.removeChannel(ch); };
+    return () => {
+      s.removeChannel(ch);
+    };
   }, [meetingId, load]);
 
   const submit = useCallback(() => {
@@ -3084,12 +3617,20 @@ export function MeetingCommentBox({ meetingId, viewerId, isHost, currentAgendaIt
           <li className="text-sm text-ink-soft">No comments yet.</li>
         )}
         {comments.map((c) => (
-          <CommentRow key={c.id} c={c} viewerId={viewerId} reactions={reactions[c.id] ?? []} />
+          <CommentRow
+            key={c.id}
+            c={c}
+            viewerId={viewerId}
+            reactions={reactions[c.id] ?? []}
+          />
         ))}
       </ol>
       <form
         className="flex gap-2"
-        onSubmit={(e) => { e.preventDefault(); submit(); }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
       >
         <input
           value={body}
@@ -3131,12 +3672,14 @@ function CommentRow({
     return map;
   }, [reactions, viewerId]);
 
-  const toggle = (emoji: (typeof EMOJIS)[number]) => start(async () => {
-    await toggleReaction({ comment_id: c.id, emoji });
-  });
-  const remove = () => start(async () => {
-    await deleteMyComment({ comment_id: c.id });
-  });
+  const toggle = (emoji: (typeof EMOJIS)[number]) =>
+    start(async () => {
+      await toggleReaction({ comment_id: c.id, emoji });
+    });
+  const remove = () =>
+    start(async () => {
+      await deleteMyComment({ comment_id: c.id });
+    });
 
   return (
     <li className="rounded-xl border-2 border-ink/40 px-3 py-2 text-sm">
@@ -3146,7 +3689,13 @@ function CommentRow({
           <span>{c.body}</span>
         </div>
         {c.author_user_id === viewerId && (
-          <button type="button" onClick={remove} disabled={pending} aria-label="Delete comment" className="text-xs text-ink-soft hover:text-ink">
+          <button
+            type="button"
+            onClick={remove}
+            disabled={pending}
+            aria-label="Delete comment"
+            className="text-xs text-ink-soft hover:text-ink"
+          >
             ×
           </button>
         )}
@@ -3196,9 +3745,11 @@ git commit -m "feat(meetings): MeetingCommentBox for the right rail"
 ### Task 19: Wire `MeetingCommentBox` into the `@right` slot
 
 **Files:**
+
 - Modify: `app/(app)/@right/meetings/[id]/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `MeetingCommentBox` (Task 18), existing right-slot content
 - Produces: right slot renders the comment box below the existing content whenever the meeting is live.
 
@@ -3215,14 +3766,16 @@ At the end of the page component (as a sibling of whatever it currently renders)
 import { MeetingCommentBox } from "@/components/meetings/meeting-comment-box";
 
 // after existing content, inside the same wrapper element:
-{meeting.status === "live" && (
-  <MeetingCommentBox
-    meetingId={id}
-    viewerId={user.id}
-    isHost={meeting.host_user_id === user.id}
-    currentAgendaItemId={meeting.current_agenda_item_id}
-  />
-)}
+{
+  meeting.status === "live" && (
+    <MeetingCommentBox
+      meetingId={id}
+      viewerId={user.id}
+      isHost={meeting.host_user_id === user.id}
+      currentAgendaItemId={meeting.current_agenda_item_id}
+    />
+  );
+}
 ```
 
 If the current page component doesn't already fetch `meeting.status`, `meeting.host_user_id`, `meeting.current_agenda_item_id`, or the current user, add those fetches. Reuse the same pattern from `app/(app)/meetings/[id]/page.tsx`.
@@ -3249,9 +3802,11 @@ git commit -m "feat(meetings): show MeetingCommentBox in right slot when live"
 ### Task 20: **Present →** button in `MeetingHeaderActions`
 
 **Files:**
+
 - Modify: `components/meetings/meeting-header-actions.tsx`
 
 **Interfaces:**
+
 - Consumes: existing props (meetingId, status, scheduledStart)
 - Produces: additional button rendered only when `status === "live"` (component is already host-only in the parent). Uses `Link` to navigate to `/meetings/[id]/present`.
 
@@ -3269,15 +3824,17 @@ import { Button } from "@/components/ui/button";
 // ... existing imports
 
 // Inside the returned JSX, before other host-only buttons:
-{status === "live" && (
-  <Button
-    variant="default"
-    size="sm"
-    render={<Link href={`/meetings/${meetingId}/present` as never} />}
-  >
-    Present →
-  </Button>
-)}
+{
+  status === "live" && (
+    <Button
+      variant="default"
+      size="sm"
+      render={<Link href={`/meetings/${meetingId}/present` as never} />}
+    >
+      Present →
+    </Button>
+  );
+}
 ```
 
 If the existing file uses `<Link>` differently or a different Button API, match its conventions. Do NOT change other buttons.
@@ -3304,9 +3861,11 @@ git commit -m "feat(meetings): present entry button on live meetings"
 ### Task 21: Playwright e2e — guard behaviour
 
 **Files:**
+
 - Create: `e2e/present-mode.spec.ts`
 
 **Interfaces:**
+
 - Consumes: existing Playwright config (`playwright.config.ts`), existing auth pattern in `e2e/meetings.spec.ts`
 - Produces: two smoke tests — unauthenticated visit redirects to sign-in; the route mount does not crash when the meeting doesn't exist.
 
@@ -3356,6 +3915,7 @@ git commit -m "test(e2e): present route auth guard + skipped happy-path stub"
 ## Self-Review
 
 **Spec coverage (spec section → task):**
+
 - Architecture / Route & entry → Tasks 10, 11, 20
 - Client shell (realtime, keyboard, slide selection) → Task 11
 - Slide state derivation → Task 3

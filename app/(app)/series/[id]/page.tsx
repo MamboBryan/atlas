@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 import { CalendarUserIcon, MeetingRoomIcon } from "@hugeicons/core-free-icons";
 import { requireUser } from "@/lib/auth/require";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SeriesForm } from "@/components/series/series-form";
 import type { AgendaTemplateItem } from "@/lib/zod/series";
@@ -61,8 +66,7 @@ export default async function SeriesDetailPage({
     .select("role,is_active")
     .eq("id", user.id)
     .single();
-  const isAdmin =
-    !!me && me.is_active && me.role === "admin";
+  const isAdmin = !!me && me.is_active && me.role === "admin";
   const isOwner = series.owner_user_id === user.id;
   const canEdit = isAdmin || isOwner;
 
@@ -85,15 +89,12 @@ export default async function SeriesDetailPage({
         .select("id,display_name")
         .in(
           "id",
-          Array.from(
-            new Set([...series.rotation_order, series.owner_user_id]),
-          ),
+          Array.from(new Set([...series.rotation_order, series.owner_user_id])),
         ),
     ]);
 
   const upcoming = (upcomingRows ?? []) as MeetingRow[];
-  const rosterList =
-    (roster ?? []) as { id: string; display_name: string }[];
+  const rosterList = (roster ?? []) as { id: string; display_name: string }[];
   const nameById = new Map(
     ((owners ?? []) as { id: string; display_name: string }[]).map((r) => [
       r.id,
@@ -102,7 +103,9 @@ export default async function SeriesDetailPage({
   );
 
   const nextInRotation =
-    series.rotation_order[series.rotation_cursor % series.rotation_order.length];
+    series.rotation_order[
+      series.rotation_cursor % series.rotation_order.length
+    ];
 
   const cadenceLabel = (() => {
     const upper = series.rrule.toUpperCase();
@@ -128,7 +131,9 @@ export default async function SeriesDetailPage({
 
       {/* Header */}
       <div className="space-y-4">
-        <h1 className="font-display text-3xl font-extrabold text-ink">{series.name}</h1>
+        <h1 className="font-display text-3xl font-extrabold text-ink">
+          {series.name}
+        </h1>
         {series.description && (
           <p className="text-sm text-ink-soft">{series.description}</p>
         )}
@@ -136,7 +141,9 @@ export default async function SeriesDetailPage({
         {/* Meta line */}
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="secondary">{cadenceLabel}</Badge>
-          <span className="text-sm text-ink-soft">{series.rotation_order.length} members</span>
+          <span className="text-sm text-ink-soft">
+            {series.rotation_order.length} members
+          </span>
           {nextOccurrence && (
             <span className="text-sm text-ink-soft">
               Next: {fmtWhen(nextOccurrence.scheduled_start, series.timezone)}
@@ -151,31 +158,39 @@ export default async function SeriesDetailPage({
           Rotation
         </h2>
         {series.rotation_order.length === 0 ? (
-          <EmptyState icon={CalendarUserIcon} headline="No members in rotation" body="Add members via the edit panel below." />
+          <EmptyState
+            icon={CalendarUserIcon}
+            headline="No members in rotation"
+            body="Add members via the edit panel below."
+          />
         ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {series.rotation_order.map((uid) => {
-            const isNext = uid === nextInRotation;
-            const name = nameById.get(uid) ?? uid.slice(0, 8);
-            return (
-              <Card key={uid} size="sm">
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-ink/10 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <CardTitle className="text-base truncate">{name}</CardTitle>
-                        {isNext && (
-                          <CardDescription className="text-xs">Next host</CardDescription>
-                        )}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {series.rotation_order.map((uid) => {
+              const isNext = uid === nextInRotation;
+              const name = nameById.get(uid) ?? uid.slice(0, 8);
+              return (
+                <Card key={uid} size="sm">
+                  <CardHeader>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-ink/10 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <CardTitle className="text-base truncate">
+                            {name}
+                          </CardTitle>
+                          {isNext && (
+                            <CardDescription className="text-xs">
+                              Next host
+                            </CardDescription>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            );
-          })}
-        </div>
+                  </CardHeader>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </section>
 
@@ -185,7 +200,11 @@ export default async function SeriesDetailPage({
           Upcoming
         </h2>
         {upcoming.length === 0 ? (
-          <EmptyState icon={MeetingRoomIcon} headline="No upcoming meetings" body="The cron generates the next 14 days each run." />
+          <EmptyState
+            icon={MeetingRoomIcon}
+            headline="No upcoming meetings"
+            body="The cron generates the next 14 days each run."
+          />
         ) : (
           <div className="space-y-2">
             {upcoming.map((m) => (
@@ -206,7 +225,9 @@ export default async function SeriesDetailPage({
                           : "no host"}
                       </span>
                       <span>·</span>
-                      <Badge variant="secondary" className="text-xs">{m.status}</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        {m.status}
+                      </Badge>
                     </CardDescription>
                   </CardHeader>
                 </Card>

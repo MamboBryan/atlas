@@ -14,7 +14,9 @@ async function loadAgendaItem(
 ) {
   return supabase
     .from("agenda_items")
-    .select("id, meeting_id, prompt_id, kind, meetings:meetings!inner(id,host_user_id)")
+    .select(
+      "id, meeting_id, prompt_id, kind, meetings:meetings!inner(id,host_user_id)",
+    )
     .eq("id", agendaItemId)
     .single();
 }
@@ -35,11 +37,14 @@ export async function startPromptTimer(
   if (!item) return err("not_found", "agenda item not found");
   if (item.kind !== "prompt") return err("invalid_state", "not a prompt item");
 
-  const hostId = (item as unknown as { meetings: { host_user_id: string | null } })
-    .meetings.host_user_id;
+  const hostId = (
+    item as unknown as { meetings: { host_user_id: string | null } }
+  ).meetings.host_user_id;
   if (hostId !== user.id) return err("forbidden", "host only");
 
-  const endsAt = new Date(Date.now() + parsed.data.seconds * 1000).toISOString();
+  const endsAt = new Date(
+    Date.now() + parsed.data.seconds * 1000,
+  ).toISOString();
 
   const { error: updErr } = await supabase
     .from("agenda_items")
@@ -67,8 +72,9 @@ export async function expirePromptTimer(
   if (!item) return err("not_found", "agenda item not found");
   if (item.kind !== "prompt") return err("invalid_state", "not a prompt item");
 
-  const hostId = (item as unknown as { meetings: { host_user_id: string | null } })
-    .meetings.host_user_id;
+  const hostId = (
+    item as unknown as { meetings: { host_user_id: string | null } }
+  ).meetings.host_user_id;
 
   let permitted = hostId === user.id;
   if (!permitted && item.prompt_id) {

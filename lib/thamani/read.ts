@@ -21,7 +21,13 @@ const GRAIN_TO_KEY: Record<Grain, keyof CurrentValues> = {
 export type MinimalClient = { from: (table: string) => any };
 
 export function pickCurrent(rows: MetricRow[], now: Date): CurrentValues {
-  const out: CurrentValues = { today: 0, week: 0, month: 0, quarter: 0, year: 0 };
+  const out: CurrentValues = {
+    today: 0,
+    week: 0,
+    month: 0,
+    quarter: 0,
+    year: 0,
+  };
   for (const grain of Object.keys(GRAIN_TO_KEY) as Grain[]) {
     const wanted = periodStart(now, grain);
     const hit = rows.find(
@@ -44,10 +50,12 @@ export async function getAccountsMonthly(
     .gte("period_start", `${year}-01-01`)
     .lt("period_start", `${year + 1}-01-01`)
     .order("period_start", { ascending: true });
-  return ((data ?? []) as { period_start: string; value: number }[]).map((r) => ({
-    period_start: r.period_start,
-    value: Number(r.value),
-  }));
+  return ((data ?? []) as { period_start: string; value: number }[]).map(
+    (r) => ({
+      period_start: r.period_start,
+      value: Number(r.value),
+    }),
+  );
 }
 
 export type Trend = "up" | "down" | "flat";
@@ -59,10 +67,18 @@ export function trendDirection(current: number, previous: number): Trend {
 }
 
 export function pickPrevious(rows: MetricRow[], now: Date): CurrentValues {
-  const out: CurrentValues = { today: 0, week: 0, month: 0, quarter: 0, year: 0 };
+  const out: CurrentValues = {
+    today: 0,
+    week: 0,
+    month: 0,
+    quarter: 0,
+    year: 0,
+  };
   for (const grain of Object.keys(GRAIN_TO_KEY) as Grain[]) {
     const wanted = previousPeriodStart(now, grain);
-    const hit = rows.find((r) => r.grain === grain && r.period_start === wanted);
+    const hit = rows.find(
+      (r) => r.grain === grain && r.period_start === wanted,
+    );
     if (hit) out[GRAIN_TO_KEY[grain]] = Number(hit.value);
   }
   return out;

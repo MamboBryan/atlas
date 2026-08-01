@@ -31,7 +31,11 @@ export function DangerZone() {
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger
-              render={<Button variant="destructive" size="sm">Sign out</Button>}
+              render={
+                <Button variant="destructive" size="sm">
+                  Sign out
+                </Button>
+              }
             />
             <DialogContent showCloseButton>
               <DialogHeader>

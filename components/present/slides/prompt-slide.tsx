@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import type { Palette } from "@/lib/present/palettes";
 import type { AgendaItemLite, PromptLite } from "@/lib/present/slide-state";
-import { startPromptTimer, expirePromptTimer } from "@/lib/actions/prompt-timer";
+import {
+  startPromptTimer,
+  expirePromptTimer,
+} from "@/lib/actions/prompt-timer";
 import { PromptResponsesInline } from "@/components/present/slides/prompt-responses-inline";
 
 const DURATIONS = [30, 60, 120, 300] as const;
@@ -43,7 +46,9 @@ export function PromptSlide({
     return () => clearInterval(id);
   }, [state, item.timer_ends_at]);
 
-  const ends = item.timer_ends_at ? new Date(item.timer_ends_at).getTime() : null;
+  const ends = item.timer_ends_at
+    ? new Date(item.timer_ends_at).getTime()
+    : null;
   const remaining = ends != null ? ends - now : null;
   const expired = ends != null && ends <= now;
 
@@ -74,31 +79,49 @@ export function PromptSlide({
   return (
     <div className="flex h-full flex-col p-10">
       <div className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
-        <span>Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}</span>
+        <span>
+          Item {String(index).padStart(2, "0")} of{" "}
+          {String(total).padStart(2, "0")} · {meetingTitle}
+        </span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
           style={{ borderColor: palette.ink }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
           Prompt · {state}
         </span>
       </div>
 
       {state === "open" ? (
         <div className="flex-1 flex items-center gap-10">
-          <h1 className="flex-1 font-display font-black leading-none tracking-tight" style={{ fontSize: 72 }}>
+          <h1
+            className="flex-1 font-display font-black leading-none tracking-tight"
+            style={{ fontSize: 72 }}
+          >
             {questionText}
           </h1>
           <div
             className="grid place-items-center rounded-full border-8 font-black tracking-tight"
-            style={{ width: 128, height: 128, borderColor: palette.accent, fontSize: 32, color: palette.accent }}
+            style={{
+              width: 128,
+              height: 128,
+              borderColor: palette.accent,
+              fontSize: 32,
+              color: palette.accent,
+            }}
           >
             {remaining != null ? fmtRemaining(remaining) : "--:--"}
           </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col gap-8">
-          <h1 className="font-display font-black leading-tight tracking-tight" style={{ fontSize: 48 }}>
+          <h1
+            className="font-display font-black leading-tight tracking-tight"
+            style={{ fontSize: 48 }}
+          >
             {questionText}
           </h1>
           <PromptResponsesInline
@@ -134,7 +157,11 @@ export function PromptSlide({
               disabled={pending}
               onClick={closeNow}
               className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-              style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+              style={{
+                background: palette.accent,
+                color: palette.accentInk,
+                borderColor: palette.accentInk,
+              }}
             >
               Close now
             </button>
@@ -149,7 +176,11 @@ export function PromptSlide({
               disabled={pending}
               onClick={onNext}
               className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-              style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+              style={{
+                background: palette.accent,
+                color: palette.accentInk,
+                borderColor: palette.accentInk,
+              }}
             >
               Next item →
             </button>

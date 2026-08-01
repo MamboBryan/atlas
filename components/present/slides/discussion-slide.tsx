@@ -31,13 +31,17 @@ export function DiscussionSlide({
     <div className="flex h-full flex-col p-10">
       <div className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
         <span>
-          Item {String(index).padStart(2, "0")} of {String(total).padStart(2, "0")} · {meetingTitle}
+          Item {String(index).padStart(2, "0")} of{" "}
+          {String(total).padStart(2, "0")} · {meetingTitle}
         </span>
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
           style={{ borderColor: palette.ink }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
           Discussion
         </span>
       </div>

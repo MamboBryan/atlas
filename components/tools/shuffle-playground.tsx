@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import {
-  restartShuffle,
-  startShuffle,
-} from "@/lib/actions/picker";
+import { restartShuffle, startShuffle } from "@/lib/actions/picker";
 
 type SessionRow = {
   id: string;
@@ -26,11 +23,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function ShufflePlayground({
-  sessionId,
-}: {
-  sessionId: string | null;
-}) {
+export function ShufflePlayground({ sessionId }: { sessionId: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -43,7 +36,9 @@ export function ShufflePlayground({
     const s = createSupabaseBrowserClient();
     const { data, error } = await s
       .from("shuffle_sessions")
-      .select("id,meeting_id,owner_user_id,roster_snapshot,current_index,status")
+      .select(
+        "id,meeting_id,owner_user_id,roster_snapshot,current_index,status",
+      )
       .eq("id", id)
       .single();
     if (error || !data) {
@@ -122,9 +117,12 @@ export function ShufflePlayground({
         setAnimPhase("in");
 
         // Return to idle after in-animation completes.
-        outTimerRef.current = setTimeout(() => {
-          setAnimPhase("idle");
-        }, total * 60 + 400);
+        outTimerRef.current = setTimeout(
+          () => {
+            setAnimPhase("idle");
+          },
+          total * 60 + 400,
+        );
       });
     }, outDuration);
   }, [session, sessionId, loadSession]);

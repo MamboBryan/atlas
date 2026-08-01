@@ -5,35 +5,39 @@
 @layer base {
   :root {
     /* Surface + text */
-    --surface: #FFF8EC;
-    --surface-raised: #FFFFFF;
+    --surface: #fff8ec;
+    --surface-raised: #ffffff;
     --ink: #111111;
-    --ink-soft: #5A5A5A;
+    --ink-soft: #5a5a5a;
 
     /* Brand */
-    --primary: #4B4DF7;
-    --primary-ink: #FFFFFF;
-    --accent: #FFD84A;
+    --primary: #4b4df7;
+    --primary-ink: #ffffff;
+    --accent: #ffd84a;
     --accent-ink: #111111;
 
     /* State */
-    --success: #58CC02;
+    --success: #58cc02;
     --success-ink: #111111;
-    --danger: #FF4B4B;
+    --danger: #ff4b4b;
     --danger-ink: #111111;
-    --danger-text: #D42222;
-    --info: #1CB0F6;
+    --danger-text: #d42222;
+    --info: #1cb0f6;
 
     /* Button bevels — same hue, just barely darker (10% black mix) */
-    --primary-shadow:        color-mix(in srgb, var(--primary) 90%, #000);
-    --accent-shadow:         color-mix(in srgb, var(--accent) 90%, #000);
-    --success-shadow:        color-mix(in srgb, var(--success) 90%, #000);
-    --danger-shadow:         color-mix(in srgb, var(--danger) 90%, #000);
-    --surface-raised-shadow: color-mix(in srgb, var(--surface-raised) 90%, var(--ink));
+    --primary-shadow: color-mix(in srgb, var(--primary) 90%, #000);
+    --accent-shadow: color-mix(in srgb, var(--accent) 90%, #000);
+    --success-shadow: color-mix(in srgb, var(--success) 90%, #000);
+    --danger-shadow: color-mix(in srgb, var(--danger) 90%, #000);
+    --surface-raised-shadow: color-mix(
+      in srgb,
+      var(--surface-raised) 90%,
+      var(--ink)
+    );
 
     /* Disabled button — neutral gray with the same bevel structure */
-    --btn-disabled:        #DFDBCB;
-    --btn-disabled-shadow: #B5AF9C;
+    --btn-disabled: #dfdbcb;
+    --btn-disabled-shadow: #b5af9c;
 
     /* Semantic mappings kept for shadcn compatibility */
     --background: var(--surface);
@@ -68,13 +72,13 @@
     --border-chunk: 3px;
 
     /* Hard offset shadows */
-    --shadow-flat:  0 3px 0 0 var(--ink);
-    --shadow-lift:  0 5px 0 0 var(--ink);
+    --shadow-flat: 0 3px 0 0 var(--ink);
+    --shadow-lift: 0 5px 0 0 var(--ink);
     --shadow-press: 0 1px 0 0 var(--ink);
 
     /* Chunky block shadow (buttons — lower-left depth).
        Consumers set --btn-shadow to tint (e.g. darker shade of the button color). */
-    --shadow-block:    -4px 4px 0 0 var(--btn-shadow, var(--ink));
+    --shadow-block: -4px 4px 0 0 var(--btn-shadow, var(--ink));
     --shadow-block-sm: -2px 2px 0 0 var(--btn-shadow, var(--ink));
 
     /* Typography — single family for body + display */
@@ -82,57 +86,63 @@
 
     /* Motion */
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --ease-soft:   cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
     --dur-fast: 120ms;
-    --dur-med:  220ms;
+    --dur-med: 220ms;
     --dur-slow: 360ms;
 
     color-scheme: light;
   }
 
   .dark {
-    --surface: #0E1030;
-    --surface-raised: #171A3D;
-    --ink: #F3F1E8;
-    --ink-soft: #A5A8C7;
+    --surface: #0e1030;
+    --surface-raised: #171a3d;
+    --ink: #f3f1e8;
+    --ink-soft: #a5a8c7;
 
-    --primary: #8A8CFF;
-    --primary-ink: #0E1030;
-    --accent: #FFE264;
+    --primary: #8a8cff;
+    --primary-ink: #0e1030;
+    --accent: #ffe264;
     --accent-ink: #111111;
 
-    --success: #7EE84A;
+    --success: #7ee84a;
     --success-ink: #111111;
-    --danger: #FF7070;
+    --danger: #ff7070;
     --danger-ink: #111111;
     --danger-text: var(--danger);
-    --info: #6ED2FF;
+    --info: #6ed2ff;
 
     /* Dark bg mutes darkening — push the mix deeper (~22% surface) so the
        bevel reads clearly while staying in the button's hue family. */
-    --primary-shadow:        color-mix(in srgb, var(--primary) 60%, var(--surface));
-    --accent-shadow:         color-mix(in srgb, var(--accent) 60%, var(--surface));
-    --success-shadow:        color-mix(in srgb, var(--success) 60%, var(--surface));
-    --danger-shadow:         color-mix(in srgb, var(--danger) 60%, var(--surface));
-    --surface-raised-shadow: color-mix(in srgb, var(--surface-raised) 55%, var(--surface));
+    --primary-shadow: color-mix(in srgb, var(--primary) 60%, var(--surface));
+    --accent-shadow: color-mix(in srgb, var(--accent) 60%, var(--surface));
+    --success-shadow: color-mix(in srgb, var(--success) 60%, var(--surface));
+    --danger-shadow: color-mix(in srgb, var(--danger) 60%, var(--surface));
+    --surface-raised-shadow: color-mix(
+      in srgb,
+      var(--surface-raised) 55%,
+      var(--surface)
+    );
 
-    --btn-disabled:        #2C2F52;
-    --btn-disabled-shadow: #1D2040;
+    --btn-disabled: #2c2f52;
+    --btn-disabled-shadow: #1d2040;
 
     --sticker-fill: var(--surface);
 
     /* Ink shadows invisible on navy — use pure black */
-    --shadow-flat:  0 3px 0 0 #000;
-    --shadow-lift:  0 5px 0 0 #000;
+    --shadow-flat: 0 3px 0 0 #000;
+    --shadow-lift: 0 5px 0 0 #000;
     --shadow-press: 0 1px 0 0 #000;
 
-    --shadow-block:    -4px 4px 0 0 var(--btn-shadow, #000);
+    --shadow-block: -4px 4px 0 0 var(--btn-shadow, #000);
     --shadow-block-sm: -2px 2px 0 0 var(--btn-shadow, #000);
 
     color-scheme: dark;
   }
 
-  * { @apply border-border; }
+  * {
+    @apply border-border;
+  }
 
   body {
     @apply bg-background text-foreground;
@@ -140,7 +150,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;

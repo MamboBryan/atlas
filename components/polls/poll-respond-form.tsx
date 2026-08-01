@@ -12,11 +12,7 @@ import { submitResponse } from "@/lib/actions/response";
 export type PromptForResponse = {
   id: string;
   response_type:
-    | "text"
-    | "single_choice"
-    | "multi_choice"
-    | "yes_no"
-    | "rating";
+    "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
   options?: { id: string; label: string }[] | null;
   rating_min?: number | null;
   rating_max?: number | null;
@@ -197,8 +193,7 @@ export function PollRespondForm({
           <div className="flex flex-wrap gap-2">
             {Array.from(
               {
-                length:
-                  (prompt.rating_max ?? 5) - (prompt.rating_min ?? 1) + 1,
+                length: (prompt.rating_max ?? 5) - (prompt.rating_min ?? 1) + 1,
               },
               (_, i) => (prompt.rating_min ?? 1) + i,
             ).map((v) => (
@@ -245,7 +240,10 @@ export function PollRespondForm({
         >
           <div className="w-full max-w-sm rounded-lg border-chunk border-ink bg-surface-raised p-6 shadow-lift space-y-4">
             <div>
-              <h2 id="anon-confirm-title" className="font-display text-base font-extrabold text-ink">
+              <h2
+                id="anon-confirm-title"
+                className="font-display text-base font-extrabold text-ink"
+              >
                 Anonymous — final.
               </h2>
               <p className="text-sm text-ink-soft mt-1">

@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/require";
-import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarUserIcon } from "@hugeicons/core-free-icons";
@@ -47,7 +53,9 @@ function SeriesCard({ s, ownerName }: { s: SeriesRow; ownerName: string }) {
             {rotationCount} in rotation
             {" · "}
             owner {ownerName}
-            {s.description ? ` · ${s.description.slice(0, 60)}${s.description.length > 60 ? "…" : ""}` : ""}
+            {s.description
+              ? ` · ${s.description.slice(0, 60)}${s.description.length > 60 ? "…" : ""}`
+              : ""}
           </CardDescription>
           <CardAction>
             <Badge variant="secondary">{cadenceLabel(s.rrule)}</Badge>
@@ -65,7 +73,9 @@ export default async function SeriesListPage() {
     await Promise.all([
       supabase
         .from("meeting_series")
-        .select("id,name,description,timezone,rrule,rotation_order,owner_user_id")
+        .select(
+          "id,name,description,timezone,rrule,rotation_order,owner_user_id",
+        )
         .order("name", { ascending: true }),
       supabase.from("profiles").select("role").eq("id", user.id).single(),
       supabase
@@ -93,8 +103,7 @@ export default async function SeriesListPage() {
     ]),
   );
 
-  const viewerTz =
-    Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+  const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
   return (
     <div className="space-y-8 max-w-3xl">
@@ -120,8 +129,16 @@ export default async function SeriesListPage() {
         <EmptyState
           icon={CalendarUserIcon}
           headline="No series yet"
-          body={isAdmin ? "Create one to auto-generate recurring meetings." : "Ask an admin to create a recurring series."}
-          action={isAdmin ? { label: "New series", href: "/series?new=series" as never } : undefined}
+          body={
+            isAdmin
+              ? "Create one to auto-generate recurring meetings."
+              : "Ask an admin to create a recurring series."
+          }
+          action={
+            isAdmin
+              ? { label: "New series", href: "/series?new=series" as never }
+              : undefined
+          }
         />
       ) : (
         <div className="space-y-2">

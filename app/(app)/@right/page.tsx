@@ -57,57 +57,87 @@ export default async function HomeRight() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const viewerTz = "UTC";
 
-  const [{ data: unavail }, { data: meetingRows }, { data: promptRows }, { data: myParticipation }] =
-    await Promise.all([
-      supabase
-        .from("unavailability_windows")
-        .select("id,starts_on,ends_on,note,user_id,profiles(display_name)")
-        .lte("starts_on", todayIso)
-        .gte("ends_on", todayIso)
-        .order("ends_on", { ascending: true }),
-      supabase
-        .from("meetings")
-        .select("id,title,status,scheduled_start,timezone,host_user_id")
-        .in("status", ["scheduled", "live"])
-        .order("scheduled_start", { ascending: true })
-        .limit(1),
-      supabase
-        .from("prompts")
-        .select("id,question,response_type,anonymity,meeting_id,owner_user_id,timing,is_open,is_revealed,opens_at,created_at")
-        .eq("timing", "async")
-        .eq("is_open", true)
-        .eq("is_revealed", false)
-        .neq("owner_user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase.from("participation").select("prompt_id").eq("user_id", user.id),
-    ]);
+  const [
+    { data: unavail },
+    { data: meetingRows },
+    { data: promptRows },
+    { data: myParticipation },
+  ] = await Promise.all([
+    supabase
+      .from("unavailability_windows")
+      .select("id,starts_on,ends_on,note,user_id,profiles(display_name)")
+      .lte("starts_on", todayIso)
+      .gte("ends_on", todayIso)
+      .order("ends_on", { ascending: true }),
+    supabase
+      .from("meetings")
+      .select("id,title,status,scheduled_start,timezone,host_user_id")
+      .in("status", ["scheduled", "live"])
+      .order("scheduled_start", { ascending: true })
+      .limit(1),
+    supabase
+      .from("prompts")
+      .select(
+        "id,question,response_type,anonymity,meeting_id,owner_user_id,timing,is_open,is_revealed,opens_at,created_at",
+      )
+      .eq("timing", "async")
+      .eq("is_open", true)
+      .eq("is_revealed", false)
+      .neq("owner_user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase.from("participation").select("prompt_id").eq("user_id", user.id),
+  ]);
 
   const unavailable = (unavail ?? []) as unknown as UnavailableRow[];
   const nextMeeting = ((meetingRows ?? [])[0] as Meeting | undefined) ?? null;
 
   const answered = new Set(
-    ((myParticipation ?? []) as { prompt_id: string }[]).map((r) => r.prompt_id),
+    ((myParticipation ?? []) as { prompt_id: string }[]).map(
+      (r) => r.prompt_id,
+    ),
   );
   const nowIso = new Date().toISOString();
-  const awaiting = ((promptRows ?? []) as { id: string; question: string; opens_at: string | null }[])
-    .filter((p) => (!p.opens_at || new Date(p.opens_at).toISOString() <= nowIso) && !answered.has(p.id));
+  const awaiting = (
+    (promptRows ?? []) as {
+      id: string;
+      question: string;
+      opens_at: string | null;
+    }[]
+  ).filter(
+    (p) =>
+      (!p.opens_at || new Date(p.opens_at).toISOString() <= nowIso) &&
+      !answered.has(p.id),
+  );
 
   return (
     <div className="space-y-8">
       {/* Picker */}
       <section className="sticky top-0 z-10 -mx-6 bg-surface px-6 pt-2 pb-3 space-y-3">
         <div className="flex items-center gap-1.5">
-          <HugeiconsIcon icon={Target02Icon} size={16} strokeWidth={2} className="text-ink-soft shrink-0" />
+          <HugeiconsIcon
+            icon={Target02Icon}
+            size={16}
+            strokeWidth={2}
+            className="text-ink-soft shrink-0"
+          />
           <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
             Picker
           </h2>
         </div>
         <div className="flex gap-2">
-          <Button variant="accent" className="flex-1" render={<Link href="/tools/pick" />}>
+          <Button
+            variant="accent"
+            className="flex-1"
+            render={<Link href="/tools/pick" />}
+          >
             Pick someone
           </Button>
-          <Button variant="outline" className="flex-1" render={<Link href="/tools/shuffle" />}>
+          <Button
+            variant="outline"
+            className="flex-1"
+            render={<Link href="/tools/shuffle" />}
+          >
             Shuffle
           </Button>
         </div>
@@ -116,7 +146,12 @@ export default async function HomeRight() {
       {/* Availability */}
       <section className="space-y-3">
         <div className="flex items-center gap-1.5">
-          <HugeiconsIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="text-ink-soft shrink-0" />
+          <HugeiconsIcon
+            icon={Calendar03Icon}
+            size={16}
+            strokeWidth={2}
+            className="text-ink-soft shrink-0"
+          />
           <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
             Availability
           </h2>
@@ -137,7 +172,9 @@ export default async function HomeRight() {
                       {u.profiles?.display_name ?? "Unknown"}
                     </div>
                     {u.note && (
-                      <div className="truncate text-xs text-ink-soft">{u.note}</div>
+                      <div className="truncate text-xs text-ink-soft">
+                        {u.note}
+                      </div>
                     )}
                   </div>
                   <div className="shrink-0 text-xs text-ink-soft">
@@ -153,7 +190,12 @@ export default async function HomeRight() {
       {/* Meetings */}
       <section className="space-y-3">
         <div className="flex items-center gap-1.5">
-          <HugeiconsIcon icon={MeetingRoomIcon} size={16} strokeWidth={2} className="text-ink-soft shrink-0" />
+          <HugeiconsIcon
+            icon={MeetingRoomIcon}
+            size={16}
+            strokeWidth={2}
+            className="text-ink-soft shrink-0"
+          />
           <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
             Meetings
           </h2>
@@ -162,16 +204,23 @@ export default async function HomeRight() {
           <Card size="sm">
             <CardHeader>
               <CardTitle>
-                <Link href={`/meetings/${nextMeeting.id}` as never} className="hover:underline">
+                <Link
+                  href={`/meetings/${nextMeeting.id}` as never}
+                  className="hover:underline"
+                >
                   {nextMeeting.title}
                 </Link>
               </CardTitle>
-              <CardDescription>{fmtWhen(nextMeeting.scheduled_start, viewerTz)}</CardDescription>
+              <CardDescription>
+                {fmtWhen(nextMeeting.scheduled_start, viewerTz)}
+              </CardDescription>
               <CardAction>
                 {nextMeeting.status === "live" ? (
                   <LiveBadge size="lg" />
                 ) : (
-                  <Badge variant="scheduled" size="lg">Scheduled</Badge>
+                  <Badge variant="scheduled" size="lg">
+                    Scheduled
+                  </Badge>
                 )}
               </CardAction>
             </CardHeader>
@@ -188,21 +237,35 @@ export default async function HomeRight() {
       {/* Polls */}
       <section className="space-y-3">
         <div className="flex items-center gap-1.5">
-          <HugeiconsIcon icon={Quiz02Icon} size={16} strokeWidth={2} className="text-ink-soft shrink-0" />
+          <HugeiconsIcon
+            icon={Quiz02Icon}
+            size={16}
+            strokeWidth={2}
+            className="text-ink-soft shrink-0"
+          />
           <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
             Polls
           </h2>
-          {awaiting.length > 0 && <Badge variant="open">{awaiting.length}</Badge>}
+          {awaiting.length > 0 && (
+            <Badge variant="open">{awaiting.length}</Badge>
+          )}
         </div>
         {awaiting.length === 0 ? (
-          <EmptyState sticker="speech-bubble" headline="All caught up" body="No polls waiting on your response." />
+          <EmptyState
+            sticker="speech-bubble"
+            headline="All caught up"
+            body="No polls waiting on your response."
+          />
         ) : (
           <div className="space-y-2">
             {awaiting.map((p) => (
               <Card key={p.id} size="sm" interactive>
                 <CardHeader>
                   <CardTitle>
-                    <Link href={`/polls/${p.id}` as never} className="hover:underline">
+                    <Link
+                      href={`/polls/${p.id}` as never}
+                      className="hover:underline"
+                    >
                       {p.question}
                     </Link>
                   </CardTitle>

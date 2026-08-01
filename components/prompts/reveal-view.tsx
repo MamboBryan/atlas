@@ -201,8 +201,16 @@ async function AttributedReveal({ prompt }: { prompt: Prompt }) {
 
 type ResultsPayload =
   | { kind: "text"; items: string[] }
-  | { kind: "choice"; counts: Record<string, number>; options: { id: string; label: string }[] }
-  | { kind: "multi"; counts: Record<string, number>; options: { id: string; label: string }[] }
+  | {
+      kind: "choice";
+      counts: Record<string, number>;
+      options: { id: string; label: string }[];
+    }
+  | {
+      kind: "multi";
+      counts: Record<string, number>;
+      options: { id: string; label: string }[];
+    }
   | { kind: "rating"; avg: number | null; dist: Record<string, number> };
 
 async function AnonymousReveal({ prompt }: { prompt: Prompt }) {
@@ -214,7 +222,8 @@ async function AnonymousReveal({ prompt }: { prompt: Prompt }) {
   if (error || !data) {
     return (
       <div className="rounded-lg border p-4 text-sm text-destructive">
-        Could not load anonymous results{error?.message ? `: ${error.message}` : ""}.
+        Could not load anonymous results
+        {error?.message ? `: ${error.message}` : ""}.
       </div>
     );
   }
@@ -256,12 +265,7 @@ async function AnonymousReveal({ prompt }: { prompt: Prompt }) {
     return (
       <div className="space-y-3">
         {payload.options.map((o) => (
-          <Bar
-            key={o.id}
-            label={o.label}
-            count={counts[o.id] ?? 0}
-            max={max}
-          />
+          <Bar key={o.id} label={o.label} count={counts[o.id] ?? 0} max={max} />
         ))}
       </div>
     );
@@ -280,12 +284,7 @@ async function AnonymousReveal({ prompt }: { prompt: Prompt }) {
     return (
       <div className="space-y-3">
         {payload.options.map((o) => (
-          <Bar
-            key={o.id}
-            label={o.label}
-            count={counts[o.id] ?? 0}
-            max={max}
-          />
+          <Bar key={o.id} label={o.label} count={counts[o.id] ?? 0} max={max} />
         ))}
       </div>
     );

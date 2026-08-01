@@ -11,11 +11,7 @@ import { createPollAction } from "@/app/(app)/polls/actions";
 import { cn } from "@/lib/utils";
 
 type ResponseType =
-  | "text"
-  | "single_choice"
-  | "multi_choice"
-  | "yes_no"
-  | "rating";
+  "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
 type Anonymity = "attributed" | "hard_anonymous";
 type Timing = "async" | "live";
 type RatingMax = 5 | 10;
@@ -158,9 +154,7 @@ export function NewPollForm({ onDone }: { onDone: () => void }) {
               onChange={(e) => setOptionsRaw(e.target.value)}
               placeholder="Option A, Option B, Option C"
             />
-            <p className="text-xs text-ink-soft">
-              Comma-separated, minimum 2.
-            </p>
+            <p className="text-xs text-ink-soft">Comma-separated, minimum 2.</p>
           </div>
         )}
 
@@ -177,7 +171,11 @@ export function NewPollForm({ onDone }: { onDone: () => void }) {
 
         <div className="space-y-2">
           <Label>Anonymity</Label>
-          <TabRow value={anonymity} onChange={setAnonymity} options={ANONYMITY} />
+          <TabRow
+            value={anonymity}
+            onChange={setAnonymity}
+            options={ANONYMITY}
+          />
         </div>
 
         <div className="space-y-2">

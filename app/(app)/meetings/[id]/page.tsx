@@ -43,10 +43,29 @@ function fmtWhen(iso: string, tz: string, viewerTz: string) {
 
 function StatusBadge({ status }: { status: Meeting["status"] }) {
   if (status === "live") return <LiveBadge size="lg" />;
-  if (status === "scheduled") return <Badge variant="scheduled" size="lg">Scheduled</Badge>;
-  if (status === "postponed") return <Badge variant="postponed" size="lg">Postponed</Badge>;
-  if (status === "ended") return <Badge variant="ended" size="lg">Ended</Badge>;
-  return <Badge variant="destructive" size="lg">Cancelled</Badge>;
+  if (status === "scheduled")
+    return (
+      <Badge variant="scheduled" size="lg">
+        Scheduled
+      </Badge>
+    );
+  if (status === "postponed")
+    return (
+      <Badge variant="postponed" size="lg">
+        Postponed
+      </Badge>
+    );
+  if (status === "ended")
+    return (
+      <Badge variant="ended" size="lg">
+        Ended
+      </Badge>
+    );
+  return (
+    <Badge variant="destructive" size="lg">
+      Cancelled
+    </Badge>
+  );
 }
 
 export default async function MeetingDetailPage({
@@ -68,33 +87,37 @@ export default async function MeetingDetailPage({
 
   const m = meeting as Meeting;
 
-  const [{ data: hostRow }, { data: items }, { data: seriesRow }, { data: rosterRows }] =
-    await Promise.all([
-      m.host_user_id
-        ? supabase
-            .from("profiles")
-            .select("display_name")
-            .eq("id", m.host_user_id)
-            .single()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from("agenda_items")
-        .select("id,ordinal,title,kind,prompt_id,picker_config,picker_result")
-        .eq("meeting_id", id)
-        .order("ordinal", { ascending: true }),
-      m.series_id
-        ? supabase
-            .from("meeting_series")
-            .select("id,name")
-            .eq("id", m.series_id)
-            .single()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from("profiles")
-        .select("id,display_name")
-        .eq("is_active", true)
-        .order("display_name", { ascending: true }),
-    ]);
+  const [
+    { data: hostRow },
+    { data: items },
+    { data: seriesRow },
+    { data: rosterRows },
+  ] = await Promise.all([
+    m.host_user_id
+      ? supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", m.host_user_id)
+          .single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("agenda_items")
+      .select("id,ordinal,title,kind,prompt_id,picker_config,picker_result")
+      .eq("meeting_id", id)
+      .order("ordinal", { ascending: true }),
+    m.series_id
+      ? supabase
+          .from("meeting_series")
+          .select("id,name")
+          .eq("id", m.series_id)
+          .single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("profiles")
+      .select("id,display_name")
+      .eq("is_active", true)
+      .order("display_name", { ascending: true }),
+  ]);
 
   const agendaItems = (items ?? []) as AgendaItem[];
   const roster = (rosterRows ?? []) as { id: string; display_name: string }[];
@@ -109,15 +132,22 @@ export default async function MeetingDetailPage({
         .is("meeting_id", null)
         .order("created_at", { ascending: false })
         .limit(50)
-    : { data: [] as { id: string; question: string; meeting_id: string | null }[] };
+    : {
+        data: [] as {
+          id: string;
+          question: string;
+          meeting_id: string | null;
+        }[],
+      };
 
-  const availablePrompts = ((myPrompts ?? []) as {
-    id: string;
-    question: string;
-  }[]).map((p) => ({ id: p.id, question: p.question })) as PromptOption[];
+  const availablePrompts = (
+    (myPrompts ?? []) as {
+      id: string;
+      question: string;
+    }[]
+  ).map((p) => ({ id: p.id, question: p.question })) as PromptOption[];
 
-  const viewerTz =
-    Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+  const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
   const participantCount = m.participants_override
     ? m.participants_override.length
@@ -238,11 +268,7 @@ export default async function MeetingDetailPage({
           <h2 className="font-display text-xl font-extrabold text-ink">
             Agenda
           </h2>
-          <AgendaEditor
-            meetingId={m.id}
-            items={agendaItems}
-            readOnly
-          />
+          <AgendaEditor meetingId={m.id} items={agendaItems} readOnly />
         </section>
       )}
     </div>

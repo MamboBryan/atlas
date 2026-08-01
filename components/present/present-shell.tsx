@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { advanceMeetingAgenda } from "@/lib/actions/meeting";
@@ -9,7 +16,12 @@ import {
   type AgendaItemLite,
   type PromptLite,
 } from "@/lib/present/slide-state";
-import { paletteForOrdinal, standbyPalette, curtainPalette, type Palette } from "@/lib/present/palettes";
+import {
+  paletteForOrdinal,
+  standbyPalette,
+  curtainPalette,
+  type Palette,
+} from "@/lib/present/palettes";
 import { StandbySlide } from "@/components/present/slides/standby-slide";
 import { DiscussionSlide } from "@/components/present/slides/discussion-slide";
 import { PromptSlide } from "@/components/present/slides/prompt-slide";
@@ -38,7 +50,10 @@ export type PresentShellProps = {
   initialItems: AgendaItemLite[];
   initialPromptsById: Record<string, PromptLite>;
   initialComments: PresentComment[];
-  initialReactionsByComment: Record<string, { emoji: string; user_id: string }[]>;
+  initialReactionsByComment: Record<
+    string,
+    { emoji: string; user_id: string }[]
+  >;
 };
 
 export function PresentShell(props: PresentShellProps) {
@@ -47,7 +62,9 @@ export function PresentShell(props: PresentShellProps) {
   const [items, setItems] = useState(props.initialItems);
   const [promptsById, setPromptsById] = useState(props.initialPromptsById);
   const [comments, setComments] = useState(props.initialComments);
-  const [reactionsByComment, setReactionsByComment] = useState(props.initialReactionsByComment);
+  const [reactionsByComment, setReactionsByComment] = useState(
+    props.initialReactionsByComment,
+  );
   const [_pending, start] = useTransition();
   const knownCommentIds = useRef<Set<string>>(new Set());
 
@@ -58,14 +75,23 @@ export function PresentShell(props: PresentShellProps) {
       .select("status,current_agenda_item_id,has_started")
       .eq("id", props.meetingId)
       .single();
-    if (data) setMeeting(data as { status: "scheduled" | "live" | "ended" | "postponed" | "cancelled"; current_agenda_item_id: string | null; has_started: boolean });
+    if (data)
+      setMeeting(
+        data as {
+          status: "scheduled" | "live" | "ended" | "postponed" | "cancelled";
+          current_agenda_item_id: string | null;
+          has_started: boolean;
+        },
+      );
   }, [props.meetingId]);
 
   const refreshItems = useCallback(async () => {
     const s = createSupabaseBrowserClient();
     const { data } = await s
       .from("agenda_items")
-      .select("id,ordinal,title,kind,prompt_id,picker_config,picker_result,timer_ends_at")
+      .select(
+        "id,ordinal,title,kind,prompt_id,picker_config,picker_result,timer_ends_at",
+      )
       .eq("meeting_id", props.meetingId)
       .order("ordinal", { ascending: true });
     if (data) setItems(data as AgendaItemLite[]);
@@ -91,7 +117,9 @@ export function PresentShell(props: PresentShellProps) {
       .select("id,is_open,question,response_type,options,rating_min,rating_max")
       .in("id", promptIds);
     if (data) {
-      setPromptsById(Object.fromEntries((data as PromptLite[]).map((p) => [p.id, p])));
+      setPromptsById(
+        Object.fromEntries((data as PromptLite[]).map((p) => [p.id, p])),
+      );
     }
   }, [props.meetingId]);
 
@@ -102,13 +130,26 @@ export function PresentShell(props: PresentShellProps) {
       .channel(`meeting:${props.meetingId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes" as never,
-        { event: "UPDATE", schema: "public", table: "meetings", filter: `id=eq.${props.meetingId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "meetings",
+          filter: `id=eq.${props.meetingId}`,
+        },
         () => refreshMeeting(),
       )
       .on(
         "postgres_changes" as never,
-        { event: "*", schema: "public", table: "agenda_items", filter: `meeting_id=eq.${props.meetingId}` },
-        () => { refreshItems(); refreshPrompts(); },
+        {
+          event: "*",
+          schema: "public",
+          table: "agenda_items",
+          filter: `meeting_id=eq.${props.meetingId}`,
+        },
+        () => {
+          refreshItems();
+          refreshPrompts();
+        },
       )
       .on(
         "postgres_changes" as never,
@@ -116,7 +157,9 @@ export function PresentShell(props: PresentShellProps) {
         () => refreshPrompts(),
       )
       .subscribe();
-    return () => { s.removeChannel(ch); };
+    return () => {
+      s.removeChannel(ch);
+    };
   }, [props.meetingId, refreshMeeting, refreshItems, refreshPrompts]);
 
   // comments + reactions channel
@@ -125,7 +168,9 @@ export function PresentShell(props: PresentShellProps) {
     const refreshComments = async () => {
       const { data } = await s
         .from("meeting_comments")
-        .select("id,agenda_item_id,author_user_id,body,created_at,deleted_at, profiles:profiles!meeting_comments_author_user_id_fkey(display_name)")
+        .select(
+          "id,agenda_item_id,author_user_id,body,created_at,deleted_at, profiles:profiles!meeting_comments_author_user_id_fkey(display_name)",
+        )
         .eq("meeting_id", props.meetingId)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -136,7 +181,8 @@ export function PresentShell(props: PresentShellProps) {
           agenda_item_id: c.agenda_item_id as string | null,
           author_user_id: c.author_user_id as string,
           author_name:
-            (c as unknown as { profiles: { display_name: string } | null }).profiles?.display_name ?? "?",
+            (c as unknown as { profiles: { display_name: string } | null })
+              .profiles?.display_name ?? "?",
           body: c.body as string,
           created_at: c.created_at as string,
         }));
@@ -155,14 +201,20 @@ export function PresentShell(props: PresentShellProps) {
       const grouped: Record<string, { emoji: string; user_id: string }[]> = {};
       for (const r of rx ?? []) {
         const cid = r.comment_id as string;
-        (grouped[cid] ??= []).push({ emoji: r.emoji as string, user_id: r.user_id as string });
+        (grouped[cid] ??= []).push({
+          emoji: r.emoji as string,
+          user_id: r.user_id as string,
+        });
       }
       setReactionsByComment(grouped);
     };
     // Guard: only refresh reactions when the event concerns a comment we already
     // know about for this meeting.  meeting_comment_reactions has no meeting_id
     // column so we can't server-side-filter; instead we check the ref.
-    const refreshReactionsIfKnown = (payload: { new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+    const refreshReactionsIfKnown = (payload: {
+      new?: Record<string, unknown>;
+      old?: Record<string, unknown>;
+    }) => {
       const commentId =
         (payload.new?.comment_id as string | undefined) ??
         (payload.old?.comment_id as string | undefined);
@@ -171,10 +223,25 @@ export function PresentShell(props: PresentShellProps) {
     };
     const ch = s
       .channel(`meeting-comments:${props.meetingId}:${crypto.randomUUID()}`)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comments", filter: `meeting_id=eq.${props.meetingId}` }, refreshComments)
-      .on("postgres_changes" as never, { event: "*", schema: "public", table: "meeting_comment_reactions" }, refreshReactionsIfKnown)
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "*",
+          schema: "public",
+          table: "meeting_comments",
+          filter: `meeting_id=eq.${props.meetingId}`,
+        },
+        refreshComments,
+      )
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "meeting_comment_reactions" },
+        refreshReactionsIfKnown,
+      )
       .subscribe();
-    return () => { s.removeChannel(ch); };
+    return () => {
+      s.removeChannel(ch);
+    };
   }, [props.meetingId]);
 
   const slideState = useMemo(
@@ -184,13 +251,17 @@ export function PresentShell(props: PresentShellProps) {
 
   // "not-live" means the guard was raced. Send back.
   useEffect(() => {
-    if (slideState.kind === "not-live") router.replace(`/meetings/${props.meetingId}`);
+    if (slideState.kind === "not-live")
+      router.replace(`/meetings/${props.meetingId}`);
   }, [slideState, router, props.meetingId]);
 
   const advance = useCallback(
     (itemId: string | null) => {
       start(async () => {
-        await advanceMeetingAgenda({ meeting_id: props.meetingId, item_id: itemId });
+        await advanceMeetingAgenda({
+          meeting_id: props.meetingId,
+          item_id: itemId,
+        });
       });
     },
     [props.meetingId],
@@ -214,7 +285,8 @@ export function PresentShell(props: PresentShellProps) {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName.toLowerCase();
-      const editable = tag === "input" || tag === "textarea" || target?.isContentEditable;
+      const editable =
+        tag === "input" || tag === "textarea" || target?.isContentEditable;
       if (e.key === "Escape") {
         router.push(`/meetings/${props.meetingId}`);
         return;
@@ -240,7 +312,9 @@ export function PresentShell(props: PresentShellProps) {
           : standbyPalette;
 
   const total = items.length;
-  const index = currentItem ? items.findIndex((i) => i.id === currentItem.id) + 1 : 0;
+  const index = currentItem
+    ? items.findIndex((i) => i.id === currentItem.id) + 1
+    : 0;
 
   const [showComments, setShowComments] = useState(true);
   const [showComposer, setShowComposer] = useState(true);
@@ -272,7 +346,8 @@ export function PresentShell(props: PresentShellProps) {
             onNext={advanceNext}
           />
         )}
-        {(slideState.kind === "prompt-open" || slideState.kind === "prompt-closed") && (
+        {(slideState.kind === "prompt-open" ||
+          slideState.kind === "prompt-closed") && (
           <PromptSlide
             palette={palette}
             item={slideState.item}
@@ -292,10 +367,13 @@ export function PresentShell(props: PresentShellProps) {
             palette={palette}
             item={slideState.item}
             state={
-              slideState.kind === "picker-oneshot-idle" ? "oneshot-idle"
-              : slideState.kind === "picker-oneshot-revealed" ? "oneshot-revealed"
-              : slideState.kind === "picker-shuffle-idle" ? "shuffle-idle"
-              : "shuffle-revealed"
+              slideState.kind === "picker-oneshot-idle"
+                ? "oneshot-idle"
+                : slideState.kind === "picker-oneshot-revealed"
+                  ? "oneshot-revealed"
+                  : slideState.kind === "picker-shuffle-idle"
+                    ? "shuffle-idle"
+                    : "shuffle-revealed"
             }
             index={index}
             total={total}

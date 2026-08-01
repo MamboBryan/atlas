@@ -34,7 +34,10 @@ export function CurtainSlide({
           className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
           style={{ borderColor: palette.ink }}
         >
-          <span className="h-2 w-2 rounded-full" style={{ background: palette.ink }} />
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
           End
         </span>
       </div>
@@ -54,7 +57,11 @@ export function CurtainSlide({
           disabled={pending}
           onClick={onEnd}
           className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
-          style={{ background: palette.accent, color: palette.accentInk, borderColor: palette.accentInk }}
+          style={{
+            background: palette.accent,
+            color: palette.accentInk,
+            borderColor: palette.accentInk,
+          }}
         >
           End meeting
         </button>

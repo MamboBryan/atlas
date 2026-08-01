@@ -93,7 +93,9 @@ export function NotificationsFeed({
                         <span className="ml-2 size-2 rounded-full bg-accent flex-shrink-0" />
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground">{n.body}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {n.body}
+                    </div>
                     <div className="text-[10px] text-muted-foreground">
                       {new Date(n.created_at).toLocaleString()} · {n.kind}
                     </div>

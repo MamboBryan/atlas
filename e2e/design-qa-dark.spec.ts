@@ -110,32 +110,43 @@ test.describe("design QA dark", () => {
 
     if (scheduledMeeting) {
       await c.from("agenda_items").insert([
-        { meeting_id: scheduledMeeting.id, ordinal: 0, title: "Wins & blockers", kind: "discussion" },
+        {
+          meeting_id: scheduledMeeting.id,
+          ordinal: 0,
+          title: "Wins & blockers",
+          kind: "discussion",
+        },
       ]);
     }
     if (liveMeeting) {
       const { data: firstItem } = await c
         .from("agenda_items")
-        .insert({ meeting_id: liveMeeting.id, ordinal: 0, title: "Roadmap walkthrough", kind: "discussion" })
+        .insert({
+          meeting_id: liveMeeting.id,
+          ordinal: 0,
+          title: "Roadmap walkthrough",
+          kind: "discussion",
+        })
         .select("id")
         .single();
       if (firstItem) {
-        await c.from("meetings").update({ current_agenda_item_id: firstItem.id }).eq("id", liveMeeting.id);
+        await c
+          .from("meetings")
+          .update({ current_agenda_item_id: firstItem.id })
+          .eq("id", liveMeeting.id);
       }
     }
 
-    await c
-      .from("meeting_series")
-      .insert({
-        name: "Engineering weekly",
-        created_by: adminUser.id,
-        owner_user_id: adminUser.id,
-        rrule: "FREQ=WEEKLY;BYDAY=MO;BYHOUR=15;BYMINUTE=0;COUNT=8",
-        timezone: "UTC",
-        rotation_user_ids: [adminUser.id, u1.id, u2.id],
-        rotation_cursor: 0,
-        agenda_template: [{ title: "Round-table", kind: "discussion" }],
-      });
+    await c.from("meeting_series").insert({
+      name: "Engineering weekly",
+      created_by: adminUser.id,
+      owner_user_id: adminUser.id,
+      rrule: "FREQ=WEEKLY;BYDAY=MO;BYHOUR=15;BYMINUTE=0;COUNT=8",
+      timezone: "UTC",
+      rotation_user_ids: [adminUser.id, u1.id, u2.id],
+      rotation_cursor: 0,
+      agenda_template: [{ title: "Round-table", kind: "discussion" }],
+    });
 
     const routes: [string, string][] = [
       ["/sign-in", "01-signin"],

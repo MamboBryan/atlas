@@ -23,7 +23,11 @@ export const createSeries = z.object({
   rrule: z.string().min(1).max(512),
   timezone: z.string().min(1).max(64),
   rotation_order: z.array(z.string().uuid()).min(1),
-  default_participant_ids: z.array(z.string().uuid()).min(1).optional().nullable(),
+  default_participant_ids: z
+    .array(z.string().uuid())
+    .min(1)
+    .optional()
+    .nullable(),
   agenda_template: z.array(agendaTemplateItem).default([]),
 });
 export type CreateSeriesInput = z.infer<typeof createSeries>;

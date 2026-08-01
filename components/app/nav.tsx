@@ -37,7 +37,11 @@ const items: NavItem[] = [
   },
   { href: "/roster" as Route, label: "Roster", icon: UserGroupIcon },
   { href: "/polls" as Route, label: "Polls", icon: ChatFeedback01Icon },
-  { href: "/notifications" as Route, label: "Notifications", icon: Notification01Icon },
+  {
+    href: "/notifications" as Route,
+    label: "Notifications",
+    icon: Notification01Icon,
+  },
 ];
 
 const STORAGE_KEY = "atlas:nav-collapsed";

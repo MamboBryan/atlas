@@ -5,7 +5,9 @@ import { thamaniReadClient } from "@/lib/supabase/thamani";
 export const ACCOUNTS_NEW = "accounts_new";
 
 export function bucketAccounts(createdAts: string[], now: Date): MetricRow[] {
-  const times = createdAts.map((c) => Date.parse(c)).filter((t) => !Number.isNaN(t));
+  const times = createdAts
+    .map((c) => Date.parse(c))
+    .filter((t) => !Number.isNaN(t));
 
   const seen = new Set<string>();
   const periods = [...computeSet(now), ...comparisonSet(now)].filter((p) => {

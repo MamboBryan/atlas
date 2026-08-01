@@ -19,7 +19,8 @@ export type PromptLite = {
   id: string;
   is_open: boolean;
   question?: string;
-  response_type?: "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
+  response_type?:
+    "text" | "single_choice" | "multi_choice" | "yes_no" | "rating";
   options?: unknown;
   rating_min?: number | null;
   rating_max?: number | null;
@@ -53,7 +54,12 @@ export function deriveSlideState(
 
   if (item.kind === "prompt") {
     const prompt = item.prompt_id ? promptsById[item.prompt_id] : undefined;
-    if (!prompt) return { kind: "prompt-closed", item, prompt: { id: item.prompt_id ?? "", is_open: false } };
+    if (!prompt)
+      return {
+        kind: "prompt-closed",
+        item,
+        prompt: { id: item.prompt_id ?? "", is_open: false },
+      };
     return prompt.is_open
       ? { kind: "prompt-open", item, prompt }
       : { kind: "prompt-closed", item, prompt };

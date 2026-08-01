@@ -9,7 +9,7 @@ import { admin, canRun, createUser, resetUsers, signIn } from "./fixtures";
 
 test("sign-in has no critical or serious a11y violations", async ({ page }) => {
   await page.goto("/sign-in");
-  await page.getByRole("heading", { name: "Welcome to Atlas" }).waitFor();
+  await page.getByRole("heading", { name: "Welcome to home base" }).waitFor();
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa"])
     .analyze();

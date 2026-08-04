@@ -25,6 +25,7 @@ export async function getEvaluationForViewer(id: string) {
   let candidates: { id: string; display_name: string }[] = [];
   let answers: { candidate_id: string; question_id: string; answer_text: string | null }[] = [];
   let personal: ReturnType<typeof computePersonalScores> = [];
+  let myRatings: { candidateId: string; questionId: string; score: number }[] = [];
   if (isPanelist || isAdmin) {
     questions = (await supabase.from("evaluation_questions")
       .select("id,prompt,position").eq("evaluation_id", id).eq("is_active", true)
@@ -37,9 +38,11 @@ export async function getEvaluationForViewer(id: string) {
     if (isPanelist && ev.status === "open") {
       const my = (await supabase.from("evaluation_ratings")
         .select("candidate_id,question_id,score").eq("evaluation_id", id)).data ?? [];
+      myRatings = my.map((r) => ({
+        candidateId: r.candidate_id, questionId: r.question_id, score: r.score,
+      }));
       personal = computePersonalScores(
-        my.map((r) => ({ candidateId: r.candidate_id, questionId: r.question_id, score: r.score })),
-        candidates.map((c) => c.id), questions.map((q) => q.id),
+        myRatings, candidates.map((c) => c.id), questions.map((q) => q.id),
       );
     }
   }
@@ -60,5 +63,5 @@ export async function getEvaluationForViewer(id: string) {
       .select("profile_id").eq("evaluation_id", id)).data ?? []).map((p) => p.profile_id);
   }
 
-  return { ev, isAdmin, isPanelist, questions, candidates, answers, personal, results, roster, panel };
+  return { ev, isAdmin, isPanelist, questions, candidates, answers, personal, myRatings, results, roster, panel };
 }

@@ -210,13 +210,27 @@ test.describe("hiring evaluations screenshots", () => {
       await signIn(ctx, "hiring-shot-p1@atlas.com", baseURL);
       const page = await ctx.newPage();
       await page.goto(`/hiring/${openId}`);
+      // One candidate at a time, opening on the first unrated one.
       await expect(page.getByText("Ada Nakamura")).toBeVisible();
+      await expect(page.getByText(/0 of 3 candidates rated/)).toBeVisible();
+      await expect(page.getByText(/Candidate 1 of 3/)).toBeVisible();
       await expect(page.getByRole("button", { name: "1", exact: true }).first()).toBeVisible();
       await expect(page.getByRole("button", { name: "5", exact: true }).first()).toBeVisible();
+
+      // Rate the first question, then reload: the selection must persist,
+      // proving ratings save and are restored (the core fix).
+      const firstFour = page.getByRole("button", { name: "4", exact: true }).first();
+      await firstFour.click();
+      await expect(page.getByText(/1 of 3 answered/)).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/04-detail-open-rating.png",
         fullPage: true,
       });
+
+      await page.reload();
+      await expect(
+        page.getByRole("button", { name: "4", exact: true }).first(),
+      ).toHaveAttribute("aria-pressed", "true");
     } finally {
       await ctx.close();
     }

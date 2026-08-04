@@ -9,7 +9,7 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
   const { id } = await params;
   const data = await getEvaluationForViewer(id);
   if (!data) notFound();
-  const { ev, isAdmin, isPanelist, candidates, questions, answers, personal, results } = data;
+  const { ev, isAdmin, isPanelist, candidates, questions, answers, myRatings, results } = data;
 
   // Admin management moved to the right rail (@right/hiring/[id]). When an admin
   // has nothing to rate/review in the main column, point them there.
@@ -29,7 +29,7 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
 
       {ev.status === "open" && isPanelist && (
         <RatingPanel evaluationId={ev.id} candidates={candidates} questions={questions}
-          answers={answers} myScores={personal} />
+          answers={answers} myRatings={myRatings} />
       )}
 
       {ev.status === "open" && !isPanelist && !isAdmin && (

@@ -27,6 +27,7 @@ pnpm dev
 ## Layout
 
 - `app/(app)/…` — authenticated app routes (dashboard, roster, meetings, polls, series, notifications, settings)
+- `app/(app)/hiring` — candidate evaluations (admin import from Google Sheets, panel rating, private-until-close aggregate)
 - `app/(auth)/sign-in` — Supabase magic-link + Google
 - `app/api/cron/*` — Vercel cron endpoints (GET, `Authorization: Bearer $CRON_SECRET`)
 - `lib/actions/*` — server actions

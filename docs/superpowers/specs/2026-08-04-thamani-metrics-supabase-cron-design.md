@@ -121,45 +121,80 @@ A future "new devices per period" metric is the same three lines against
 
 ### 1. Edge Function `sync-thamani-metrics` (Deno/TypeScript, atlas project)
 
-- JWT-verified (Supabase default). Only callers with a valid atlas JWT
-  (the `service_role` key used by pg_cron) can invoke it.
+- Deployed with `verify_jwt = false`; the handler instead compares the request's
+  `Authorization: Bearer <token>` against the auto-injected atlas
+  `SUPABASE_SERVICE_ROLE_KEY` (constant-time). Only the pg_cron caller (which holds
+  that key) can trigger it — the public anon key cannot. This mirrors the current
+  Vercel route's `CRON_SECRET` bearer check.
 - Reads Thamani `accounts.created_at`, paginated (pageSize 1000), via
-  `@supabase/supabase-js` (Deno/esm import) using `THAMANI_SUPABASE_URL` +
+  `@supabase/supabase-js` (esm.sh import) using `THAMANI_SUPABASE_URL` +
   `THAMANI_SUPABASE_SERVICE_ROLE_KEY` (function secrets).
-- Buckets via the ported pure logic; upserts into `thamani_metrics` using the
+- Buckets via the shared pure logic; upserts into `thamani_metrics` using the
   **auto-injected** atlas `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (Supabase
   provides these to every Edge Function — no config).
 - Returns `{ ok: true, upserted: N }` or `{ ok: false, error }` with a non-2xx
   status so failures show up in `cron.job_run_details`.
 
-Directory:
+Directory (function lives at `db/supabase/supabase/functions/`, joining the existing
+`migrations/` and `tests/` siblings; scaffold with `pnpm supabase functions new` so
+the CLI places it correctly):
 ```
-supabase/functions/sync-thamani-metrics/
-  index.ts            # handler: auth check → run registry → upsert
-  lib/types.ts        # ported (copy of lib/thamani/types.ts) + MetricDef type
-  lib/periods.ts      # ported (copy of lib/thamani/periods.ts)
-  lib/aggregate.ts    # pageAll() + bucketCounts() shared helpers
-  lib/registry.ts     # METRICS: MetricDef[]  (exports the registry)
+db/supabase/supabase/functions/sync-thamani-metrics/
+  index.ts            # handler: secret check → run registry → upsert
+  pageAll.ts          # generic paginated column reader (uses SupabaseClient)
+  registry.ts         # METRICS: MetricDef[]
   metrics/accounts_new.ts   # the accountsNew MetricDef
-  lib/aggregate_test.ts     # Deno test: bucketCounts mirrors periods.test.ts
 ```
-Adding a future metric touches only `metrics/<key>.ts` (+ its test) and one line in
-`lib/registry.ts`. Nothing else in the function changes.
+Adding a future metric touches only `metrics/<key>.ts` and one line in
+`registry.ts`. Nothing else in the function changes.
 
-### 2. Ported pure logic
+### Shared pure logic — single source of truth (no duplication)
 
-`periods.ts` imports only `./types`; `bucketAccounts` imports only periods + types.
-Both are pure and already unit-tested — they port to Deno verbatim (change import
-extensions to explicit `.ts`). `computeAccountsMetrics` (the client-bound wrapper)
-is **not** ported; the Edge Function does its own paginated read.
+`lib/thamani/periods.ts` imports only `./types` (both alias-free and dependency-free),
+so the Edge Function imports them **directly by relative path** — no copying. The
+generalized bucketing helper lives app-side too and is imported the same way:
 
-**Trade-off:** this duplicates ~200 lines of pure logic across the Next app and the
-Edge Function. A shared cross-runtime module was rejected because the app uses `@/`
-path aliases and the Node supabase client, neither of which resolves in Deno.
-Duplication is mitigated by `lib/bucket_test.ts`, which mirrors the existing
-`periods.test.ts` assertions so any logic drift fails CI.
+```
+lib/thamani/types.ts                 # Grain, MetricRow (unchanged, dependency-free)
+lib/thamani/periods.ts               # unchanged — imported by app AND function
+lib/thamani/metrics/aggregate.ts     # NEW: bucketCounts(metricKey, values, now)
+```
 
-### 3. pg_cron schedule (atlas DB)
+`bucketCounts` is `bucketAccounts` generalized to take a `metricKey` parameter; it
+is covered by vitest (`tests/thamani/`), so **both runtimes are guarded by one test
+suite** and drift is impossible. The Edge Function imports
+`../../../../../lib/thamani/metrics/aggregate.ts` etc.; `supabase functions deploy`
+bundles the import graph, so the shared files ship with the function.
+
+`MetricDef`'s `compute` signature references `SupabaseClient` (from the function's
+esm.sh import), so the `MetricDef` type is declared in the function's `registry.ts`
+(edge-only), keeping `lib/thamani/types.ts` dependency-free.
+
+### 2. pg_cron schedule (atlas DB, provisioning SQL — not a versioned migration)
+
+Run once against **prod** (via MCP `execute_sql` or the dashboard). It is *not* a
+numbered migration: the env-specific function URL + Vault secrets would break local
+`supabase start` / CI. Enabling the extensions is likewise a prod provisioning step.
+
+```sql
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+-- Store the callback URL and the atlas service_role key in Vault (once):
+select vault.create_secret(
+  'https://<atlas-ref>.supabase.co/functions/v1/sync-thamani-metrics', 'sync_metrics_url');
+select vault.create_secret('<atlas service_role key>', 'atlas_service_role_key');
+
+select cron.schedule('sync-thamani-metrics', '*/10 * * * *', $$
+  select net.http_post(
+    url     := (select decrypted_secret from vault.decrypted_secrets where name = 'sync_metrics_url'),
+    headers := jsonb_build_object(
+      'Content-Type','application/json',
+      'Authorization','Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'atlas_service_role_key')
+    )
+  );
+$$);
+```
 
 ```sql
 select cron.schedule(
@@ -190,7 +225,7 @@ extensions `pg_cron` and `pg_net` enabled on the atlas project.
   apply the migration, deploy the function, and schedule the cron. If not shared,
   the implementation delivers copy-paste `supabase` CLI + SQL commands instead.
 
-### 4. Reusable blueprint skill
+### 3. Reusable blueprint skill
 
 A project skill at `.claude/skills/thamani-metrics-aggregation/SKILL.md` documents
 the repeatable recipe for adding any future Thamani → atlas aggregation. It is the

@@ -20,7 +20,7 @@ export function PrevBadge({
       ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300"
       : dir === "down"
         ? "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300"
-        : "bg-ink/10 text-ink-soft";
+        : "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300";
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${tone}`}
@@ -104,7 +104,7 @@ export function AccountsCard({
         <CardTitle>New accounts</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col divide-y divide-ink/10">
+        <div className="flex flex-col divide-y divide-[color-mix(in_srgb,var(--ink)_8%,transparent)]">
           <Stat label="Today" value={current.today} previous={previous.today} />
           <Stat
             label="This week"

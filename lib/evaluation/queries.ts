@@ -34,8 +34,14 @@ export async function getEvaluationForViewer(id: string) {
     candidates = (await supabase.from("evaluation_candidates")
       .select("id,display_name").eq("evaluation_id", id).eq("is_active", true)
       .order("display_name")).data ?? [];
-    answers = (await supabase.from("evaluation_answers")
-      .select("candidate_id,question_id,answer_text").eq("evaluation_id", id)).data ?? [];
+    // Restrict to the already-filtered visible (non-hidden) questions so
+    // hidden-question answer text never reaches the page payload.
+    const qIds = questions.map((q) => q.id);
+    answers = qIds.length
+      ? (await supabase.from("evaluation_answers")
+          .select("candidate_id,question_id,answer_text")
+          .eq("evaluation_id", id).in("question_id", qIds)).data ?? []
+      : [];
     if (isPanelist && ev.status === "open") {
       const my = (await supabase.from("evaluation_ratings")
         .select("candidate_id,question_id,score").eq("evaluation_id", id)).data ?? [];

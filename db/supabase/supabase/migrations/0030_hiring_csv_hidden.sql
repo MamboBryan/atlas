@@ -140,3 +140,19 @@ end $$;
 
 revoke all on function public.evaluation_panel_progress(uuid) from public;
 grant execute on function public.evaluation_panel_progress(uuid) to authenticated;
+
+-- Panelists must not be able to read hidden-question answer text directly via
+-- the table (the app payload already excludes it; this closes the RLS gap).
+-- Admins are unaffected. Policy count on evaluation_answers stays at 2
+-- (read + admin_write) — only the read policy is replaced.
+drop policy if exists answers_read on public.evaluation_answers;
+create policy answers_read on public.evaluation_answers for select using (
+  public.atlas_is_admin(auth.uid())
+  or (
+    public.atlas_is_panelist(auth.uid(), evaluation_id)
+    and not exists (
+      select 1 from public.evaluation_questions q
+      where q.id = question_id and q.is_hidden
+    )
+  )
+);

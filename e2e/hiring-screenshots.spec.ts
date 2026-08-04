@@ -235,6 +235,14 @@ test.describe("hiring evaluations screenshots", () => {
         path: "qa-screenshots/hiring/05-detail-closed-results.png",
         fullPage: true,
       });
+
+      // Expand the top-ranked row to reveal its per-question breakdown.
+      await page.getByRole("button", { name: /#1/ }).click();
+      await expect(page.getByText("Why do you want this role?")).toBeVisible();
+      await page.screenshot({
+        path: "qa-screenshots/hiring/05b-detail-closed-results-expanded.png",
+        fullPage: true,
+      });
     } finally {
       await ctx.close();
     }

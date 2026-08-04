@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(15);
+SELECT plan(17);
 
 -- Tables exist
 SELECT has_table('public','evaluations','evaluations table exists');
@@ -42,6 +42,10 @@ SELECT has_function('public','evaluation_results',
   ARRAY['uuid'], 'evaluation_results(uuid) exists');
 SELECT has_function('public','evaluation_panel_progress',
   ARRAY['uuid'], 'evaluation_panel_progress(uuid) exists');
+
+-- CSV import / hidden-field columns exist
+SELECT has_column('public','evaluations','hide_names', 'evaluations.hide_names exists');
+SELECT has_column('public','evaluation_questions','is_hidden', 'evaluation_questions.is_hidden exists');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -5,10 +5,11 @@ import { atlasServiceClient } from "@/lib/supabase/service";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   createEvaluationInput, connectSheetInput, setPanelInput, evaluationIdInput,
-  confirmMappingInput, rateAnswerInput,
+  confirmMappingInput, rateAnswerInput, csvImportInput,
 } from "@/lib/zod/evaluation";
 import { readSheet } from "@/lib/sheets/client";
 import { detectMapping } from "@/lib/sheets/parse";
+import { parseCsv } from "@/lib/sheets/csv";
 import { syncEvaluation } from "@/lib/evaluation/sync";
 
 export async function createEvaluationAction(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -88,22 +89,50 @@ export async function confirmMappingAction(input: unknown) {
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireAdmin();
   const svc = atlasServiceClient();
-  const { evaluationId, emailColumn, nameColumn, timestampColumn, questionColumns } = parsed.data;
+  const {
+    evaluationId, emailColumn, nameColumn, timestampColumn, questionColumns,
+    hiddenColumns, hideNames,
+  } = parsed.data;
   const { data: ev } = await svc.from("evaluations")
     .select("sheet_id,sheet_tab").eq("id", evaluationId).single();
   if (!ev?.sheet_id) return err("no_sheet", "connect a sheet first");
   try {
     const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
     const summary = await syncEvaluation(svc, evaluationId, grid,
-      { emailColumn, nameColumn, timestampColumn, questionColumns });
+      { emailColumn, nameColumn, timestampColumn, questionColumns, hiddenColumns, hideNames });
     await svc.from("evaluations").update({
-      email_column: emailColumn, name_column: nameColumn,
-      timestamp_column: timestampColumn, mapping_confirmed: true,
+      email_column: emailColumn, name_column: hideNames ? null : nameColumn,
+      timestamp_column: timestampColumn, hide_names: hideNames, mapping_confirmed: true,
     }).eq("id", evaluationId);
     revalidatePath(`/hiring/${evaluationId}`);
     return ok(summary);
   } catch (e) {
     return err("sheet_error", (e as Error).message);
+  }
+}
+
+export async function importCsvAction(input: unknown) {
+  const parsed = csvImportInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  await requireAdmin();
+  const svc = atlasServiceClient();
+  const {
+    evaluationId, csvText, emailColumn, nameColumn, timestampColumn, questionColumns,
+    hiddenColumns, hideNames,
+  } = parsed.data;
+  try {
+    const grid = parseCsv(csvText);
+    const summary = await syncEvaluation(svc, evaluationId, grid,
+      { emailColumn, nameColumn, timestampColumn, questionColumns, hiddenColumns, hideNames });
+    await svc.from("evaluations").update({
+      email_column: emailColumn, name_column: hideNames ? null : nameColumn,
+      timestamp_column: timestampColumn, hide_names: hideNames,
+      mapping_confirmed: true, sheet_id: null,
+    }).eq("id", evaluationId);
+    revalidatePath(`/hiring/${evaluationId}`);
+    return ok(summary);
+  } catch (e) {
+    return err("csv_error", (e as Error).message);
   }
 }
 
@@ -127,18 +156,27 @@ export async function refreshEvaluationAction(input: unknown) {
   await requireAdmin();
   const svc = atlasServiceClient();
   const { data: ev } = await svc.from("evaluations")
-    .select("sheet_id,sheet_tab,email_column,name_column,timestamp_column,mapping_confirmed")
+    .select("sheet_id,sheet_tab,email_column,name_column,timestamp_column,mapping_confirmed,hide_names")
     .eq("id", parsed.data.evaluationId).single();
-  if (!ev?.sheet_id || !ev.mapping_confirmed || !ev.email_column)
+  if (!ev?.mapping_confirmed || !ev.email_column)
     return err("not_ready", "connect a sheet and confirm mapping first");
+  if (!ev.sheet_id)
+    return err("no_sheet", "re-upload the CSV to update");
   try {
     const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
     // Question columns = all headers minus identity columns (stable).
     const identity = new Set([ev.email_column, ev.name_column, ev.timestamp_column].filter(Boolean) as string[]);
-    const questionColumns = grid.headers.filter((h) => !identity.has(h));
+    const nonIdentityHeaders = grid.headers.filter((h) => !identity.has(h));
+    // Hidden state lives per-question; carry it forward from the existing rows.
+    const { data: existingQs } = await svc.from("evaluation_questions")
+      .select("column_key,is_hidden").eq("evaluation_id", parsed.data.evaluationId);
+    const hiddenKeys = new Set((existingQs ?? []).filter((q) => q.is_hidden).map((q) => q.column_key));
+    const questionColumns = nonIdentityHeaders.filter((h) => !hiddenKeys.has(h));
+    const hiddenColumns = nonIdentityHeaders.filter((h) => hiddenKeys.has(h));
     const summary = await syncEvaluation(svc, parsed.data.evaluationId, grid, {
       emailColumn: ev.email_column, nameColumn: ev.name_column,
-      timestampColumn: ev.timestamp_column, questionColumns,
+      timestampColumn: ev.timestamp_column, questionColumns, hiddenColumns,
+      hideNames: ev.hide_names,
     });
     revalidatePath(`/hiring/${parsed.data.evaluationId}`);
     return ok(summary);

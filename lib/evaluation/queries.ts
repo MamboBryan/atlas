@@ -29,6 +29,7 @@ export async function getEvaluationForViewer(id: string) {
   if (isPanelist || isAdmin) {
     questions = (await supabase.from("evaluation_questions")
       .select("id,prompt,position").eq("evaluation_id", id).eq("is_active", true)
+      .eq("is_hidden", false)
       .order("position")).data ?? [];
     candidates = (await supabase.from("evaluation_candidates")
       .select("id,display_name").eq("evaluation_id", id).eq("is_active", true)

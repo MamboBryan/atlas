@@ -14,6 +14,12 @@ export const confirmMappingInput = z.object({
   nameColumn: z.string().min(1).nullable(),
   timestampColumn: z.string().min(1).nullable(),
   questionColumns: z.array(z.string().min(1)).min(1),
+  hiddenColumns: z.array(z.string().min(1)).default([]),
+  hideNames: z.boolean().default(false),
+});
+
+export const csvImportInput = confirmMappingInput.extend({
+  csvText: z.string().min(1),
 });
 
 export const evaluationIdInput = z.object({ evaluationId: z.string().uuid() });

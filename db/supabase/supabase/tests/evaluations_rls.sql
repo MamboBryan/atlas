@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(13);
+SELECT plan(15);
 
 -- Tables exist
 SELECT has_table('public','evaluations','evaluations table exists');
@@ -36,6 +36,12 @@ SELECT is(
   (SELECT count(*)::int FROM pg_policies
    WHERE schemaname='public' AND tablename='evaluation_answers'),
   2, 'evaluation_answers has 2 policies (read + admin write)');
+
+-- RPCs exist (behavioral suppression is proven in Task 10 integration tests).
+SELECT has_function('public','evaluation_results',
+  ARRAY['uuid'], 'evaluation_results(uuid) exists');
+SELECT has_function('public','evaluation_panel_progress',
+  ARRAY['uuid'], 'evaluation_panel_progress(uuid) exists');
 
 SELECT * FROM finish();
 ROLLBACK;

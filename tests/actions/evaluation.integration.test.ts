@@ -20,8 +20,8 @@ beforeEach(async () => {
 
 test.runIf(canRun)("evaluation lifecycle: create draft, add panel, open", async () => {
   const c = admin!;
-  const adminId = await makeUser("admin@atlas.com", "admin");
-  const panelId = await makeUser("panel@atlas.com", "member");
+  const adminId = await makeUser("hiring-eval-admin@atlas.com", "admin");
+  const panelId = await makeUser("hiring-eval-panel@atlas.com", "member");
 
   const { data: ev } = await c.from("evaluations")
     .insert({ name: "Backend – Aug", created_by: adminId }).select("id,status").single();

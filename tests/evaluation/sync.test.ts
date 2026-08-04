@@ -16,7 +16,7 @@ beforeEach(async () => {
 
 test.runIf(canRun)("first sync creates questions/candidates/answers; refresh deactivates removed", async () => {
   const c = admin!;
-  const { data: u } = await c.auth.admin.createUser({ email: "admin@atlas.com", email_confirm: true });
+  const { data: u } = await c.auth.admin.createUser({ email: "hiring-sync-admin@atlas.com", email_confirm: true });
   const { data: ev } = await c.from("evaluations")
     .insert({ name: "T", created_by: u!.user!.id }).select("id").single();
   const id = ev!.id;

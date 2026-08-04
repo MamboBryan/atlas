@@ -92,14 +92,14 @@ export async function confirmMappingAction(input: unknown) {
   const { data: ev } = await svc.from("evaluations")
     .select("sheet_id,sheet_tab").eq("id", evaluationId).single();
   if (!ev?.sheet_id) return err("no_sheet", "connect a sheet first");
-  await svc.from("evaluations").update({
-    email_column: emailColumn, name_column: nameColumn,
-    timestamp_column: timestampColumn, mapping_confirmed: true,
-  }).eq("id", evaluationId);
   try {
     const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
     const summary = await syncEvaluation(svc, evaluationId, grid,
       { emailColumn, nameColumn, timestampColumn, questionColumns });
+    await svc.from("evaluations").update({
+      email_column: emailColumn, name_column: nameColumn,
+      timestamp_column: timestampColumn, mapping_confirmed: true,
+    }).eq("id", evaluationId);
     revalidatePath(`/hiring/${evaluationId}`);
     return ok(summary);
   } catch (e) {

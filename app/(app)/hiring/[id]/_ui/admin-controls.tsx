@@ -1,10 +1,12 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   connectSheetAction, previewMappingAction, refreshEvaluationAction,
   setPanelAction, openEvaluationAction, closeEvaluationAction, reopenEvaluationAction,
 } from "@/lib/actions/evaluation";
+import { parseCsv } from "@/lib/sheets/csv";
+import { detectMapping } from "@/lib/sheets/parse";
 import { MappingDialog } from "@/app/(app)/hiring/[id]/_ui/mapping-dialog";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,11 +26,23 @@ export function AdminControls({
 }) {
   const [sheetId, setSheetId] = useState(evaluation.sheet_id ?? "");
   const [tab, setTab] = useState("");
-  const [detected, setDetected] = useState<{ d: Detected; headers: string[] } | null>(null);
+  const [detected, setDetected] = useState<{ d: Detected; headers: string[]; csvText?: string } | null>(null);
   const [msg, setMsg] = useState("");
   const [selected, setSelected] = useState<string[]>(panel);
   const [pending, start] = useTransition();
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCsvChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const text = await file.text();
+    const grid = parseCsv(text);
+    if (grid.headers.length === 0) { setMsg("Error: CSV appears empty"); return; }
+    const d = detectMapping(grid);
+    setDetected({ d, headers: grid.headers, csvText: text });
+  };
   const run = (fn: () => Promise<{ ok: boolean; error?: { message: string } }>) =>
     start(async () => { const r = await fn(); setMsg(r.ok ? "Done." : `Error: ${r.error?.message}`); router.refresh(); });
 
@@ -76,11 +90,30 @@ export function AdminControls({
               Detect columns
             </Button>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="h-px flex-1 bg-ink/15" />
+            <span className="text-xs text-ink-soft">or</span>
+            <div className="h-px flex-1 bg-ink/15" />
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleCsvChange}
+          />
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload CSV
+          </Button>
         </div>
 
         {detected && (
           <MappingDialog evaluationId={evaluation.id} detected={detected.d}
-            headers={detected.headers} onClose={() => setDetected(null)} />
+            headers={detected.headers} csvText={detected.csvText} onClose={() => setDetected(null)} />
         )}
 
         <div className="space-y-2">

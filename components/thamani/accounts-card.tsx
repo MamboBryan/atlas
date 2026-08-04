@@ -1,7 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { trendDirection, type CurrentValues } from "@/lib/thamani/read";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowUp02Icon, ArrowDown02Icon } from "@hugeicons/core-free-icons";
+
+/** Previous-period value, shown as a compact badge beside the trend arrow. */
+export function PrevBadge({ previous }: { previous: number }) {
+  return (
+    <Badge
+      variant="secondary"
+      className="border-ink/20 px-1.5 py-0 text-[10px] font-semibold text-ink-soft tabular-nums"
+    >
+      prev {previous}
+    </Badge>
+  );
+}
 
 export function TrendArrow({
   current,
@@ -48,15 +61,16 @@ function Stat({
   previous: number;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-1.5">
-      <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">
+    <div className="flex items-center justify-between gap-3 py-1">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">
         {label}
       </span>
-      <span className="flex items-center gap-1">
-        <span className="font-display text-xl font-extrabold text-ink tabular-nums">
+      <span className="flex items-center gap-1.5">
+        <span className="font-display text-base font-extrabold text-ink tabular-nums">
           {value}
         </span>
         <TrendArrow current={value} previous={previous} />
+        <PrevBadge previous={previous} />
       </span>
     </div>
   );
@@ -70,7 +84,7 @@ export function AccountsCard({
   previous: CurrentValues;
 }) {
   return (
-    <Card interactive>
+    <Card interactive size="sm">
       <CardHeader>
         <CardTitle>New accounts</CardTitle>
       </CardHeader>
@@ -94,7 +108,7 @@ export function AccountsCard({
           />
           <Stat label="This year" value={current.year} previous={previous.year} />
         </div>
-        <p className="mt-3 text-xs text-ink-soft">Tap for details</p>
+        <p className="mt-3 text-[11px] text-ink-soft">Tap for details</p>
       </CardContent>
     </Card>
   );

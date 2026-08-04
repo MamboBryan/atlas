@@ -7,7 +7,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AccountsCard, TrendArrow } from "@/components/thamani/accounts-card";
+import {
+  AccountsCard,
+  TrendArrow,
+  PrevBadge,
+} from "@/components/thamani/accounts-card";
 import { AccountsChart } from "@/components/thamani/accounts-chart";
 import { AccountsCompare } from "@/components/thamani/accounts-compare";
 import type { CurrentValues } from "@/lib/thamani/read";
@@ -46,11 +50,16 @@ export function AccountsMetric({
   return (
     <Dialog>
       <DialogTrigger
-        render={<button type="button" className="block w-full text-left" />}
+        render={
+          <button
+            type="button"
+            className="block w-full text-left sm:w-80"
+          />
+        }
       >
         <AccountsCard current={current} previous={previous} />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="w-[80vw] max-w-[80vw] max-h-[85vh] overflow-y-auto sm:max-w-[80vw]">
         <DialogHeader>
           <DialogTitle>New accounts</DialogTitle>
         </DialogHeader>
@@ -62,14 +71,12 @@ export function AccountsMetric({
                 <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">
                   {label}
                 </span>
-                <span className="flex items-center gap-1">
+                <span className="flex flex-wrap items-center gap-1.5">
                   <span className="font-display text-2xl font-extrabold text-ink tabular-nums">
                     {current[key]}
                   </span>
                   <TrendArrow current={current[key]} previous={previous[key]} />
-                </span>
-                <span className="text-[11px] text-ink-soft tabular-nums">
-                  prev {previous[key]}
+                  <PrevBadge previous={previous[key]} />
                 </span>
               </div>
             ))}

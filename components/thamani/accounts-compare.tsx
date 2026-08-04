@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import {
   type Selection,
   selectionCount,
+  selectionDays,
   overlappingIndices,
 } from "@/lib/thamani/compare";
 
@@ -25,6 +26,15 @@ function emptySelection(mode: Mode): Selection {
   return { kind: "range", from: "", to: "" };
 }
 
+function describe(sel: Selection): string {
+  if (sel.kind === "single") return sel.date || "—";
+  if (sel.kind === "multiple") {
+    const n = selectionDays(sel).length;
+    return n === 1 ? "1 date" : `${n} dates`;
+  }
+  return sel.from && sel.to ? `${sel.from} → ${sel.to}` : "—";
+}
+
 export function AccountsCompare({
   daily,
   year,
@@ -37,6 +47,8 @@ export function AccountsCompare({
     emptySelection("single"),
     emptySelection("single"),
   ]);
+  // The comparison shown in the result — set only on Apply, cleared on any edit.
+  const [applied, setApplied] = useState<Selection[] | null>(null);
 
   const dailyMap = useMemo(
     () => new Map(daily.map((row) => [row.date, row.value])),
@@ -49,28 +61,36 @@ export function AccountsCompare({
     () => new Set(overlappingIndices(selections)),
     [selections],
   );
-  const counts = selections.map((sel) => selectionCount(dailyMap, sel));
-  const maxCount = Math.max(
-    1,
-    ...counts.filter((_, i) => !overlaps.has(i)),
-  );
+  const allFilled = selections.every((s) => selectionDays(s).length > 0);
+  const canApply = allFilled && overlaps.size === 0;
 
+  // Any edit invalidates the applied result so stale bars never linger.
+  function edit(next: Selection[]) {
+    setSelections(next);
+    setApplied(null);
+  }
   function switchMode(next: Mode) {
     setMode(next);
     setSelections([emptySelection(next), emptySelection(next)]);
+    setApplied(null);
   }
   function update(i: number, sel: Selection) {
-    setSelections((prev) => prev.map((s, idx) => (idx === i ? sel : s)));
+    edit(selections.map((s, idx) => (idx === i ? sel : s)));
   }
   function addSelection() {
-    setSelections((prev) =>
-      prev.length >= MAX_SELECTIONS ? prev : [...prev, emptySelection(mode)],
-    );
+    if (selections.length >= MAX_SELECTIONS) return;
+    edit([...selections, emptySelection(mode)]);
   }
   function removeSelection(i: number) {
-    setSelections((prev) =>
-      prev.length <= 2 ? prev : prev.filter((_, idx) => idx !== i),
-    );
+    if (selections.length <= 2) return;
+    edit(selections.filter((_, idx) => idx !== i));
+  }
+  function apply() {
+    if (canApply) setApplied(selections);
+  }
+  function clear() {
+    setSelections([emptySelection(mode), emptySelection(mode)]);
+    setApplied(null);
   }
 
   return (
@@ -102,8 +122,6 @@ export function AccountsCompare({
             selection={sel}
             min={min}
             max={max}
-            count={counts[i]}
-            barPct={overlaps.has(i) ? 0 : (counts[i] / maxCount) * 100}
             overlap={overlaps.has(i)}
             canRemove={selections.length > 2}
             onChange={(s) => update(i, s)}
@@ -112,15 +130,78 @@ export function AccountsCompare({
         ))}
       </div>
 
-      {selections.length < MAX_SELECTIONS && (
-        <Button type="button" variant="ghost" size="sm" onClick={addSelection}>
-          ＋ Add selection
+      <div className="flex flex-wrap items-center gap-2">
+        {selections.length < MAX_SELECTIONS && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={addSelection}
+          >
+            ＋ Add selection
+          </Button>
+        )}
+        <div className="flex-1" />
+        <Button type="button" variant="outline" size="sm" onClick={clear}>
+          Clear
         </Button>
-      )}
+        <Button
+          type="button"
+          variant="accent"
+          size="sm"
+          onClick={apply}
+          disabled={!canApply}
+        >
+          Apply
+        </Button>
+      </div>
 
-      <p className="text-[11px] text-ink-soft">
-        Comparisons cover {year} only. Selections can&apos;t overlap.
-      </p>
+      {applied && applied.length > 0 ? (
+        <ComparisonResult applied={applied} dailyMap={dailyMap} />
+      ) : (
+        <p className="text-[11px] text-ink-soft">
+          Pick non-overlapping dates in {year}, then Apply to compare.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ComparisonResult({
+  applied,
+  dailyMap,
+}: {
+  applied: Selection[];
+  dailyMap: Map<string, number>;
+}) {
+  const counts = applied.map((s) => selectionCount(dailyMap, s));
+  const max = Math.max(1, ...counts);
+  return (
+    <div className="space-y-2.5 rounded-md border border-ink/10 bg-surface p-3">
+      {applied.map((sel, i) => {
+        const label = String.fromCharCode(65 + i); // A, B, C…
+        return (
+          <div key={i} className="space-y-1">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="flex items-center gap-1.5 text-ink-soft">
+                <span className="font-display text-sm font-bold text-ink">
+                  {label}
+                </span>
+                <span className="tabular-nums">{describe(sel)}</span>
+              </span>
+              <span className="font-display text-sm font-bold text-ink tabular-nums">
+                {counts[i]}
+              </span>
+            </div>
+            <div className="h-3 overflow-hidden rounded bg-ink/5">
+              <div
+                className="h-full rounded bg-accent/70"
+                style={{ width: `${(counts[i] / max) * 100}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -130,8 +211,6 @@ function SelectionRow({
   selection,
   min,
   max,
-  count,
-  barPct,
   overlap,
   canRemove,
   onChange,
@@ -141,8 +220,6 @@ function SelectionRow({
   selection: Selection;
   min: string;
   max: string;
-  count: number;
-  barPct: number;
   overlap: boolean;
   canRemove: boolean;
   onChange: (s: Selection) => void;
@@ -150,7 +227,7 @@ function SelectionRow({
 }) {
   const label = String.fromCharCode(65 + index); // A, B, C…
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       <div className="flex items-center gap-2">
         <span className="w-5 shrink-0 font-display text-sm font-bold text-ink">
           {label}
@@ -212,25 +289,11 @@ function SelectionRow({
           </Button>
         )}
       </div>
-      <div className="flex items-center gap-2 pl-7">
-        <div className="h-4 flex-1 overflow-hidden rounded bg-ink/5">
-          {!overlap && (
-            <div
-              className="h-full rounded bg-accent/70"
-              style={{ width: `${barPct}%` }}
-            />
-          )}
-        </div>
-        {overlap ? (
-          <span className="text-[11px] font-medium text-rose-600 dark:text-rose-400">
-            overlaps another selection
-          </span>
-        ) : (
-          <span className="w-8 shrink-0 text-right font-display text-sm font-bold text-ink tabular-nums">
-            {count}
-          </span>
-        )}
-      </div>
+      {overlap && (
+        <p className="pl-7 text-[11px] font-medium text-rose-600 dark:text-rose-400">
+          overlaps another selection
+        </p>
+      )}
     </div>
   );
 }

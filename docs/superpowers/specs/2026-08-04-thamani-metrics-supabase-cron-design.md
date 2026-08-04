@@ -39,11 +39,19 @@ exactly "works local, empty prod."
 
 Replace the fragile Vercel-cron trigger with a **Supabase-native** pipeline that
 runs entirely on infra we control, every 10 minutes, with visible failure
-reporting — while keeping the metric output **byte-identical** to today's so the
-dashboard needs zero changes.
+reporting — while keeping the `accounts_new` output **byte-identical** to today's
+so the dashboard needs zero changes.
 
-Non-goals (YAGNI): incremental aggregation, new metrics beyond `accounts_new`,
-generalizing the metric framework.
+Additionally, the pipeline must be a **reusable blueprint for any future
+aggregation from the Thamani database**. Adding a new metric must be a small,
+documented, repeatable operation — a new metric module + one registry line + a
+test — with **no new cron, function, or infra**. The repeatable recipe is captured
+as an invocable project skill.
+
+Non-goals (YAGNI): incremental aggregation (full recompute is fine at current
+scale); a heavyweight plugin framework (a plain `MetricDef[]` registry is enough);
+building future metrics now (only `accounts_new` ships — the rest are enabled by
+the blueprint).
 
 ## Architecture
 
@@ -64,6 +72,51 @@ Edge) change. Aggregation stays in TypeScript because atlas's DB does not hold t
 `accounts` rows, so a pure-SQL aggregate is not possible without a foreign-data
 wrapper (deliberately avoided).
 
+The Edge Function is a **registry runner**: it iterates a `MetricDef[]`, computes
+each metric's rows, concatenates them, and performs one upsert. `accounts_new` is
+the first (and, at ship time, only) registered metric. Future metrics are added to
+the registry — the runner, cron, and upsert are metric-agnostic.
+
+### Generalized aggregation contract
+
+```ts
+// One aggregation from Thamani prod → atlas thamani_metrics rows.
+export type MetricDef = {
+  metric_key: string;
+  // Read from Thamani + bucket into MetricRow[] for the standard period set.
+  compute: (thamani: SupabaseClient, now: Date) => Promise<MetricRow[]>;
+};
+```
+
+Shared helpers make the common case (count rows by a timestamp column) a one-liner:
+
+```ts
+// Generic paginated column reader over a Thamani table.
+export async function pageAll(
+  thamani: SupabaseClient, table: string, column: string,
+): Promise<string[]>;
+
+// Bucket timestamp values into counts across the standard period set,
+// parameterized by metric_key. (Generalized from today's bucketAccounts.)
+export function bucketCounts(
+  metricKey: string, values: string[], now: Date,
+): MetricRow[];
+```
+
+So `accounts_new` is:
+
+```ts
+export const accountsNew: MetricDef = {
+  metric_key: "accounts_new",
+  compute: async (thamani, now) =>
+    bucketCounts("accounts_new", await pageAll(thamani, "accounts", "created_at"), now),
+};
+```
+
+A future "new devices per period" metric is the same three lines against
+`devices`/`created_at`. A non-count aggregation (sum, distinct) writes a custom
+`compute` using `pageAll` (or its own query) + the `periods` helpers directly.
+
 ## Components
 
 ### 1. Edge Function `sync-thamani-metrics` (Deno/TypeScript, atlas project)
@@ -82,12 +135,16 @@ wrapper (deliberately avoided).
 Directory:
 ```
 supabase/functions/sync-thamani-metrics/
-  index.ts          # handler: auth check → read → bucket → upsert
-  lib/types.ts      # ported (copy of lib/thamani/types.ts)
-  lib/periods.ts    # ported (copy of lib/thamani/periods.ts)
-  lib/bucket.ts     # ported bucketAccounts (from lib/thamani/metrics/accounts.ts)
-  lib/bucket_test.ts # Deno test mirroring periods.test.ts assertions
+  index.ts            # handler: auth check → run registry → upsert
+  lib/types.ts        # ported (copy of lib/thamani/types.ts) + MetricDef type
+  lib/periods.ts      # ported (copy of lib/thamani/periods.ts)
+  lib/aggregate.ts    # pageAll() + bucketCounts() shared helpers
+  lib/registry.ts     # METRICS: MetricDef[]  (exports the registry)
+  metrics/accounts_new.ts   # the accountsNew MetricDef
+  lib/aggregate_test.ts     # Deno test: bucketCounts mirrors periods.test.ts
 ```
+Adding a future metric touches only `metrics/<key>.ts` (+ its test) and one line in
+`lib/registry.ts`. Nothing else in the function changes.
 
 ### 2. Ported pure logic
 
@@ -133,6 +190,25 @@ extensions `pg_cron` and `pg_net` enabled on the atlas project.
   apply the migration, deploy the function, and schedule the cron. If not shared,
   the implementation delivers copy-paste `supabase` CLI + SQL commands instead.
 
+### 4. Reusable blueprint skill
+
+A project skill at `.claude/skills/thamani-metrics-aggregation/SKILL.md` documents
+the repeatable recipe for adding any future Thamani → atlas aggregation. It is the
+"blueprint" deliverable and encodes the step-by-step process:
+
+1. Name the metric (`metric_key`) and decide grain semantics (what one row counts).
+2. Add `metrics/<key>.ts` exporting a `MetricDef`. For a count-by-timestamp metric,
+   use `bucketCounts(key, await pageAll(thamani, <table>, <column>), now)`. For
+   sums/distinct, write a custom `compute` using `pageAll` + the `periods` helpers.
+3. Register it in `lib/registry.ts` (`METRICS`).
+4. Add a Deno unit test mirroring the bucketing assertions.
+5. `supabase functions deploy sync-thamani-metrics` — no new cron/infra.
+6. (If surfacing it) add a read in `lib/thamani/read.ts` and a dashboard component.
+7. Verify: invoke the function, assert `upserted` grew, check `cron.job_run_details`.
+
+The skill references this spec and the concrete `accounts_new` module as the worked
+example.
+
 ## Related fix (in-scope)
 
 `lib/thamani/read.ts` silently ignores query errors. Change the read helpers to
@@ -158,14 +234,19 @@ that hid the current problem.
 4. Verify the dashboard renders non-zero values.
 5. Remove the `thamani-metrics` entry from `vercel.json` and delete
    `app/api/cron/thamani-metrics/route.ts`.
+6. Author the `thamani-metrics-aggregation` skill (blueprint) and commit.
 
 ## Testing
 
-- **Unit (Deno):** `lib/bucket_test.ts` mirrors `periods.test.ts` — guards the
-  ported logic against drift.
+- **Unit (Deno):** `lib/aggregate_test.ts` exercises `bucketCounts` with the same
+  assertions as `periods.test.ts` — guards the ported logic against drift.
+- **Unit (existing, vitest):** the Next-side `periods.test.ts` continues to guard
+  the app copy; both suites assert identical behavior.
 - **Integration (manual):** invoke the deployed function; assert response shape and
   row presence; check `cron.job_run_details` after first scheduled run; confirm
   dashboard shows non-zero.
+- **Blueprint validation:** the skill's steps are the same ones used to ship
+  `accounts_new`, so shipping it is the first successful dry-run of the blueprint.
 
 ## Scale note (deferred)
 

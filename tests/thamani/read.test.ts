@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { pickCurrent, trendDirection, pickPrevious } from "@/lib/thamani/read";
+import { describe, it, expect, vi } from "vitest";
+import {
+  pickCurrent,
+  trendDirection,
+  pickPrevious,
+  getAccountsSnapshot,
+} from "@/lib/thamani/read";
 import type { MetricRow } from "@/lib/thamani/types";
 
 describe("pickCurrent", () => {
@@ -90,5 +95,25 @@ describe("pickPrevious", () => {
       quarter: 0,
       year: 0,
     });
+  });
+});
+
+describe("getAccountsSnapshot error surfacing", () => {
+  it("logs when the query returns an error", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: () => Promise.resolve({ data: null, error: { message: "boom" } }),
+        }),
+      }),
+    } as unknown as import("@/lib/thamani/read").MinimalClient;
+
+    await getAccountsSnapshot(client, new Date("2026-07-30T18:05:00Z"));
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining("thamani_metrics read failed"),
+      "boom",
+    );
+    spy.mockRestore();
   });
 });

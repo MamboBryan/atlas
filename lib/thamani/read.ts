@@ -42,7 +42,7 @@ export async function getAccountsMonthly(
   supabase: MinimalClient,
   year: number,
 ): Promise<{ period_start: string; value: number }[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("thamani_metrics")
     .select("period_start,value")
     .eq("metric_key", ACCOUNTS_NEW)
@@ -50,6 +50,9 @@ export async function getAccountsMonthly(
     .gte("period_start", `${year}-01-01`)
     .lt("period_start", `${year + 1}-01-01`)
     .order("period_start", { ascending: true });
+  if (error) {
+    console.error("thamani_metrics read failed:", error.message);
+  }
   return ((data ?? []) as { period_start: string; value: number }[]).map(
     (r) => ({
       period_start: r.period_start,
@@ -88,10 +91,13 @@ export async function getAccountsSnapshot(
   supabase: MinimalClient,
   now: Date,
 ): Promise<{ current: CurrentValues; previous: CurrentValues }> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("thamani_metrics")
     .select("metric_key,grain,period_start,value")
     .eq("metric_key", ACCOUNTS_NEW);
+  if (error) {
+    console.error("thamani_metrics read failed:", error.message);
+  }
   const rows = (data ?? []) as MetricRow[];
   return { current: pickCurrent(rows, now), previous: pickPrevious(rows, now) };
 }
@@ -100,7 +106,7 @@ export async function getAccountsDaily(
   supabase: MinimalClient,
   year: number,
 ): Promise<{ date: string; value: number }[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("thamani_metrics")
     .select("period_start,value")
     .eq("metric_key", ACCOUNTS_NEW)
@@ -108,6 +114,9 @@ export async function getAccountsDaily(
     .gte("period_start", `${year}-01-01`)
     .lt("period_start", `${year + 1}-01-01`)
     .order("period_start", { ascending: true });
+  if (error) {
+    console.error("thamani_metrics read failed:", error.message);
+  }
   return ((data ?? []) as { period_start: string; value: number }[]).map(
     (r) => ({ date: r.period_start, value: Number(r.value) }),
   );

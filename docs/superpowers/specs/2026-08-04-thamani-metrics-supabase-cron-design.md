@@ -140,35 +140,39 @@ Directory (function lives at `db/supabase/supabase/functions/`, joining the exis
 the CLI places it correctly):
 ```
 db/supabase/supabase/functions/sync-thamani-metrics/
-  index.ts            # handler: secret check → run registry → upsert
-  pageAll.ts          # generic paginated column reader (uses SupabaseClient)
-  registry.ts         # METRICS: MetricDef[]
-  metrics/accounts_new.ts   # the accountsNew MetricDef
+  index.ts              # handler: bearer check → run registry → upsert
+  _shared/
+    types.ts            # copy of lib/thamani/types.ts (Grain, MetricRow)
+    periods.ts          # copy of lib/thamani/periods.ts
+    aggregate.ts        # bucketCounts(metricKey, values, now)
+    pageAll.ts          # generic paginated column reader (uses SupabaseClient)
+    registry.ts         # MetricDef type + METRICS: MetricDef[]
+  metrics/
+    accounts_new.ts     # the accountsNew MetricDef
+  aggregate_test.ts     # Deno test: bucketCounts + periods parity
 ```
 Adding a future metric touches only `metrics/<key>.ts` and one line in
-`registry.ts`. Nothing else in the function changes.
+`_shared/registry.ts`. Nothing else in the function changes.
 
-### Shared pure logic — single source of truth (no duplication)
+### Self-contained pure logic (copy, not cross-runtime import)
 
-`lib/thamani/periods.ts` imports only `./types` (both alias-free and dependency-free),
-so the Edge Function imports them **directly by relative path** — no copying. The
-generalized bucketing helper lives app-side too and is imported the same way:
+The function carries its **own copy** of `types.ts` + `periods.ts` (plus the new
+`aggregate.ts`). A shared import from the Next app was rejected for a concrete
+reason: Deno requires explicit `.ts` extensions on relative imports, while
+Next/SWC resolves extensionless — one file cannot satisfy both without fragile
+import-map workarounds. After cutover the **app no longer computes metrics** (it
+only reads `thamani_metrics`), so `periods.ts` legitimately has two independent
+consumers: the app's read-side period math and the function's compute-side.
 
-```
-lib/thamani/types.ts                 # Grain, MetricRow (unchanged, dependency-free)
-lib/thamani/periods.ts               # unchanged — imported by app AND function
-lib/thamani/metrics/aggregate.ts     # NEW: bucketCounts(metricKey, values, now)
-```
-
-`bucketCounts` is `bucketAccounts` generalized to take a `metricKey` parameter; it
-is covered by vitest (`tests/thamani/`), so **both runtimes are guarded by one test
-suite** and drift is impossible. The Edge Function imports
-`../../../../../lib/thamani/metrics/aggregate.ts` etc.; `supabase functions deploy`
-bundles the import graph, so the shared files ship with the function.
+Drift is guarded by tests on **both** copies: the app's existing
+`tests/thamani/periods.test.ts` (vitest) and the function's `aggregate_test.ts`
+(Deno) assert identical period boundaries and bucket counts. `computeAccountsMetrics`
+(the client-bound Node wrapper) is not copied — the function does its own paginated
+read via `pageAll`.
 
 `MetricDef`'s `compute` signature references `SupabaseClient` (from the function's
-esm.sh import), so the `MetricDef` type is declared in the function's `registry.ts`
-(edge-only), keeping `lib/thamani/types.ts` dependency-free.
+esm.sh import), so `MetricDef` is declared in `_shared/registry.ts` (edge-only). The
+function copies keep `types.ts` byte-identical to the app's for easy diffing.
 
 ### 2. pg_cron schedule (atlas DB, provisioning SQL — not a versioned migration)
 
@@ -273,8 +277,9 @@ that hid the current problem.
 
 ## Testing
 
-- **Unit (Deno):** `lib/aggregate_test.ts` exercises `bucketCounts` with the same
-  assertions as `periods.test.ts` — guards the ported logic against drift.
+- **Unit (Deno):** the function's `aggregate_test.ts` exercises `bucketCounts` +
+  period boundaries with the same assertions as `periods.test.ts`/`accounts.test.ts`
+  — guards the copied logic against drift.
 - **Unit (existing, vitest):** the Next-side `periods.test.ts` continues to guard
   the app copy; both suites assert identical behavior.
 - **Integration (manual):** invoke the deployed function; assert response shape and

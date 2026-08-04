@@ -1,4 +1,4 @@
-import type { SheetGrid, DetectedMapping } from "@/lib/sheets/types";
+import type { SheetGrid, DetectedMapping, NormalizedCandidate, ImportSummary } from "@/lib/sheets/types";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -34,4 +34,48 @@ export function detectMapping(grid: SheetGrid): DetectedMapping {
   const questionColumns = headers.filter((h) => !identity.has(h));
 
   return { emailColumn, nameColumn, timestampColumn, questionColumns };
+}
+
+export function normalizeRows(
+  grid: SheetGrid,
+  mapping: {
+    emailColumn: string;
+    nameColumn: string | null;
+    timestampColumn: string | null;
+    questionColumns: string[];
+  },
+): { candidates: NormalizedCandidate[]; summary: ImportSummary } {
+  const idx = (h: string) => grid.headers.indexOf(h);
+  const emailI = idx(mapping.emailColumn);
+  const nameI = mapping.nameColumn ? idx(mapping.nameColumn) : -1;
+  const tsI = mapping.timestampColumn ? idx(mapping.timestampColumn) : -1;
+  const qCols = mapping.questionColumns.map((h) => ({ key: h, i: idx(h) }));
+
+  const byEmail = new Map<string, NormalizedCandidate>();
+  const dupes = new Set<string>();
+  let skipped = 0;
+
+  for (const row of grid.rows) {
+    const email = (row[emailI] ?? "").trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) {
+      skipped++;
+      continue;
+    }
+    if (byEmail.has(email)) dupes.add(email);
+    const nameVal = nameI >= 0 ? (row[nameI] ?? "").trim() : "";
+    byEmail.set(email, {
+      email,
+      displayName: nameVal || email.split("@")[0],
+      submittedAt: tsI >= 0 ? (row[tsI] ?? "").trim() || null : null,
+      answers: qCols.map((q) => ({ columnKey: q.key, text: (row[q.i] ?? "").trim() })),
+    });
+  }
+
+  const summary: ImportSummary = {
+    candidatesSeen: byEmail.size,
+    rowsSkipped: skipped ? [{ reason: "missing_or_invalid_email", count: skipped }] : [],
+    duplicateEmails: [...dupes],
+    questionColumns: mapping.questionColumns,
+  };
+  return { candidates: [...byEmail.values()], summary };
 }

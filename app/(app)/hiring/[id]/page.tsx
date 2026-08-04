@@ -4,6 +4,7 @@ import { RatingPanel } from "@/app/(app)/hiring/[id]/_ui/rating-panel";
 import { ResultsView } from "@/app/(app)/hiring/[id]/_ui/results-view";
 import { AdminControls } from "@/app/(app)/hiring/[id]/_ui/admin-controls";
 import { StatusBadge } from "@/app/(app)/hiring/_ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function EvaluationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,7 +15,7 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
   return (
     <div className="space-y-8">
       <header className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">{ev.name}</h1>
+        <h1 className="font-display text-3xl font-extrabold text-ink">{ev.name}</h1>
         <StatusBadge status={ev.status} />
       </header>
 
@@ -28,9 +29,17 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
       )}
 
       {ev.status === "open" && !isPanelist && !isAdmin && (
-        <p className="text-ink/60">You’re not on this evaluation’s panel.</p>
+        <EmptyState
+          headline="Not on the panel"
+          body="You’re not on this evaluation’s panel."
+        />
       )}
-      {ev.status === "draft" && !isAdmin && <p className="text-ink/60">This evaluation isn’t open yet.</p>}
+      {ev.status === "draft" && !isAdmin && (
+        <EmptyState
+          headline="Not open yet"
+          body="This evaluation isn’t open yet."
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { rateAnswerAction } from "@/lib/actions/evaluation";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 type Q = { id: string; prompt: string };
 type C = { id: string; display_name: string };
@@ -13,32 +15,49 @@ export function RatingPanel({
   myScores: { candidateId: string; average: number | null; ratedCount: number }[];
 }) {
   const [, start] = useTransition();
+  const [clicked, setClicked] = useState<Record<string, number>>({});
   const answerFor = (cid: string, qid: string) =>
     answers.find((a) => a.candidate_id === cid && a.question_id === qid)?.answer_text ?? "—";
+  const cellKey = (cid: string, qid: string) => `${cid}:${qid}`;
 
   return (
     <div className="space-y-8">
       {candidates.map((c) => (
-        <section key={c.id} className="rounded-lg border border-ink/10 p-4">
-          <h3 className="font-medium">{c.display_name}</h3>
-          {questions.map((q) => (
-            <div key={q.id} className="mt-3">
-              <p className="text-sm font-medium text-ink/80">{q.prompt}</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-ink/70">{answerFor(c.id, q.id)}</p>
-              <div className="mt-2 flex gap-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <button key={s}
-                    onClick={() => start(() => rateAnswerAction({
-                      evaluationId, candidateId: c.id, questionId: q.id, score: s,
-                    }).then(() => {}))}
-                    className="h-8 w-8 rounded border border-ink/15 text-sm hover:bg-primary/10">
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </section>
+        <Card key={c.id}>
+          <CardHeader>
+            <CardTitle>{c.display_name}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {questions.map((q) => {
+              const key = cellKey(c.id, q.id);
+              const selected = clicked[key];
+              return (
+                <div key={q.id} className="space-y-2">
+                  <p className="text-sm font-semibold text-ink">{q.prompt}</p>
+                  <p className="whitespace-pre-wrap text-sm text-ink-soft">{answerFor(c.id, q.id)}</p>
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Button
+                        key={s}
+                        type="button"
+                        size="icon-sm"
+                        variant={selected === s ? "default" : "outline"}
+                        onClick={() => {
+                          setClicked((prev) => ({ ...prev, [key]: s }));
+                          start(() => rateAnswerAction({
+                            evaluationId, candidateId: c.id, questionId: q.id, score: s,
+                          }).then(() => {}));
+                        }}
+                      >
+                        {s}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

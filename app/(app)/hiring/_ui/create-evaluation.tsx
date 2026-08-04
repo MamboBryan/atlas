@@ -3,6 +3,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { createEvaluationAction } from "@/lib/actions/evaluation";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export function CreateEvaluation() {
   const [name, setName] = useState("");
@@ -19,13 +21,16 @@ export function CreateEvaluation() {
       }}
       className="flex gap-2"
     >
-      <input value={name} onChange={(e) => setName(e.target.value)}
-        placeholder="Evaluation name" required
-        className="rounded-md border border-ink/15 px-3 py-2 text-sm" />
-      <button disabled={pending || !name} type="submit"
-        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+      <Input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Evaluation name"
+        required
+        className="w-auto"
+      />
+      <Button disabled={pending || !name} type="submit">
         {pending ? "Creating…" : "New evaluation"}
-      </button>
+      </Button>
     </form>
   );
 }

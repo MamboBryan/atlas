@@ -6,6 +6,10 @@ import {
   setPanelAction, openEvaluationAction, closeEvaluationAction, reopenEvaluationAction,
 } from "@/lib/actions/evaluation";
 import { MappingDialog } from "@/app/(app)/hiring/[id]/_ui/mapping-dialog";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 type Ev = {
   id: string; status: "draft" | "open" | "closed";
@@ -29,73 +33,86 @@ export function AdminControls({
     start(async () => { const r = await fn(); setMsg(r.ok ? "Done." : `Error: ${r.error?.message}`); router.refresh(); });
 
   return (
-    <section className="rounded-lg border border-ink/15 p-4 space-y-4">
-      <h2 className="font-medium">Admin</h2>
-
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="text-sm">Spreadsheet ID
-          <input value={sheetId} onChange={(e) => setSheetId(e.target.value)}
-            className="mt-1 block rounded border border-ink/15 px-2 py-1" />
-        </label>
-        <label className="text-sm">Tab (optional)
-          <input value={tab} onChange={(e) => setTab(e.target.value)}
-            className="mt-1 block rounded border border-ink/15 px-2 py-1" />
-        </label>
-        <button className="rounded border border-ink/15 px-3 py-1.5 text-sm"
-          onClick={() => run(() => connectSheetAction({ evaluationId: evaluation.id, sheetId, sheetTab: tab || null }))}>
-          Connect sheet
-        </button>
-        <button className="rounded border border-ink/15 px-3 py-1.5 text-sm" disabled={!evaluation.sheet_id}
-          onClick={() => start(async () => {
-            const r = await previewMappingAction({ evaluationId: evaluation.id });
-            if (r.ok) setDetected({ d: r.data.detected, headers: r.data.sampleHeaders });
-            else setMsg(`Error: ${r.error.message}`);
-          })}>
-          Detect columns
-        </button>
-      </div>
-
-      {detected && (
-        <MappingDialog evaluationId={evaluation.id} detected={detected.d}
-          headers={detected.headers} onClose={() => setDetected(null)} />
-      )}
-
-      <fieldset className="text-sm">
-        <legend className="font-medium">Panel</legend>
-        <div className="mt-1 flex flex-wrap gap-3">
-          {roster.map((p) => (
-            <label key={p.id} className="flex items-center gap-1">
-              <input type="checkbox" checked={selected.includes(p.id)}
-                onChange={(e) => setSelected((s) => e.target.checked ? [...s, p.id] : s.filter((x) => x !== p.id))} />
-              {p.display_name}
-            </label>
-          ))}
+    <Card>
+      <CardHeader>
+        <CardTitle>Admin</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex flex-wrap items-end gap-3">
+          <Label className="flex-col items-start gap-1">
+            Spreadsheet ID
+            <Input value={sheetId} onChange={(e) => setSheetId(e.target.value)} className="w-auto" />
+          </Label>
+          <Label className="flex-col items-start gap-1">
+            Tab (optional)
+            <Input value={tab} onChange={(e) => setTab(e.target.value)} className="w-auto" />
+          </Label>
+          <Button
+            variant="outline"
+            onClick={() => run(() => connectSheetAction({ evaluationId: evaluation.id, sheetId, sheetTab: tab || null }))}
+          >
+            Connect sheet
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!evaluation.sheet_id}
+            onClick={() => start(async () => {
+              const r = await previewMappingAction({ evaluationId: evaluation.id });
+              if (r.ok) setDetected({ d: r.data.detected, headers: r.data.sampleHeaders });
+              else setMsg(`Error: ${r.error.message}`);
+            })}
+          >
+            Detect columns
+          </Button>
         </div>
-        <button className="mt-2 rounded border border-ink/15 px-3 py-1.5"
-          onClick={() => run(() => setPanelAction({ evaluationId: evaluation.id, profileIds: selected }))}>
-          Save panel
-        </button>
-      </fieldset>
 
-      <div className="flex flex-wrap gap-2">
-        <button className="rounded border border-ink/15 px-3 py-1.5 text-sm" disabled={!evaluation.mapping_confirmed}
-          onClick={() => run(() => refreshEvaluationAction({ evaluationId: evaluation.id }))}>
+        {detected && (
+          <MappingDialog evaluationId={evaluation.id} detected={detected.d}
+            headers={detected.headers} onClose={() => setDetected(null)} />
+        )}
+
+        <fieldset className="space-y-2 text-sm">
+          <legend className="font-display font-extrabold text-ink">Panel</legend>
+          <div className="flex flex-wrap gap-3">
+            {roster.map((p) => (
+              <label key={p.id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(p.id)}
+                  onChange={(e) => setSelected((s) => e.target.checked ? [...s, p.id] : s.filter((x) => x !== p.id))}
+                  className="size-4 accent-primary"
+                />
+                {p.display_name}
+              </label>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => run(() => setPanelAction({ evaluationId: evaluation.id, profileIds: selected }))}
+          >
+            Save panel
+          </Button>
+        </fieldset>
+      </CardContent>
+      <CardFooter className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="secondary"
+          disabled={!evaluation.mapping_confirmed}
+          onClick={() => run(() => refreshEvaluationAction({ evaluationId: evaluation.id }))}
+        >
           Refresh {evaluation.last_synced_at ? `(synced ${new Date(evaluation.last_synced_at).toLocaleString()})` : ""}
-        </button>
+        </Button>
         {evaluation.status === "draft" && (
-          <button className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
-            onClick={() => run(() => openEvaluationAction({ evaluationId: evaluation.id }))}>Open</button>
+          <Button onClick={() => run(() => openEvaluationAction({ evaluationId: evaluation.id }))}>Open</Button>
         )}
         {evaluation.status === "open" && (
-          <button className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
-            onClick={() => run(() => closeEvaluationAction({ evaluationId: evaluation.id }))}>Close</button>
+          <Button onClick={() => run(() => closeEvaluationAction({ evaluationId: evaluation.id }))}>Close</Button>
         )}
         {evaluation.status === "closed" && (
-          <button className="rounded border border-ink/15 px-3 py-1.5 text-sm"
-            onClick={() => run(() => reopenEvaluationAction({ evaluationId: evaluation.id }))}>Reopen</button>
+          <Button variant="outline" onClick={() => run(() => reopenEvaluationAction({ evaluationId: evaluation.id }))}>Reopen</Button>
         )}
-      </div>
-      {msg && <p className="text-sm text-ink/60">{msg}</p>}
-    </section>
+        {msg && <p className="text-sm text-ink-soft">{msg}</p>}
+      </CardFooter>
+    </Card>
   );
 }

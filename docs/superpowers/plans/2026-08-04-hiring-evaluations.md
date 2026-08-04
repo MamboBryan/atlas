@@ -47,7 +47,7 @@
 **UI**
 - `app/(app)/hiring/page.tsx` + `app/(app)/hiring/_ui/*` — list, create dialog, status badge.
 - `app/(app)/hiring/[id]/page.tsx` + `app/(app)/hiring/[id]/_ui/*` — detail router, admin controls, mapping dialog, rating panel, results view.
-- `components/app/nav.tsx`, `components/app/mobile-nav.tsx` — add Hiring nav item.
+- `components/app/nav.tsx` — add Hiring nav item (desktop sidebar only; mobile bottom bar is a fixed 5-slot bar, left untouched).
 
 **Config / docs**
 - `.env.example` — add `GOOGLE_SERVICE_ACCOUNT_JSON`.
@@ -74,71 +74,47 @@
 
 - [ ] **Step 1: Write the failing RLS test**
 
-Create `db/supabase/supabase/tests/evaluations_rls.sql`:
+Create `db/supabase/supabase/tests/evaluations_rls.sql`. **Structural only** — matching every other RLS test in this repo (`has_table`, `pg_policies` counts, `relrowsecurity`). The *behavioral* privacy guarantee (rater-A-can't-read-rater-B, closed-reveal, suppression) is proven in the Vitest integration test in Task 10, which drives real authenticated PostgREST clients — a stronger and more maintainable check than role-switching inside pgTAP.
 
 ```sql
 BEGIN;
-SELECT plan(11);
+SELECT plan(13);
 
--- Structural
+-- Tables exist
 SELECT has_table('public','evaluations','evaluations table exists');
 SELECT has_table('public','evaluation_questions','questions table exists');
 SELECT has_table('public','evaluation_candidates','candidates table exists');
 SELECT has_table('public','evaluation_answers','answers table exists');
 SELECT has_table('public','evaluation_panelists','panelists table exists');
 SELECT has_table('public','evaluation_ratings','ratings table exists');
+
+-- RLS enabled on the privacy-critical tables
 SELECT ok(
   (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.evaluation_ratings'::regclass),
-  'evaluation_ratings has RLS'
-);
+  'evaluation_ratings has RLS');
 SELECT ok(
   (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.evaluation_answers'::regclass),
-  'evaluation_answers has RLS'
-);
+  'evaluation_answers has RLS');
+SELECT ok(
+  (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.evaluation_candidates'::regclass),
+  'evaluation_candidates has RLS');
+
+-- Helper + constant present
 SELECT is(public.evaluation_min_raters(), 3, 'min raters is 3');
+SELECT has_function('public','atlas_is_panelist',
+  ARRAY['uuid','uuid'], 'atlas_is_panelist(uuid,uuid) exists');
 
--- Behavioral: a rater can read only their own ratings.
--- Seed as superuser (RLS bypassed for table owner in setup).
-RESET ROLE;
-INSERT INTO auth.users (id, email) VALUES
-  ('11111111-1111-1111-1111-111111111111','a@atlas.com'),
-  ('22222222-2222-2222-2222-222222222222','b@atlas.com')
-  ON CONFLICT DO NOTHING;
--- profiles auto-created by trigger; ensure both active admins off:
-UPDATE public.profiles SET role='member' WHERE id IN
-  ('11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222');
-INSERT INTO public.evaluations (id,name,status,created_by)
-  VALUES ('33333333-3333-3333-3333-333333333333','T','open',
-          '11111111-1111-1111-1111-111111111111');
-INSERT INTO public.evaluation_questions (id,evaluation_id,column_key,prompt,position)
-  VALUES ('44444444-4444-4444-4444-444444444444',
-          '33333333-3333-3333-3333-333333333333','q1','Q1',0);
-INSERT INTO public.evaluation_candidates (id,evaluation_id,email,display_name)
-  VALUES ('55555555-5555-5555-5555-555555555555',
-          '33333333-3333-3333-3333-333333333333','c@x.com','Cand');
-INSERT INTO public.evaluation_panelists (evaluation_id,profile_id) VALUES
-  ('33333333-3333-3333-3333-333333333333','11111111-1111-1111-1111-111111111111'),
-  ('33333333-3333-3333-3333-333333333333','22222222-2222-2222-2222-222222222222');
-INSERT INTO public.evaluation_ratings
-  (evaluation_id,candidate_id,question_id,rater_id,score) VALUES
-  ('33333333-3333-3333-3333-333333333333','55555555-5555-5555-5555-555555555555',
-   '44444444-4444-4444-4444-444444444444','11111111-1111-1111-1111-111111111111',4),
-  ('33333333-3333-3333-3333-333333333333','55555555-5555-5555-5555-555555555555',
-   '44444444-4444-4444-4444-444444444444','22222222-2222-2222-2222-222222222222',2);
-
--- Act as user A (authenticated role + jwt sub claim).
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claims',
-  '{"sub":"11111111-1111-1111-1111-111111111111"}', true);
+-- Ratings has exactly 2 policies: read-self (select) + write-self (all)
 SELECT is(
-  (SELECT count(*)::int FROM public.evaluation_ratings),
-  1, 'rater A sees only their own rating row');
+  (SELECT count(*)::int FROM pg_policies
+   WHERE schemaname='public' AND tablename='evaluation_ratings'),
+  2, 'evaluation_ratings has 2 policies (read-self + write-self)');
 
-SELECT set_config('request.jwt.claims',
-  '{"sub":"22222222-2222-2222-2222-222222222222"}', true);
+-- Answers has exactly 2 policies: panelist/admin read + admin write
 SELECT is(
-  (SELECT count(*)::int FROM public.evaluation_ratings),
-  1, 'rater B sees only their own rating row');
+  (SELECT count(*)::int FROM pg_policies
+   WHERE schemaname='public' AND tablename='evaluation_answers'),
+  2, 'evaluation_answers has 2 policies (read + admin write)');
 
 SELECT * FROM finish();
 ROLLBACK;
@@ -146,7 +122,7 @@ ROLLBACK;
 
 - [ ] **Step 2: Run the test, verify it fails**
 
-Run: `pnpm supabase db test`
+Run: `pnpm supabase start` (if not already up), then `pnpm supabase db test`
 Expected: FAIL — `evaluations` and related tables/functions do not exist.
 
 - [ ] **Step 3: Write the migration**
@@ -326,7 +302,7 @@ grant select, insert, update, delete on public.evaluation_ratings   to authentic
 - [ ] **Step 4: Run the test, verify it passes**
 
 Run: `pnpm supabase db test`
-Expected: PASS (11 tests). If the auth.users insert conflicts with the profiles trigger, confirm the trigger's `on conflict (id) do update` handles it; the test uses fixed UUIDs and `ON CONFLICT DO NOTHING`.
+Expected: PASS (13 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -352,32 +328,24 @@ git commit -m "feat(db): hiring evaluations schema + RLS (per-evaluator rating p
     Returns `{"status":"open","suppressed":true,...,"candidates":[]}` unless status = `closed`.
   - `public.evaluation_panel_progress(p_evaluation_id uuid) returns jsonb` — security definer, admin-guarded; array of `{profile_id, display_name, rated, total}`.
 
-- [ ] **Step 1: Add failing RPC behavioral tests**
+- [ ] **Step 1: Add failing RPC structural tests**
 
-Append before `SELECT * FROM finish();` in `evaluations_rls.sql`, and bump `plan(11)` → `plan(14)`:
+Append before `SELECT * FROM finish();` in `evaluations_rls.sql`, and bump `plan(13)` → `plan(15)`:
 
 ```sql
--- While OPEN, results are suppressed (status gate).
-RESET ROLE;
-SELECT is(
-  (public.evaluation_results('33333333-3333-3333-3333-333333333333') ->> 'suppressed')::boolean,
-  true, 'open evaluation results are suppressed');
-
--- CLOSE it: only 2 raters < min(3) => still suppressed, bucket "<3".
-UPDATE public.evaluations SET status='closed'
-  WHERE id='33333333-3333-3333-3333-333333333333';
-SELECT is(
-  (public.evaluation_results('33333333-3333-3333-3333-333333333333') ->> 'suppressed')::boolean,
-  true, 'closed but below min raters => suppressed');
-SELECT is(
-  public.evaluation_results('33333333-3333-3333-3333-333333333333') ->> 'rater_bucket',
-  '<3', 'below-floor bucket is "<3", never an exact count');
+-- RPCs exist (behavioral suppression is proven in Task 10 integration tests).
+SELECT has_function('public','evaluation_results',
+  ARRAY['uuid'], 'evaluation_results(uuid) exists');
+SELECT has_function('public','evaluation_panel_progress',
+  ARRAY['uuid'], 'evaluation_panel_progress(uuid) exists');
 ```
 
 - [ ] **Step 2: Run, verify failure**
 
 Run: `pnpm supabase db test`
 Expected: FAIL — `evaluation_results` does not exist.
+
+**Note:** the *behavioral* suppression contract (open → suppressed; closed < 3 raters → `suppressed:true, rater_bucket:"<3"`; closed ≥ 3 raters → averages; per-cell single-rater → `avg:null`) is asserted end-to-end in Task 10's integration test, which calls the RPC as a real authenticated user.
 
 - [ ] **Step 3: Write the RPC migration**
 
@@ -514,7 +482,7 @@ grant execute on function public.evaluation_panel_progress(uuid) to authenticate
 - [ ] **Step 4: Run, verify pass**
 
 Run: `pnpm supabase db test`
-Expected: PASS (14 tests).
+Expected: PASS (15 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -1392,18 +1360,23 @@ export async function syncEvaluation(
 ): Promise<ImportSummary & { candidatesDeactivated: number; questionsDeactivated: number }> {
   const { candidates, summary } = normalizeRows(grid, mapping);
 
-  // 1. Questions: upsert active set, deactivate the rest.
+  // 1. Questions: upsert active set, then deactivate any not in the mapping
+  //    (fetch-then-deactivate-by-id — same shape as candidates below; no
+  //    string-interpolated `.in()` filters).
   const qRows = mapping.questionColumns.map((column_key, position) => ({
     evaluation_id: evaluationId, column_key, prompt: column_key, position, is_active: true,
   }));
-  await svc.from("evaluation_questions")
-    .upsert(qRows, { onConflict: "evaluation_id,column_key" });
-  await svc.from("evaluation_questions").update({ is_active: false })
-    .eq("evaluation_id", evaluationId).not("column_key", "in", `(${mapping.questionColumns.map((k)=>`"${k.replace(/"/g,'""')}"`).join(",")})`);
-  const { data: qs } = await svc.from("evaluation_questions")
-    .select("id,column_key").eq("evaluation_id", evaluationId);
-  const qByKey = new Map((qs ?? []).map((q) => [q.column_key, q.id]));
-  const questionsDeactivated = (qs ?? []).length - mapping.questionColumns.length;
+  if (qRows.length)
+    await svc.from("evaluation_questions").upsert(qRows, { onConflict: "evaluation_id,column_key" });
+  const { data: allQs } = await svc.from("evaluation_questions")
+    .select("id,column_key,is_active").eq("evaluation_id", evaluationId);
+  const keepKeys = new Set(mapping.questionColumns);
+  const qToDeactivate = (allQs ?? []).filter((q) => !keepKeys.has(q.column_key) && q.is_active);
+  if (qToDeactivate.length)
+    await svc.from("evaluation_questions").update({ is_active: false })
+      .in("id", qToDeactivate.map((q) => q.id));
+  const qByKey = new Map((allQs ?? []).map((q) => [q.column_key, q.id]));
+  const questionsDeactivated = qToDeactivate.length;
 
   // 2. Candidates: upsert active set, deactivate absent.
   const emails = candidates.map((c) => c.email);
@@ -1566,8 +1539,9 @@ const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const canRun = !!url && !!svc && !!anon;
 const admin = canRun ? createClient(url!, svc!) : null;
 
-async function userClient(email: string) {
-  await admin!.auth.admin.createUser({ email, password: "passw0rd!", email_confirm: true });
+async function userClient(email: string, role: "admin" | "member" = "member") {
+  const { data } = await admin!.auth.admin.createUser({ email, password: "passw0rd!", email_confirm: true });
+  await admin!.from("profiles").update({ role }).eq("id", data.user!.id); // pin role (first user would else be admin)
   const c = createClient(url!, anon!);
   await c.auth.signInWithPassword({ email, password: "passw0rd!" });
   return c;
@@ -1606,6 +1580,43 @@ test.runIf(canRun)("panelist rates; other panelist cannot read it; closed reveal
   const { data: res } = await A.rpc("evaluation_results", { p_evaluation_id: ev!.id });
   expect(res.suppressed).toBe(true);
   expect(res.rater_bucket).toBe("<3");
+});
+
+test.runIf(canRun)("closed with >=3 raters reveals; single-rater cell suppressed to null", async () => {
+  const c = admin!;
+  const A = await userClient("a@atlas.com");
+  const B = await userClient("b@atlas.com");
+  const D = await userClient("d@atlas.com");
+  const ids = await Promise.all([A, B, D].map(async (x) => (await x.auth.getUser()).data.user!.id));
+  const [aId] = ids;
+
+  const { data: ev } = await c.from("evaluations").insert({ name: "T", status: "open", created_by: aId }).select("id").single();
+  const { data: q1 } = await c.from("evaluation_questions").insert({ evaluation_id: ev!.id, column_key: "Q1", prompt: "Q1", position: 0 }).select("id").single();
+  const { data: q2 } = await c.from("evaluation_questions").insert({ evaluation_id: ev!.id, column_key: "Q2", prompt: "Q2", position: 1 }).select("id").single();
+  const { data: cand } = await c.from("evaluation_candidates").insert({ evaluation_id: ev!.id, email: "cand@x.com", display_name: "Cand" }).select("id").single();
+  await c.from("evaluation_panelists").insert(ids.map((id) => ({ evaluation_id: ev!.id, profile_id: id })));
+
+  // All 3 rate Q1 (cell qualifies); only A rates Q2 (cell must be suppressed).
+  const clients = [A, B, D];
+  for (let i = 0; i < 3; i++) {
+    await clients[i].from("evaluation_ratings").insert({
+      evaluation_id: ev!.id, candidate_id: cand!.id, question_id: q1!.id, rater_id: ids[i], score: i + 3, // 3,4,5 => avg 4
+    });
+  }
+  await A.from("evaluation_ratings").insert({
+    evaluation_id: ev!.id, candidate_id: cand!.id, question_id: q2!.id, rater_id: aId, score: 1,
+  });
+
+  await c.from("evaluations").update({ status: "closed" }).eq("id", ev!.id);
+  const { data: res } = await A.rpc("evaluation_results", { p_evaluation_id: ev!.id });
+  expect(res.suppressed).toBe(false);
+  expect(res.rater_count).toBe(3);
+  const candOut = res.candidates[0];
+  const q1cell = candOut.cells.find((x: any) => x.question_id === q1!.id);
+  const q2cell = candOut.cells.find((x: any) => x.question_id === q2!.id);
+  expect(Number(q1cell.avg)).toBe(4);      // 3 raters => revealed
+  expect(q2cell.avg).toBeNull();           // single-rater cell => suppressed
+  expect(Number(candOut.overall)).toBe(4); // mean-of-means over qualifying cells only
 });
 ```
 
@@ -1727,22 +1738,22 @@ git commit -m "feat(evaluation): rateAnswer action (RLS-scoped) + viewer data qu
 ## Task 11: Nav entry + Hiring list page + create dialog
 
 **Files:**
-- Modify: `components/app/nav.tsx`, `components/app/mobile-nav.tsx`
+- Modify: `components/app/nav.tsx` (desktop sidebar only)
 - Create: `app/(app)/hiring/page.tsx`
 - Create: `app/(app)/hiring/_ui/create-evaluation.tsx`, `app/(app)/hiring/_ui/status-badge.tsx`
 
 **Interfaces:**
-- Consumes: `listEvaluations` (Task 10), `createEvaluationAction` (Task 8).
+- Consumes: `listEvaluations` (Task 10), `createEvaluationAction` (Task 8), `isCurrentUserAdmin` (`lib/auth/is-admin.ts`).
 
-- [ ] **Step 1: Add nav item**
+**Nav decision:** add Hiring to the **desktop sidebar only** (`components/app/nav.tsx`). Do **not** touch `components/app/mobile-nav.tsx` — it is a fixed 5-slot bottom bar (`Home / Meetings / Polls / Roster / More`); a 6th tab would cramp it. Hiring is admin-heavy and lower-frequency, reachable on mobile via direct link / the desktop nav. Revisit later if it needs a mobile slot.
 
-In `components/app/nav.tsx`, add to the `items` array (import a suitable Hugeicon, e.g. `UserCheck01Icon` from `@hugeicons/core-free-icons`):
+- [ ] **Step 1: Add nav item (desktop only)**
+
+In `components/app/nav.tsx`, import a Hugeicon that exists in `@hugeicons/core-free-icons` (verify the export name before using — e.g. `UserCheck01Icon`; if absent, reuse `UserGroupIcon` already imported there) and add to the `items` array:
 
 ```ts
-{ href: "/hiring" as Route, label: "Hiring", icon: UserCheck01Icon },
+{ href: "/hiring" as Route, label: "Hiring", icon: UserGroupIcon },
 ```
-
-Do the same in `components/app/mobile-nav.tsx` (match its existing item shape).
 
 - [ ] **Step 2: Status badge component**
 
@@ -1750,10 +1761,11 @@ Create `app/(app)/hiring/_ui/status-badge.tsx`:
 
 ```tsx
 export function StatusBadge({ status }: { status: "draft" | "open" | "closed" }) {
+  // Uses theme tokens (ink / primary / success), not raw Tailwind palette colors.
   const map = {
     draft: "bg-ink/10 text-ink/70",
     open: "bg-primary/15 text-primary",
-    closed: "bg-emerald-500/15 text-emerald-600",
+    closed: "bg-success/15 text-success-ink",
   } as const;
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>
@@ -1792,7 +1804,7 @@ export function CreateEvaluation() {
         placeholder="Evaluation name" required
         className="rounded-md border border-ink/15 px-3 py-2 text-sm" />
       <button disabled={pending || !name} type="submit"
-        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-white disabled:opacity-50">
+        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
         {pending ? "Creating…" : "New evaluation"}
       </button>
     </form>
@@ -1807,12 +1819,12 @@ Create `app/(app)/hiring/page.tsx`:
 ```tsx
 import Link from "next/link";
 import { listEvaluations } from "@/lib/evaluation/queries";
-import { isAdmin } from "@/lib/auth/is-admin";
+import { isCurrentUserAdmin } from "@/lib/auth/is-admin";
 import { CreateEvaluation } from "@/app/(app)/hiring/_ui/create-evaluation";
 import { StatusBadge } from "@/app/(app)/hiring/_ui/status-badge";
 
 export default async function HiringPage() {
-  const [evals, admin] = await Promise.all([listEvaluations(), isAdmin()]);
+  const [evals, admin] = await Promise.all([listEvaluations(), isCurrentUserAdmin()]);
   return (
     <div className="space-y-8">
       <header className="flex items-center justify-between">
@@ -1836,7 +1848,7 @@ export default async function HiringPage() {
 }
 ```
 
-Confirm `lib/auth/is-admin.ts` exports `isAdmin()`; if its signature differs, adapt (read the file). If it needs a userId, fetch via `requireUser()` in the page.
+(`lib/auth/is-admin.ts` exports `isCurrentUserAdmin(): Promise<boolean>` — no args, reads the current session. Confirmed.)
 
 - [ ] **Step 5: Verify (typecheck + run)**
 
@@ -1846,7 +1858,7 @@ Then start the app (`pnpm dev`) and load `/hiring`; as an admin, create an evalu
 - [ ] **Step 6: Commit**
 
 ```bash
-git add components/app/nav.tsx components/app/mobile-nav.tsx "app/(app)/hiring/page.tsx" "app/(app)/hiring/_ui/create-evaluation.tsx" "app/(app)/hiring/_ui/status-badge.tsx"
+git add components/app/nav.tsx "app/(app)/hiring/page.tsx" "app/(app)/hiring/_ui/create-evaluation.tsx" "app/(app)/hiring/_ui/status-badge.tsx"
 git commit -m "feat(hiring): nav entry, evaluations list, create dialog"
 ```
 
@@ -2023,7 +2035,7 @@ export function MappingDialog({
             });
             if (res.ok) { onClose(); router.refresh(); }
           })}
-          className="rounded bg-primary px-3 py-1.5 text-sm text-white disabled:opacity-50">
+          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50">
           {pending ? "Importing…" : "Confirm & import"}
         </button>
         <button onClick={onClose} className="rounded border border-ink/15 px-3 py-1.5 text-sm">Cancel</button>
@@ -2125,11 +2137,11 @@ export function AdminControls({
           Refresh {evaluation.last_synced_at ? `(synced ${new Date(evaluation.last_synced_at).toLocaleString()})` : ""}
         </button>
         {evaluation.status === "draft" && (
-          <button className="rounded bg-primary px-3 py-1.5 text-sm text-white"
+          <button className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
             onClick={() => run(() => openEvaluationAction({ evaluationId: evaluation.id }))}>Open</button>
         )}
         {evaluation.status === "open" && (
-          <button className="rounded bg-primary px-3 py-1.5 text-sm text-white"
+          <button className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
             onClick={() => run(() => closeEvaluationAction({ evaluationId: evaluation.id }))}>Close</button>
         )}
         {evaluation.status === "closed" && (
@@ -2253,7 +2265,8 @@ git commit -m "docs(hiring): service-account setup runbook + env + README"
 
 ## Self-Review Notes (author)
 
-- **Spec coverage:** schema (T1), RPC + two-grain suppression (T2), Sheets private API via JWT (T5–T6), auto-detect + admin-confirm mapping (T3, T9, T12), idempotent refresh with soft-deactivation preserving ratings (T9), per-question 1–5 native rating (T10, T12), RLS privacy + panelist-only raw rows + closed-only aggregate (T1–T2, guarded by T10 test), multiple named evaluations (T1, T11), admin-picked panel (T8, T12), nav + routes (T11–T12), env/docs (T13). All spec sections map to a task.
-- **Suppression:** enforced in SQL (T2) and asserted both in pgTAP (T2) and integration (T10). Per-cell floor lives in the RPC CTE (`cell_raters >= v_min`).
+- **Spec coverage:** schema (T1), RPC + two-grain suppression (T2), Sheets private API via JWT (T5–T6), auto-detect + admin-confirm mapping (T3, T9, T12), idempotent refresh with soft-deactivation preserving ratings (T9), per-question 1–5 native rating (T10, T12), RLS privacy + panelist-only raw rows + closed-only aggregate (T1–T2, guarded by T10 integration test), multiple named evaluations (T1, T11), admin-picked panel (T8, T12), nav + routes (T11–T12), env/docs (T13). All spec sections map to a task.
+- **Suppression + privacy behavior:** enforced in SQL (RLS in T1, RPC two-grain floor in T2 — per-cell via the CTE `cell_raters >= v_min`); pgTAP asserts these objects **exist/are structured** (repo convention), while the **behavioral** guarantees (rater-A-can't-read-rater-B, open→suppressed, closed<3→`"<3"`, closed≥3→revealed, single-rater cell→`null`) are asserted end-to-end in T10's integration test against real authenticated PostgREST clients.
+- **Preflight (before Task 1):** run `pnpm supabase start` so pgTAP + integration tests actually execute (they self-skip otherwise). Optionally remove the stray untracked `supabase/.temp/` dir at repo root; it's CLI scratch and unrelated to this work.
 - **Type consistency:** `SheetGrid`, `DetectedMapping`, `NormalizedCandidate`, `ImportSummary` defined in `lib/sheets/types.ts` (T3) and consumed unchanged in T4/T6/T9; `computePersonalScores` signature stable across T7/T10/T12; action names stable across T8/T9/T10/T11/T12.
 - **Known follow-ups (non-blocking):** admin-controls/mapping-dialog full markup is described rather than fully transcribed in T12 Step 3 — the implementer builds them from the established `create-evaluation.tsx` pattern and the action signatures; highlighting the saved score in the rating panel is a deferred nicety.

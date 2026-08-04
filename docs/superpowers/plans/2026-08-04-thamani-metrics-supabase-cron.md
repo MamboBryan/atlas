@@ -393,21 +393,40 @@ Deno.serve(async (req) => {
 });
 ```
 
-- [ ] **Step 5: Disable JWT verification for this function**
+- [ ] **Step 5: Verify JWT verification is disabled for this function**
 
-In `db/supabase/config.toml`, add (near other function config, or at end):
+The Task 2 scaffold already created the CLI-authoritative config at
+`db/supabase/supabase/config.toml` with the function registered and
+`verify_jwt = false`. Confirm it reads:
 
 ```toml
 [functions.sync-thamani-metrics]
+enabled = true
 verify_jwt = false
+import_map = "./functions/sync-thamani-metrics/deno.json"
+entrypoint = "./functions/sync-thamani-metrics/index.ts"
 ```
 
-- [ ] **Step 6: Type-check the function with Deno**
+Do NOT edit `db/supabase/config.toml` (that path is one level above where the CLI
+looks and is ignored — leave it alone). If `verify_jwt` is anything but `false`, set
+it to `false` here.
 
-Run: `deno check db/supabase/supabase/functions/sync-thamani-metrics/index.ts`
-Expected: no type errors. (Downloads the esm.sh types on first run.)
+- [ ] **Step 6: Type-check the function with Deno (REQUIRED gate)**
 
-- [ ] **Step 7: Local smoke test**
+Run from inside the function directory (deno.json resolves relative to CWD):
+```bash
+cd db/supabase/supabase/functions/sync-thamani-metrics && deno check index.ts && cd -
+```
+Expected: no type errors. (Downloads esm.sh types on first run.) This is the
+authoritative correctness gate for this task. Also re-run the Deno tests from that
+directory: `deno test` (expect the Task 2 suite still 5/5).
+
+- [ ] **Step 7: Local smoke test (BEST-EFFORT — skip gracefully if the local stack/Docker is unavailable)**
+
+The authoritative end-to-end verification runs against prod in Task 4. Attempt the
+local smoke only if `pnpm supabase start` is already up or starts cleanly; if Docker
+or the local stack is unavailable, SKIP this step and note it in the report — do not
+block the task on it.
 
 `supabase functions serve` auto-injects the LOCAL `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` (routed to the local stack), so the throwaway env file only needs the Thamani prod credentials. Create `db/supabase/supabase/functions/sync-thamani-metrics/.env.local` (confirm it is gitignored: `git check-ignore -v db/supabase/supabase/functions/sync-thamani-metrics/.env.local` should print a match) containing:
 

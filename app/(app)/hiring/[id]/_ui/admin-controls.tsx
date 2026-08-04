@@ -32,6 +32,11 @@ export function AdminControls({
   const run = (fn: () => Promise<{ ok: boolean; error?: { message: string } }>) =>
     start(async () => { const r = await fn(); setMsg(r.ok ? "Done." : `Error: ${r.error?.message}`); router.refresh(); });
 
+  // Panel is "dirty" when the current selection differs (order-independent)
+  // from the saved panel prop; disables Save until there's a real change.
+  const panelDirty =
+    selected.length !== panel.length || !selected.every((id) => panel.includes(id));
+
   return (
     <Card>
       <CardHeader>
@@ -99,6 +104,7 @@ export function AdminControls({
           </div>
           <Button
             variant="outline"
+            disabled={pending || !panelDirty}
             onClick={() => run(() => setPanelAction({ evaluationId: evaluation.id, profileIds: selected }))}
           >
             Save panel

@@ -478,8 +478,12 @@ begin
   from public.evaluation_panelists ep
   join public.profiles p on p.id = ep.profile_id
   left join (
-    select rater_id, count(*) as n from public.evaluation_ratings
-    where evaluation_id = p_evaluation_id group by rater_id
+    select r.rater_id, count(*) as n
+    from public.evaluation_ratings r
+    join public.evaluation_candidates c on c.id = r.candidate_id and c.is_active
+    join public.evaluation_questions q on q.id = r.question_id and q.is_active
+    where r.evaluation_id = p_evaluation_id
+    group by r.rater_id
   ) cnt on cnt.rater_id = p.id
   where ep.evaluation_id = p_evaluation_id;
   return v_result;

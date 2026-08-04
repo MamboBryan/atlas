@@ -57,7 +57,7 @@ export function overlappingIndices(selections: Selection[]): number[] {
   selections.forEach((sel, i) => {
     const days = selectionDays(sel);
     if (days.some((day) => seen.has(day))) flagged.push(i);
-    else for (const day of days) seen.add(day);
+    for (const day of days) seen.add(day);
   });
   return flagged;
 }

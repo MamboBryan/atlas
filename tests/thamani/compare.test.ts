@@ -129,4 +129,12 @@ describe("overlappingIndices / hasOverlap", () => {
     ];
     expect(overlappingIndices(sels)).toEqual([]);
   });
+  it("flags transitive overlap through a flagged intermediate (3 selections)", () => {
+    const sels: Selection[] = [
+      { kind: "range", from: "2026-07-01", to: "2026-07-01" },
+      { kind: "range", from: "2026-07-01", to: "2026-07-05" },
+      { kind: "single", date: "2026-07-03" },
+    ];
+    expect(overlappingIndices(sels)).toEqual([1, 2]);
+  });
 });

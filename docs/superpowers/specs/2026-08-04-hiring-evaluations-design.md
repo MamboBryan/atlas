@@ -216,19 +216,37 @@ re-importing the sheet never discards scores already given.
   out to the admin in the summary so they can re-map if needed.
 - Sheet unreachable / auth failure → action returns a clear error; no partial
   writes (wrap the upserts in a transaction / RPC).
+- Auto-detect may misclassify a question column whose header contains "name"
+  (e.g. "Your company name") as the identity name column — the admin-confirm step
+  is the safety net; detection is a suggestion, never final without confirmation.
 
 ## Privacy & aggregation (RLS)
 
 RLS policies, tested in `db/supabase/supabase/tests/evaluations_rls.sql`.
 
-- **`evaluations`** — SELECT: any authenticated user for `open`/`closed`; `draft`
-  restricted to admins. INSERT/UPDATE/DELETE: admins only.
-- **`evaluation_panelists`** — SELECT: any authenticated user. Writes: admins only.
-- **`evaluation_questions`** — SELECT: any authenticated user (needed to render
-  the aggregate dashboard). Writes: admins only (via sync).
-- **`evaluation_candidates`** — SELECT: any authenticated user may read
-  `display_name`/ranking post-close; raw identity is minimal (name + email).
-  Consider gating `email` to panelists+admins if needed. Writes: admins only.
+**Design principle:** raw candidate data (identities, answers, questions) is
+readable *directly* only by that evaluation's **panelists + admins**. Everyone
+else — including for the post-close aggregate — receives data *only* through the
+`security definer` results RPC, which emits display names, prompts, and averages
+but never raw rows. This makes the child-table policies simple and closes the
+"query the table directly" leak (a non-panelist can never `select` a candidate,
+question, or answer row regardless of evaluation status).
+
+Helper (mirrors `atlas_is_admin`): `atlas_is_panelist(uid, evaluation_id)` —
+`security definer stable`, true if the user is an active panelist for that
+evaluation. Used by policies to avoid recursive RLS on `evaluation_panelists`.
+
+- **`evaluations`** — SELECT: admins always; non-admins only when
+  `status <> 'draft'` (they may see that an open/closed evaluation exists — its
+  name and status — but not its raw child rows). INSERT/UPDATE/DELETE: admins only.
+- **`evaluation_panelists`** — SELECT: admins, or the row's own `profile_id`
+  (a user may see that *they* are on a panel). Writes: admins only.
+- **`evaluation_questions`** — SELECT: **panelists + admins only**. Writes: admins
+  only (via sync). Non-panelists get prompts for the closed dashboard via the RPC.
+- **`evaluation_candidates`** — SELECT: **panelists + admins only** (covers both
+  `display_name` and `email`; no column-level split needed since non-panelists
+  never read the table). Writes: admins only. Non-panelists get display names for
+  the closed dashboard via the RPC.
 - **`evaluation_answers`** — SELECT: **panelists + admins only** (raw candidate
   PII). Writes: admins only.
 - **`evaluation_ratings`** —
@@ -238,25 +256,61 @@ RLS policies, tested in `db/supabase/supabase/tests/evaluations_rls.sql`.
     that evaluation, and the evaluation `status = 'open'`.
   - DELETE: same as insert (a rater may clear their own score while open).
 
-### Aggregation RPC
+### Aggregation semantics
 
-`evaluation_results(p_evaluation_id uuid)` — `security definer`, returns
-per-candidate average, overall rank, per-question average, and evaluator count.
+Defined precisely because it drives the leaderboard and the privacy floor:
 
-- Returns data **only when the evaluation is `closed`**; otherwise returns empty
-  (callers use the personal view while open).
-- Because it is `security definer`, it can aggregate across all raters' rows
-  without exposing individual rows — it only ever emits **averages and counts**.
+- **Scope:** aggregation considers **active rows only** (`is_active = true` on
+  both candidate and question). Soft-deactivated candidates/questions and their
+  ratings are excluded, so a refresh that removes/renames a column does not shift
+  historical ranks by counting stale data.
+- **Per-question average:** mean of the scores given to that (candidate, question)
+  across all raters who scored it (raters who skipped it don't count).
+- **Candidate overall:** **mean of that candidate's per-question averages**
+  (mean-of-means) over active questions that have ≥1 rating. This weights every
+  question equally regardless of how many raters happened to score it.
+- **Ranking:** candidates ordered by overall descending; ties broken by name.
+- **Departed panelists:** ratings from a now-inactive profile
+  (`profiles.is_active = false`) **still count** toward a closed aggregate —
+  historical integrity; the score was validly cast.
+
+### Aggregation RPC & small-panel suppression
+
+`evaluation_results(p_evaluation_id uuid)` — `security definer`. Because it runs
+as definer it aggregates across all raters without exposing individual rows; it
+emits only display names, prompts, per-candidate/per-question **averages**, and a
+**rater bucket** (see below) — never raw scores.
+
+- **Status gate:** returns rows **only when `status = 'closed'`**; empty otherwise
+  (callers use the personal view while open). On **reopen**, status flips back to
+  `open`, so the RPC returns empty again and the dashboard re-hides (any
+  client-cached copy is not re-fetched).
+- **Small-panel suppression:** the absolute guarantee is *"no evaluator can read
+  another evaluator's individual rating rows."* Averages, however, can leak an
+  individual score by inference on a tiny panel (with 2 raters, `other = 2·avg −
+  own`). To defend the intent, the RPC **withholds all averages unless at least
+  `MIN_RATERS_FOR_AGGREGATE` distinct raters** have scored the evaluation
+  (default **3**, defined as a SQL constant). Below the floor it returns a
+  `suppressed` flag and the rater count bucketed as `"<3"` — never an exact tiny
+  count — so admins/users see "not enough evaluators to show results" rather than
+  a derivable number. At/above the floor it returns the exact evaluator count.
+- **Grants:** `revoke all on function evaluation_results(uuid) from public;`
+  `grant execute ... to authenticated;` (matching the `0011` convention). All
+  new RPCs follow this grant model — important since definer functions bypass RLS.
 
 ### Personal view (while open)
 
-Computed directly from the caller's own `evaluation_ratings` rows (RLS-visible):
-their per-candidate average and their personal candidate ranking.
+Computed directly from the caller's own `evaluation_ratings` rows (RLS-visible),
+joined to active candidates/questions: their per-candidate average (mean-of-means
+over questions *they* rated) and their personal candidate ranking. No RPC needed —
+RLS already scopes it to the caller.
 
 ### Admin panel progress
 
-A `security definer` RPC returns, per panelist, the **count** of answers rated
-(e.g. "18/40") — never the scores — so admins can chase completion without
+A `security definer` RPC (`evaluation_panel_progress(p_evaluation_id)`, admin-only
+via an internal `atlas_is_admin` guard + `authenticated` execute grant) returns,
+per panelist, the **count** of answers rated (e.g. "18/40") — never the scores —
+so admins can chase completion without
 seeing anyone's individual scores.
 
 ## Routes, UX & roles
@@ -271,7 +325,10 @@ seeing anyone's individual scores.
   Sidebar: the viewer's running per-candidate averages and personal ranking, plus
   a progress meter. Non-panelists see a "you're not on this panel" empty state.
 - **`/hiring/[id]` — closed (results):** aggregate leaderboard — candidates ranked
-  by mean score, per-question breakdown, evaluator count. Visible to all
+  by mean score, per-question breakdown, evaluator count — rendered **entirely from
+  the `evaluation_results` RPC** (non-panelists never read raw child tables). If
+  fewer than `MIN_RATERS_FOR_AGGREGATE` raters scored, shows a "not enough
+  evaluators to show results" state instead of numbers. Visible to all
   authenticated users.
 - **Admin management** (within the detail page or a settings drawer): connect
   sheet (spreadsheet ID + tab), confirm column mapping, manage panel, **Refresh**
@@ -302,14 +359,20 @@ in addition to RLS.
   - rater A cannot read rater B's ratings;
   - non-panelist cannot insert a rating;
   - no one can insert/update a rating when status ≠ `open`;
-  - `evaluation_answers` not readable by non-panelist non-admin;
+  - `evaluation_answers`, `evaluation_candidates`, `evaluation_questions` not
+    readable by a non-panelist non-admin — **including for a `closed` evaluation**
+    (the leak the review caught: raw child rows are panelist/admin-only always);
+  - non-admin cannot read a `draft` evaluation row;
   - `evaluation_results` returns nothing while open, averages when closed;
-  - admins cannot read individual ratings (only aggregate).
+  - `evaluation_results` **suppresses** averages when `< MIN_RATERS_FOR_AGGREGATE`
+    distinct raters (returns the `suppressed` flag + `"<3"` bucket, no exact count);
+  - admins cannot read individual ratings (only aggregate via RPC).
 - **Vitest unit:**
   - column auto-detection (email/timestamp/name heuristics);
   - idempotent upsert + soft-deactivation on refresh;
   - email dedup / missing-email skip;
-  - candidate average + ranking computation;
+  - candidate average + ranking computation (mean-of-means over active
+    questions; skipped questions excluded; inactive rows excluded);
   - JWT minting shape (header/claims/signature round-trip).
 - **Vitest integration:** full import from a fixture sheet payload → questions +
   candidates + answers created; refresh with changed rows behaves correctly.
@@ -324,11 +387,24 @@ in addition to RLS.
 - **Migrations:** `0028_hiring_evaluations.sql` (tables + RLS), and RPCs
   (`evaluation_results`, panel-progress) either in `0028` or a companion `0029`.
 
-## Open questions for implementation
+## Resolved during spec review
 
-- Should candidate **email** be visible to all authenticated users post-close, or
-  restricted to panelists+admins? (Default: restrict email; show display name to
-  all.)
-- Reopen after close: allowed for admins (default yes) — confirm no audit concern.
+- **Candidate email visibility** — resolved: email (and all raw candidate data) is
+  panelists+admins only; non-panelists get display names via the results RPC.
+- **Child-table draft/closed leak** — resolved: raw child tables are
+  panelist/admin-only at all statuses; the aggregate reaches everyone else only
+  through the definer RPC.
+- **Small-panel inference** — resolved: aggregate suppressed below
+  `MIN_RATERS_FOR_AGGREGATE` (default 3); exact counts not emitted below the floor.
+- **Averaging rule** — resolved: mean-of-means over active questions with ≥1
+  rating; skipped questions and inactive rows excluded.
+- **Reopen** — allowed for admins; flips status to `open`, so the results RPC
+  returns empty and the dashboard re-hides.
+- **Departed panelists** — their already-cast ratings still count post-close.
+
+## Open questions for implementation (non-blocking, defaults stated)
+
 - Sheet tab selection UI vs. defaulting to the first tab (default: first tab, with
   an override field).
+- `MIN_RATERS_FOR_AGGREGATE` value (default 3) — confirm the floor suits your
+  typical panel size before launch.

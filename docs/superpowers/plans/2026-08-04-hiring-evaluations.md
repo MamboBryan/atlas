@@ -145,7 +145,7 @@ create table public.evaluations (
   name_column       text,
   timestamp_column  text,
   mapping_confirmed boolean not null default false,
-  created_by        uuid not null references public.profiles(id),
+  created_by        uuid references public.profiles(id) on delete set null,
   last_synced_at    timestamptz,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
@@ -491,6 +491,20 @@ end $$;
 
 revoke all on function public.evaluation_panel_progress(uuid) from public;
 grant execute on function public.evaluation_panel_progress(uuid) to authenticated;
+
+-- Atomic panel replacement used by setPanelAction (service_role only; the
+-- action gates on requireAdmin). Single transaction; distinct-dedups; empty
+-- array clears the panel.
+create or replace function public.set_evaluation_panel(p_evaluation_id uuid, p_profile_ids uuid[])
+returns void language plpgsql as $$
+begin
+  delete from public.evaluation_panelists where evaluation_id = p_evaluation_id;
+  insert into public.evaluation_panelists (evaluation_id, profile_id)
+  select p_evaluation_id, x from (select distinct unnest(p_profile_ids) as x) s;
+end $$;
+
+revoke all on function public.set_evaluation_panel(uuid, uuid[]) from public;
+grant execute on function public.set_evaluation_panel(uuid, uuid[]) to service_role;
 ```
 
 - [ ] **Step 4: Run, verify pass**
@@ -1245,14 +1259,12 @@ export async function setPanelAction(input: unknown): Promise<ActionResult<null>
   await requireAdmin();
   const svc = atlasServiceClient();
   const { evaluationId, profileIds } = parsed.data;
-  const { error: delErr } = await svc.from("evaluation_panelists")
-    .delete().eq("evaluation_id", evaluationId);
-  if (delErr) return err("db_error", delErr.message);
-  if (profileIds.length) {
-    const { error: insErr } = await svc.from("evaluation_panelists")
-      .insert(profileIds.map((profile_id) => ({ evaluation_id: evaluationId, profile_id })));
-    if (insErr) return err("db_error", insErr.message);
-  }
+  // Atomic + deduping: a plpgsql function body is one transaction, so a bad
+  // profile_id can never leave the evaluation with zero panelists.
+  const { error } = await svc.rpc("set_evaluation_panel", {
+    p_evaluation_id: evaluationId, p_profile_ids: profileIds,
+  });
+  if (error) return err("db_error", error.message);
   revalidatePath(`/hiring/${evaluationId}`);
   return ok(null);
 }

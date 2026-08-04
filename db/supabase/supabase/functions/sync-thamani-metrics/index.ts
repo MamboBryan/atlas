@@ -1,14 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METRICS } from "./_shared/registry.ts";
 
-function timingSafeEqual(a: string, b: string): boolean {
+export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let out = 0;
   for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return out === 0;
 }
 
-Deno.serve(async (req) => {
+export async function handler(req: Request): Promise<Response> {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const auth = req.headers.get("Authorization") ?? "";
   if (!timingSafeEqual(auth, `Bearer ${serviceKey}`)) {
@@ -41,4 +41,10 @@ Deno.serve(async (req) => {
       { status: 500 },
     );
   }
-});
+}
+
+// Guarded so importing this module (e.g. from handler_test.ts) doesn't bind
+// a network listener — only the entrypoint invocation starts the server.
+if (import.meta.main) {
+  Deno.serve(handler);
+}

@@ -111,6 +111,10 @@ alter table public.evaluation_panelists enable row level security;
 alter table public.evaluation_ratings   enable row level security;
 
 -- evaluations: admins full; non-admins may see non-draft rows exist.
+-- NOTE: non-admins can read non-draft evaluation rows including sheet_id/column
+-- mapping (RLS is row-level, not column-level). Accepted: sheet_id is not a
+-- credential (the sheet is protected by service-account sharing) and column
+-- names are not candidate data. Ratings/answers remain panelist+admin only.
 create policy evaluations_read on public.evaluations for select using (
   public.atlas_is_admin(auth.uid()) or status <> 'draft'
 );

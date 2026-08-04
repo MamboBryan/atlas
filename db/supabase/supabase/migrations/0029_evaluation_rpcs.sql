@@ -21,6 +21,13 @@ begin
       'rater_count',null,'rater_bucket','<' || v_min,'candidates','[]'::jsonb);
   end if;
 
+  -- Draft evaluations are invisible to non-admins (evaluations_read RLS hides them);
+  -- treat as not-found here too so this RPC isn't an existence/status oracle.
+  if v_status = 'draft' and not public.atlas_is_admin(auth.uid()) then
+    return jsonb_build_object('status','not_found','suppressed',true,
+      'rater_count',null,'rater_bucket','<' || v_min,'candidates','[]'::jsonb);
+  end if;
+
   -- Status gate: nothing until closed.
   if v_status <> 'closed' then
     return jsonb_build_object('status',v_status,'suppressed',true,

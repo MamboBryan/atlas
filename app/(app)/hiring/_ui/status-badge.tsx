@@ -8,7 +8,7 @@ const VARIANT = {
 
 export function StatusBadge({ status }: { status: "draft" | "open" | "closed" }) {
   return (
-    <Badge variant={VARIANT[status]} size="sm">
+    <Badge variant={VARIANT[status]} size="lg">
       {status}
     </Badge>
   );

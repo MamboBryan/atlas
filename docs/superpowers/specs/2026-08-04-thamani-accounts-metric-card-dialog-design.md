@@ -146,6 +146,11 @@ New `components/thamani/accounts-metric.tsx` (**client component**) owns interac
   2. **Month-by-month** — the existing `AccountsChart`, moved here unchanged.
   3. **Compare** — `<AccountsCompare daily={…} year={…} />` (§4).
 
+`TrendArrow` and `Stat` are currently module-private in `accounts-card.tsx`. The roomier
+dialog roll-up (showing the previous-period number beside the arrow) shares the same trend
+logic (`trendDirection`, already exported from `read.ts`); the implementation should export or
+extract the shared arrow/stat pieces rather than duplicate them.
+
 Props (all server-fetched, passed down): `current`, `previous` (`CurrentValues`),
 `monthly` (`{ period_start; value }[]`), `daily` (`{ date; value }[]`), `year`.
 
@@ -167,7 +172,8 @@ New `components/thamani/accounts-compare.tsx` (**client component**). Local stat
 - **Result** — for each selection compute its count via `sumDays`/`sumRange` over a
   `Map<date, value>` built from `daily`. Render each as a labelled horizontal bar (width ∝
   count / max count) with the numeric count, side by side. Uses the accent color, consistent
-  with `AccountsChart`.
+  with `AccountsChart`. The bar-width divisor is guarded `Math.max(1, …)` so an all-empty/zero
+  comparison never divides by zero (mirrors `AccountsChart`).
 - **Overlap** — `overlappingIndices(selections)` flags any selection sharing a day with an
   earlier one; flagged rows show an inline "overlaps another selection" note and **suppress
   their bar** until the user fixes the dates. Non-overlapping selections still render.
@@ -178,8 +184,9 @@ so the tool never errors mid-edit.
 ### 5. Page wiring
 
 `app/(app)/page.tsx` additionally calls `getAccountsDaily(supabase, metricsYear)` in the
-existing `Promise.all`, and renders `<AccountsMetric … daily={daily} />` in place of the old
-`<AccountsCard … />`. The right-rail relocation (accounts-slice Task 8) is untouched.
+existing `Promise.all` (the two-element destructure at `page.tsx:10` becomes three), and
+renders `<AccountsMetric … daily={daily} />` in place of the old `<AccountsCard … />`. The
+right-rail relocation (accounts-slice Task 8) is untouched.
 
 ## Data flow
 

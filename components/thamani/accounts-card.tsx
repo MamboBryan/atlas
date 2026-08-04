@@ -1,10 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trendDirection, type CurrentValues } from "@/lib/thamani/read";
-import { AccountsChart } from "@/components/thamani/accounts-chart";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowUp02Icon, ArrowDown02Icon } from "@hugeicons/core-free-icons";
 
-function TrendArrow({
+export function TrendArrow({
   current,
   previous,
 }: {
@@ -66,67 +65,36 @@ function Stat({
 export function AccountsCard({
   current,
   previous,
-  monthly,
-  year,
 }: {
   current: CurrentValues;
   previous: CurrentValues;
-  monthly: { period_start: string; value: number }[];
-  year: number;
 }) {
-  const byMonth = new Map(
-    monthly.map((m) => [Number(m.period_start.slice(5, 7)) - 1, m.value]),
-  );
-  // Only plot up to the current month for the ongoing year; a past year shows all 12.
-  const now = new Date();
-  const monthsToShow = year < now.getUTCFullYear() ? 12 : now.getUTCMonth() + 1;
-  const values = Array.from(
-    { length: monthsToShow },
-    (_, i) => byMonth.get(i) ?? 0,
-  );
-
   return (
-    <Card>
+    <Card interactive>
       <CardHeader>
         <CardTitle>New accounts</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
-          <div className="flex flex-col divide-y divide-ink/10 sm:w-44 sm:shrink-0">
-            <Stat
-              label="Today"
-              value={current.today}
-              previous={previous.today}
-            />
-            <Stat
-              label="This week"
-              value={current.week}
-              previous={previous.week}
-            />
-            <Stat
-              label="This month"
-              value={current.month}
-              previous={previous.month}
-            />
-            <Stat
-              label="This quarter"
-              value={current.quarter}
-              previous={previous.quarter}
-            />
-            <Stat
-              label="This year"
-              value={current.year}
-              previous={previous.year}
-            />
-          </div>
-
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-ink-soft">
-              {year} · month by month
-            </div>
-            <AccountsChart values={values} year={year} />
-          </div>
+        <div className="flex flex-col divide-y divide-ink/10">
+          <Stat label="Today" value={current.today} previous={previous.today} />
+          <Stat
+            label="This week"
+            value={current.week}
+            previous={previous.week}
+          />
+          <Stat
+            label="This month"
+            value={current.month}
+            previous={previous.month}
+          />
+          <Stat
+            label="This quarter"
+            value={current.quarter}
+            previous={previous.quarter}
+          />
+          <Stat label="This year" value={current.year} previous={previous.year} />
         </div>
+        <p className="mt-3 text-xs text-ink-soft">Tap for details</p>
       </CardContent>
     </Card>
   );

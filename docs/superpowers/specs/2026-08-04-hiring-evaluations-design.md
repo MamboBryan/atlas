@@ -399,7 +399,9 @@ in addition to RLS.
   - idempotent upsert + soft-deactivation on refresh;
   - email dedup / missing-email skip;
   - candidate average + ranking computation (mean-of-means over active
-    questions; skipped questions excluded; inactive rows excluded);
+    questions; skipped questions excluded; inactive rows excluded) — this covers
+    the personal-view/general path; the closed-aggregate path additionally applies
+    the per-cell qualifying floor;
   - JWT minting shape (header/claims/signature round-trip).
 - **Vitest integration:** full import from a fixture sheet payload → questions +
   candidates + answers created; refresh with changed rows behaves correctly.

@@ -26,6 +26,7 @@ create table public.evaluation_questions (
   prompt        text not null,
   position      int  not null,
   is_active     boolean not null default true,
+  updated_at    timestamptz not null default now(),
   unique (evaluation_id, column_key)
 );
 
@@ -36,6 +37,7 @@ create table public.evaluation_candidates (
   display_name  text not null,
   submitted_at  timestamptz,
   is_active     boolean not null default true,
+  updated_at    timestamptz not null default now(),
   unique (evaluation_id, email)
 );
 
@@ -45,9 +47,11 @@ create table public.evaluation_answers (
   candidate_id  uuid not null references public.evaluation_candidates(id) on delete cascade,
   question_id   uuid not null references public.evaluation_questions(id) on delete cascade,
   answer_text   text,
+  updated_at    timestamptz not null default now(),
   unique (candidate_id, question_id)
 );
 
+-- Pure junction table (composite PK only, no non-key columns, insert/delete-only): no updated_at/touch trigger.
 create table public.evaluation_panelists (
   evaluation_id uuid not null references public.evaluations(id) on delete cascade,
   profile_id    uuid not null references public.profiles(id) on delete cascade,
@@ -74,6 +78,12 @@ create index on public.evaluation_ratings (evaluation_id, candidate_id, question
 create index on public.evaluation_ratings (rater_id);
 
 create trigger evaluations_touch before update on public.evaluations
+  for each row execute function public.atlas_touch_updated_at();
+create trigger evaluation_questions_touch before update on public.evaluation_questions
+  for each row execute function public.atlas_touch_updated_at();
+create trigger evaluation_candidates_touch before update on public.evaluation_candidates
+  for each row execute function public.atlas_touch_updated_at();
+create trigger evaluation_answers_touch before update on public.evaluation_answers
   for each row execute function public.atlas_touch_updated_at();
 create trigger evaluation_ratings_touch before update on public.evaluation_ratings
   for each row execute function public.atlas_touch_updated_at();

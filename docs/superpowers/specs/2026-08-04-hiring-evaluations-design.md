@@ -233,8 +233,14 @@ but never raw rows. This makes the child-table policies simple and closes the
 question, or answer row regardless of evaluation status).
 
 Helper (mirrors `atlas_is_admin`): `atlas_is_panelist(uid, evaluation_id)` —
-`security definer stable`, true if the user is an active panelist for that
-evaluation. Used by policies to avoid recursive RLS on `evaluation_panelists`.
+`security definer stable`, true if a row exists in `evaluation_panelists` for
+`(evaluation_id, uid)` **and** that profile has `is_active = true` (there is no
+`is_active` on the panelist row itself; activeness comes from `profiles`). Used by
+policies to avoid recursive RLS on `evaluation_panelists`. Note this is
+self-consistent with "departed panelists' ratings still count": a deactivated
+profile loses *read* access via this helper, while its already-cast rating rows
+remain and are still aggregated by the definer RPC (which does not call the
+helper).
 
 - **`evaluations`** — SELECT: admins always; non-admins only when
   `status <> 'draft'` (they may see that an open/closed evaluation exists — its
@@ -267,7 +273,9 @@ Defined precisely because it drives the leaderboard and the privacy floor:
 - **Per-question average:** mean of the scores given to that (candidate, question)
   across all raters who scored it (raters who skipped it don't count).
 - **Candidate overall:** **mean of that candidate's per-question averages**
-  (mean-of-means) over active questions that have ≥1 rating. This weights every
+  (mean-of-means) over active questions. In the personal view this is over
+  questions the caller rated (≥1 of their own ratings); in the closed aggregate it
+  is over **qualifying cells only** (see per-cell floor below). This weights every
   question equally regardless of how many raters happened to score it.
 - **Ranking:** candidates ordered by overall descending; ties broken by name.
 - **Departed panelists:** ratings from a now-inactive profile
@@ -283,17 +291,28 @@ emits only display names, prompts, per-candidate/per-question **averages**, and 
 
 - **Status gate:** returns rows **only when `status = 'closed'`**; empty otherwise
   (callers use the personal view while open). On **reopen**, status flips back to
-  `open`, so the RPC returns empty again and the dashboard re-hides (any
-  client-cached copy is not re-fetched).
+  `open`, so the RPC returns empty again and the dashboard re-hides. Reopen must
+  **invalidate the cached results** (revalidate the `/hiring/[id]` path / refetch)
+  so a stale aggregate does not remain visible client-side.
 - **Small-panel suppression:** the absolute guarantee is *"no evaluator can read
   another evaluator's individual rating rows."* Averages, however, can leak an
-  individual score by inference on a tiny panel (with 2 raters, `other = 2·avg −
-  own`). To defend the intent, the RPC **withholds all averages unless at least
-  `MIN_RATERS_FOR_AGGREGATE` distinct raters** have scored the evaluation
-  (default **3**, defined as a SQL constant). Below the floor it returns a
-  `suppressed` flag and the rater count bucketed as `"<3"` — never an exact tiny
-  count — so admins/users see "not enough evaluators to show results" rather than
-  a derivable number. At/above the floor it returns the exact evaluator count.
+  individual score by inference on a thin sample (2 raters → `other = 2·avg −
+  own`; **one rater on a single cell → the cell average *is* that rater's exact
+  score**). Suppression therefore applies at **two grains**, both keyed on the
+  same `MIN_RATERS_FOR_AGGREGATE` constant (default **3**):
+  - **Evaluation floor (coarse gate):** the RPC returns no results at all unless
+    ≥ `MIN_RATERS_FOR_AGGREGATE` distinct raters have scored the evaluation. Below
+    it, it returns a `suppressed` flag and the rater count bucketed as `"<3"` —
+    never an exact tiny count — so users see "not enough evaluators to show
+    results." At/above it, the exact evaluator count is returned.
+  - **Per-cell floor (fine gate):** even above the evaluation floor, a per-
+    `(candidate, question)` average is emitted **only if that cell was scored by ≥
+    `MIN_RATERS_FOR_AGGREGATE` distinct raters**; thinner cells render as `—`
+    (suppressed) in the breakdown. Candidate overall = mean-of-means over that
+    candidate's **qualifying cells only**; a candidate with no qualifying cell is
+    itself suppressed. This closes the finer-grained inference the coarse gate
+    alone would miss (disjoint rating subsets passing the evaluation floor while
+    individual cells have a single rater).
 - **Grants:** `revoke all on function evaluation_results(uuid) from public;`
   `grant execute ... to authenticated;` (matching the `0011` convention). All
   new RPCs follow this grant model — important since definer functions bypass RLS.
@@ -303,7 +322,10 @@ emits only display names, prompts, per-candidate/per-question **averages**, and 
 Computed directly from the caller's own `evaluation_ratings` rows (RLS-visible),
 joined to active candidates/questions: their per-candidate average (mean-of-means
 over questions *they* rated) and their personal candidate ranking. No RPC needed —
-RLS already scopes it to the caller.
+RLS already scopes it to the caller. This path reads `evaluation_candidates` /
+`evaluation_questions` directly, which is why those tables grant panelist SELECT —
+the "RPC-only" principle applies to **non-panelists**, not to panelists rating a
+live evaluation.
 
 ### Admin panel progress
 
@@ -365,7 +387,12 @@ in addition to RLS.
   - non-admin cannot read a `draft` evaluation row;
   - `evaluation_results` returns nothing while open, averages when closed;
   - `evaluation_results` **suppresses** averages when `< MIN_RATERS_FOR_AGGREGATE`
-    distinct raters (returns the `suppressed` flag + `"<3"` bucket, no exact count);
+    distinct raters scored the evaluation (returns the `suppressed` flag + `"<3"`
+    bucket, no exact count);
+  - `evaluation_results` **per-cell** suppression: a `(candidate, question)` cell
+    scored by `< MIN_RATERS_FOR_AGGREGATE` distinct raters renders `—` even when
+    the evaluation floor is met (disjoint-subset case) — a single-rater cell never
+    exposes that rater's exact score;
   - admins cannot read individual ratings (only aggregate via RPC).
 - **Vitest unit:**
   - column auto-detection (email/timestamp/name heuristics);

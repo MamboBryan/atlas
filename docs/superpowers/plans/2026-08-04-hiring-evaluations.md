@@ -12,7 +12,7 @@
 
 - **No new npm dependencies.** Sheets access via Node `crypto` + `fetch`; parsing in-house; `zod` already present.
 - **Migrations are append-only and numbered.** Next numbers: `0028`, `0029` under `db/supabase/supabase/migrations/`.
-- **Every new table:** `enable row level security`; `grant` to `authenticated` (least-privilege) and full to `service_role`; `updated_at` via existing `public.atlas_touch_updated_at()` trigger.
+- **Every new table:** `enable row level security`; `grant` to `authenticated` (least-privilege) and full to `service_role`. Tables with mutable non-key columns also get `updated_at timestamptz not null default now()` + a BEFORE UPDATE `public.atlas_touch_updated_at()` trigger (`evaluations`, `evaluation_ratings`, `evaluation_questions`, `evaluation_candidates`, `evaluation_answers`). `evaluation_panelists` is a pure junction (composite PK only, insert/delete-only) and is intentionally trigger-free.
 - **Server-action files** are `"use server"` and may export **only async functions**. Constants/types go in non-`"use server"` modules.
 - **Admin gate:** reuse `requireAdmin()` from `lib/auth/require.ts` and `public.atlas_is_admin(uid)` in SQL. Panelist gate: new `public.atlas_is_panelist(uid, eval_id)`.
 - **Privacy invariant (non-negotiable):** no user (admins included) may read another user's individual `evaluation_ratings` rows. Raw candidate/question/answer rows are readable only by that evaluation's panelists + admins, at every status. Non-panelists receive the closed aggregate only via the `evaluation_results` RPC.
@@ -158,6 +158,7 @@ create table public.evaluation_questions (
   prompt        text not null,
   position      int  not null,
   is_active     boolean not null default true,
+  updated_at    timestamptz not null default now(),
   unique (evaluation_id, column_key)
 );
 
@@ -168,6 +169,7 @@ create table public.evaluation_candidates (
   display_name  text not null,
   submitted_at  timestamptz,
   is_active     boolean not null default true,
+  updated_at    timestamptz not null default now(),
   unique (evaluation_id, email)
 );
 
@@ -177,9 +179,11 @@ create table public.evaluation_answers (
   candidate_id  uuid not null references public.evaluation_candidates(id) on delete cascade,
   question_id   uuid not null references public.evaluation_questions(id) on delete cascade,
   answer_text   text,
+  updated_at    timestamptz not null default now(),
   unique (candidate_id, question_id)
 );
 
+-- Pure junction (composite PK only, insert/delete-only): intentionally trigger-free.
 create table public.evaluation_panelists (
   evaluation_id uuid not null references public.evaluations(id) on delete cascade,
   profile_id    uuid not null references public.profiles(id) on delete cascade,
@@ -208,6 +212,12 @@ create index on public.evaluation_ratings (rater_id);
 create trigger evaluations_touch before update on public.evaluations
   for each row execute function public.atlas_touch_updated_at();
 create trigger evaluation_ratings_touch before update on public.evaluation_ratings
+  for each row execute function public.atlas_touch_updated_at();
+create trigger evaluation_questions_touch before update on public.evaluation_questions
+  for each row execute function public.atlas_touch_updated_at();
+create trigger evaluation_candidates_touch before update on public.evaluation_candidates
+  for each row execute function public.atlas_touch_updated_at();
+create trigger evaluation_answers_touch before update on public.evaluation_answers
   for each row execute function public.atlas_touch_updated_at();
 
 -- Suppression floor, single source of truth.

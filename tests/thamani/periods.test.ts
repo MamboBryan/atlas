@@ -66,7 +66,7 @@ describe("periodEndMs", () => {
 });
 
 describe("computeSet", () => {
-  it("covers months Jan→current, quarters Q1→current, year, this week, today", () => {
+  it("covers months Jan→current, quarters Q1→current, year, this week", () => {
     const set = computeSet(d("2026-07-30T18:05:00Z"));
     const byGrain = (g: string) =>
       set.filter((p) => p.grain === g).map((p) => p.period_start);
@@ -86,7 +86,28 @@ describe("computeSet", () => {
     ]);
     expect(byGrain("year")).toEqual(["2026-01-01"]);
     expect(byGrain("week")).toEqual(["2026-07-27"]);
-    expect(byGrain("day")).toEqual(["2026-07-30"]);
+  });
+
+  it("emits a day row for every day Jan 1 → today (inclusive), ascending", () => {
+    const set = computeSet(d("2026-07-30T18:05:00Z"));
+    const days = set
+      .filter((p) => p.grain === "day")
+      .map((p) => p.period_start);
+    // Jan 1 → Jul 30 2026 is day-of-year 211.
+    expect(days.length).toBe(211);
+    expect(days[0]).toBe("2026-01-01");
+    expect(days[days.length - 1]).toBe("2026-07-30");
+    // strictly ascending, no dupes
+    const sorted = [...days].sort();
+    expect(days).toEqual(sorted);
+    expect(new Set(days).size).toBe(days.length);
+  });
+
+  it("first day of the year yields a single day row", () => {
+    const days = computeSet(d("2026-01-01T05:00:00Z"))
+      .filter((p) => p.grain === "day")
+      .map((p) => p.period_start);
+    expect(days).toEqual(["2026-01-01"]);
   });
 });
 

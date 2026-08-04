@@ -70,10 +70,19 @@ export function computeSet(
   for (let qs = 0; qs <= currentQStart0; qs += 3) {
     out.push({ grain: "quarter", period_start: iso(y, qs + 1, 1) });
   }
-  // Year, this week, today
+  // Year and this week
   out.push({ grain: "year", period_start: periodStart(now, "year") });
   out.push({ grain: "week", period_start: periodStart(now, "week") });
-  out.push({ grain: "day", period_start: periodStart(now, "day") });
+
+  // Every day Jan 1 → today (inclusive), ascending.
+  const todayMs = Date.UTC(y, currentMonth0, now.getUTCDate());
+  for (let ms = Date.UTC(y, 0, 1); ms <= todayMs; ms += 86_400_000) {
+    const day = new Date(ms);
+    out.push({
+      grain: "day",
+      period_start: iso(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate()),
+    });
+  }
   return out;
 }
 

@@ -73,18 +73,29 @@ export function AdminControls({
 
         <fieldset className="space-y-2 text-sm">
           <legend className="font-display font-extrabold text-ink">Panel</legend>
-          <div className="flex flex-wrap gap-3">
-            {roster.map((p) => (
-              <label key={p.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(p.id)}
-                  onChange={(e) => setSelected((s) => e.target.checked ? [...s, p.id] : s.filter((x) => x !== p.id))}
-                  className="size-4 accent-primary"
-                />
-                {p.display_name}
-              </label>
-            ))}
+          <div className="flex flex-wrap gap-2">
+            {roster.map((p) => {
+              const isOn = selected.includes(p.id);
+              return (
+                <label
+                  key={p.id}
+                  className={
+                    "flex items-center gap-2 rounded-md border-chunk px-3 py-2 cursor-pointer select-none transition-all duration-fast " +
+                    (isOn
+                      ? "bg-primary text-primary-ink border-primary shadow-[-3px_3px_0_0_var(--primary-shadow)]"
+                      : "bg-surface-raised text-ink border-ink hover:bg-surface hover:-translate-y-[1px] hover:shadow-flat")
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    checked={isOn}
+                    onChange={(e) => setSelected((s) => e.target.checked ? [...s, p.id] : s.filter((x) => x !== p.id))}
+                    className="sr-only"
+                  />
+                  <span className="font-medium">{p.display_name}</span>
+                </label>
+              );
+            })}
           </div>
           <Button
             variant="outline"

@@ -1,5 +1,5 @@
 {
   "tasks": {
-    "test": "deno test --allow-env=SUPABASE_SERVICE_ROLE_KEY"
+    "test": "deno test --allow-env=SYNC_SECRET"
   }
 }

@@ -9,9 +9,9 @@ export function timingSafeEqual(a: string, b: string): boolean {
 }
 
 export async function handler(req: Request): Promise<Response> {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const auth = req.headers.get("Authorization") ?? "";
-  if (!timingSafeEqual(auth, `Bearer ${serviceKey}`)) {
+  const syncSecret = Deno.env.get("SYNC_SECRET");
+  const provided = req.headers.get("x-sync-secret") ?? "";
+  if (!syncSecret || !timingSafeEqual(provided, syncSecret)) {
     return Response.json({ ok: false }, { status: 401 });
   }
 
@@ -24,7 +24,7 @@ export async function handler(req: Request): Promise<Response> {
     );
     const atlas = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      serviceKey,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 

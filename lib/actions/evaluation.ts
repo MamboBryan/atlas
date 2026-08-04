@@ -5,7 +5,11 @@ import { atlasServiceClient } from "@/lib/supabase/service";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   createEvaluationInput, connectSheetInput, setPanelInput, evaluationIdInput,
+  confirmMappingInput,
 } from "@/lib/zod/evaluation";
+import { readSheet } from "@/lib/sheets/client";
+import { detectMapping } from "@/lib/sheets/parse";
+import { syncEvaluation } from "@/lib/evaluation/sync";
 
 export async function createEvaluationAction(input: unknown): Promise<ActionResult<{ id: string }>> {
   const parsed = createEvaluationInput.safeParse(input);
@@ -62,3 +66,69 @@ async function setStatus(input: unknown, status: "open" | "closed"): Promise<Act
 export async function openEvaluationAction(input: unknown) { return setStatus(input, "open"); }
 export async function closeEvaluationAction(input: unknown) { return setStatus(input, "closed"); }
 export async function reopenEvaluationAction(input: unknown) { return setStatus(input, "open"); }
+
+export async function previewMappingAction(input: unknown) {
+  const parsed = evaluationIdInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  await requireAdmin();
+  const svc = atlasServiceClient();
+  const { data: ev } = await svc.from("evaluations")
+    .select("sheet_id,sheet_tab").eq("id", parsed.data.evaluationId).single();
+  if (!ev?.sheet_id) return err("no_sheet", "connect a sheet first");
+  try {
+    const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
+    return ok({ detected: detectMapping(grid), sampleHeaders: grid.headers });
+  } catch (e) {
+    return err("sheet_error", (e as Error).message);
+  }
+}
+
+export async function confirmMappingAction(input: unknown) {
+  const parsed = confirmMappingInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  await requireAdmin();
+  const svc = atlasServiceClient();
+  const { evaluationId, emailColumn, nameColumn, timestampColumn, questionColumns } = parsed.data;
+  const { data: ev } = await svc.from("evaluations")
+    .select("sheet_id,sheet_tab").eq("id", evaluationId).single();
+  if (!ev?.sheet_id) return err("no_sheet", "connect a sheet first");
+  await svc.from("evaluations").update({
+    email_column: emailColumn, name_column: nameColumn,
+    timestamp_column: timestampColumn, mapping_confirmed: true,
+  }).eq("id", evaluationId);
+  try {
+    const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
+    const summary = await syncEvaluation(svc, evaluationId, grid,
+      { emailColumn, nameColumn, timestampColumn, questionColumns });
+    revalidatePath(`/hiring/${evaluationId}`);
+    return ok(summary);
+  } catch (e) {
+    return err("sheet_error", (e as Error).message);
+  }
+}
+
+export async function refreshEvaluationAction(input: unknown) {
+  const parsed = evaluationIdInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  await requireAdmin();
+  const svc = atlasServiceClient();
+  const { data: ev } = await svc.from("evaluations")
+    .select("sheet_id,sheet_tab,email_column,name_column,timestamp_column,mapping_confirmed")
+    .eq("id", parsed.data.evaluationId).single();
+  if (!ev?.sheet_id || !ev.mapping_confirmed || !ev.email_column)
+    return err("not_ready", "connect a sheet and confirm mapping first");
+  try {
+    const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
+    // Question columns = all headers minus identity columns (stable).
+    const identity = new Set([ev.email_column, ev.name_column, ev.timestamp_column].filter(Boolean) as string[]);
+    const questionColumns = grid.headers.filter((h) => !identity.has(h));
+    const summary = await syncEvaluation(svc, parsed.data.evaluationId, grid, {
+      emailColumn: ev.email_column, nameColumn: ev.name_column,
+      timestampColumn: ev.timestamp_column, questionColumns,
+    });
+    revalidatePath(`/hiring/${parsed.data.evaluationId}`);
+    return ok(summary);
+  } catch (e) {
+    return err("sheet_error", (e as Error).message);
+  }
+}

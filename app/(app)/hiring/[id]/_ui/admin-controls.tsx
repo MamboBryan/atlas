@@ -38,37 +38,44 @@ export function AdminControls({
     selected.length !== panel.length || !selected.every((id) => panel.includes(id));
 
   return (
-    <Card>
+    <Card size="sm" className="gap-4">
       <CardHeader>
-        <CardTitle>Admin</CardTitle>
+        <CardTitle>Manage evaluation</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-wrap items-end gap-3">
+
+      {/* Configuration — sheet + panel */}
+      <CardContent className="space-y-5">
+        <div className="space-y-3">
+          <p className="font-display text-sm font-extrabold text-ink">Sheet</p>
           <Label className="flex-col items-start gap-1">
             Spreadsheet ID
-            <Input value={sheetId} onChange={(e) => setSheetId(e.target.value)} className="w-auto" />
+            <Input value={sheetId} onChange={(e) => setSheetId(e.target.value)} />
           </Label>
           <Label className="flex-col items-start gap-1">
             Tab (optional)
-            <Input value={tab} onChange={(e) => setTab(e.target.value)} className="w-auto" />
+            <Input value={tab} onChange={(e) => setTab(e.target.value)} />
           </Label>
-          <Button
-            variant="outline"
-            onClick={() => run(() => connectSheetAction({ evaluationId: evaluation.id, sheetId, sheetTab: tab || null }))}
-          >
-            Connect sheet
-          </Button>
-          <Button
-            variant="outline"
-            disabled={!evaluation.sheet_id}
-            onClick={() => start(async () => {
-              const r = await previewMappingAction({ evaluationId: evaluation.id });
-              if (r.ok) setDetected({ d: r.data.detected, headers: r.data.sampleHeaders });
-              else setMsg(`Error: ${r.error.message}`);
-            })}
-          >
-            Detect columns
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => run(() => connectSheetAction({ evaluationId: evaluation.id, sheetId, sheetTab: tab || null }))}
+            >
+              Connect sheet
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={!evaluation.sheet_id}
+              onClick={() => start(async () => {
+                const r = await previewMappingAction({ evaluationId: evaluation.id });
+                if (r.ok) setDetected({ d: r.data.detected, headers: r.data.sampleHeaders });
+                else setMsg(`Error: ${r.error.message}`);
+              })}
+            >
+              Detect columns
+            </Button>
+          </div>
         </div>
 
         {detected && (
@@ -76,8 +83,8 @@ export function AdminControls({
             headers={detected.headers} onClose={() => setDetected(null)} />
         )}
 
-        <fieldset className="space-y-2 text-sm">
-          <legend className="font-display font-extrabold text-ink">Panel</legend>
+        <div className="space-y-2">
+          <p className="font-display text-sm font-extrabold text-ink">Panel</p>
           <div className="flex flex-wrap gap-2">
             {roster.map((p) => {
               const isOn = selected.includes(p.id);
@@ -104,29 +111,44 @@ export function AdminControls({
           </div>
           <Button
             variant="outline"
+            className="w-full"
             disabled={pending || !panelDirty}
             onClick={() => run(() => setPanelAction({ evaluationId: evaluation.id, profileIds: selected }))}
           >
             Save panel
           </Button>
-        </fieldset>
+        </div>
       </CardContent>
-      <CardFooter className="flex flex-wrap items-center gap-2">
+
+      {/* Lifecycle actions — pinned at the bottom */}
+      <CardFooter className="flex-col items-stretch gap-2">
+        {evaluation.last_synced_at && (
+          <p className="text-xs text-ink-soft">
+            Last synced {new Date(evaluation.last_synced_at).toLocaleString()}
+          </p>
+        )}
         <Button
           variant="secondary"
+          className="w-full"
           disabled={!evaluation.mapping_confirmed}
           onClick={() => run(() => refreshEvaluationAction({ evaluationId: evaluation.id }))}
         >
-          Refresh {evaluation.last_synced_at ? `(synced ${new Date(evaluation.last_synced_at).toLocaleString()})` : ""}
+          Refresh
         </Button>
         {evaluation.status === "draft" && (
-          <Button onClick={() => run(() => openEvaluationAction({ evaluationId: evaluation.id }))}>Open</Button>
+          <Button className="w-full" onClick={() => run(() => openEvaluationAction({ evaluationId: evaluation.id }))}>
+            Open evaluation
+          </Button>
         )}
         {evaluation.status === "open" && (
-          <Button onClick={() => run(() => closeEvaluationAction({ evaluationId: evaluation.id }))}>Close</Button>
+          <Button className="w-full" onClick={() => run(() => closeEvaluationAction({ evaluationId: evaluation.id }))}>
+            Close evaluation
+          </Button>
         )}
         {evaluation.status === "closed" && (
-          <Button variant="outline" onClick={() => run(() => reopenEvaluationAction({ evaluationId: evaluation.id }))}>Reopen</Button>
+          <Button variant="outline" className="w-full" onClick={() => run(() => reopenEvaluationAction({ evaluationId: evaluation.id }))}>
+            Reopen
+          </Button>
         )}
         {msg && <p className="text-sm text-ink-soft">{msg}</p>}
       </CardFooter>

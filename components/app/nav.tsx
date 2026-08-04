@@ -12,6 +12,7 @@ import {
   Notification01Icon,
   PanelLeftIcon,
   PanelRightIcon,
+  UserCheck01Icon,
 } from "@hugeicons/core-free-icons";
 import { AtlasLogo } from "@/components/atlas-logo";
 import { UserPill } from "@/components/app/user-pill";
@@ -37,6 +38,7 @@ const items: NavItem[] = [
   },
   { href: "/roster" as Route, label: "Roster", icon: UserGroupIcon },
   { href: "/polls" as Route, label: "Polls", icon: ChatFeedback01Icon },
+  { href: "/hiring" as Route, label: "Hiring", icon: UserCheck01Icon },
   {
     href: "/notifications" as Route,
     label: "Notifications",

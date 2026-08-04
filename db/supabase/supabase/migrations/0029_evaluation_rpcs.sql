@@ -127,3 +127,15 @@ end $$;
 
 revoke all on function public.evaluation_panel_progress(uuid) from public;
 grant execute on function public.evaluation_panel_progress(uuid) to authenticated;
+
+-- Atomic, deduping panel replacement (service_role only; setPanelAction gates on requireAdmin).
+create or replace function public.set_evaluation_panel(p_evaluation_id uuid, p_profile_ids uuid[])
+returns void language plpgsql as $$
+begin
+  delete from public.evaluation_panelists where evaluation_id = p_evaluation_id;
+  insert into public.evaluation_panelists (evaluation_id, profile_id)
+  select p_evaluation_id, x from (select distinct unnest(p_profile_ids) as x) s;
+end $$;
+
+revoke all on function public.set_evaluation_panel(uuid, uuid[]) from public;
+grant execute on function public.set_evaluation_panel(uuid, uuid[]) to service_role;

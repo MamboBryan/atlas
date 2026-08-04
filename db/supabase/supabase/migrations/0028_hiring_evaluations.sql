@@ -13,7 +13,7 @@ create table public.evaluations (
   name_column       text,
   timestamp_column  text,
   mapping_confirmed boolean not null default false,
-  created_by        uuid not null references public.profiles(id),
+  created_by        uuid references public.profiles(id) on delete set null,
   last_synced_at    timestamptz,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()

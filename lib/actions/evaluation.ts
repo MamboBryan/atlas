@@ -38,14 +38,10 @@ export async function setPanelAction(input: unknown): Promise<ActionResult<null>
   await requireAdmin();
   const svc = atlasServiceClient();
   const { evaluationId, profileIds } = parsed.data;
-  const { error: delErr } = await svc.from("evaluation_panelists")
-    .delete().eq("evaluation_id", evaluationId);
-  if (delErr) return err("db_error", delErr.message);
-  if (profileIds.length) {
-    const { error: insErr } = await svc.from("evaluation_panelists")
-      .insert(profileIds.map((profile_id) => ({ evaluation_id: evaluationId, profile_id })));
-    if (insErr) return err("db_error", insErr.message);
-  }
+  const { error } = await svc.rpc("set_evaluation_panel", {
+    p_evaluation_id: evaluationId, p_profile_ids: profileIds,
+  });
+  if (error) return err("db_error", error.message);
   revalidatePath(`/hiring/${evaluationId}`);
   return ok(null);
 }

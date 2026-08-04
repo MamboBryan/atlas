@@ -16,11 +16,6 @@
     {
       "path": "/api/cron/generate-occurrences",
       "schedule": "0 11 * * *"
-    },
-
-    {
-      "path": "/api/cron/thamani-metrics",
-      "schedule": "0 7 * * *"
     }
   ]
 }

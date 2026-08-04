@@ -1,11 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/require";
+import { requireAdmin, requireUser } from "@/lib/auth/require";
 import { atlasServiceClient } from "@/lib/supabase/service";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   createEvaluationInput, connectSheetInput, setPanelInput, evaluationIdInput,
-  confirmMappingInput,
+  confirmMappingInput, rateAnswerInput,
 } from "@/lib/zod/evaluation";
 import { readSheet } from "@/lib/sheets/client";
 import { detectMapping } from "@/lib/sheets/parse";
@@ -105,6 +105,20 @@ export async function confirmMappingAction(input: unknown) {
   } catch (e) {
     return err("sheet_error", (e as Error).message);
   }
+}
+
+export async function rateAnswerAction(input: unknown): Promise<ActionResult<null>> {
+  const parsed = rateAnswerInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  const { user, supabase } = await requireUser(); // user (RLS) client, not service
+  const { evaluationId, candidateId, questionId, score } = parsed.data;
+  const { error } = await supabase.from("evaluation_ratings").upsert(
+    { evaluation_id: evaluationId, candidate_id: candidateId, question_id: questionId, rater_id: user.id, score },
+    { onConflict: "evaluation_id,rater_id,candidate_id,question_id" },
+  );
+  if (error) return err("forbidden_or_closed", error.message); // RLS rejects non-panelist/closed
+  revalidatePath(`/hiring/${evaluationId}`);
+  return ok(null);
 }
 
 export async function refreshEvaluationAction(input: unknown) {

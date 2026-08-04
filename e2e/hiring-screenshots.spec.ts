@@ -236,9 +236,13 @@ test.describe("hiring evaluations screenshots", () => {
         fullPage: true,
       });
 
-      // Expand the top-ranked row to reveal its per-question breakdown.
+      // Expand the top-ranked row to reveal its per-question breakdown, then
+      // expand a question to reveal the candidate's answer.
       await page.getByRole("button", { name: /#1/ }).click();
-      await expect(page.getByText("Why do you want this role?")).toBeVisible();
+      await page.getByRole("button", { name: /Why do you want this role\?/ }).click();
+      await expect(
+        page.getByText("I care most about accessibility and want a team that shares that bar."),
+      ).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/05b-detail-closed-results-expanded.png",
         fullPage: true,

@@ -23,7 +23,9 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
         <StatusBadge status={ev.status} />
       </header>
 
-      {ev.status === "closed" && results != null && <ResultsView results={results as any} />}
+      {ev.status === "closed" && results != null && (
+        <ResultsView results={results as any} answers={answers} />
+      )}
 
       {ev.status === "open" && isPanelist && (
         <RatingPanel evaluationId={ev.id} candidates={candidates} questions={questions}

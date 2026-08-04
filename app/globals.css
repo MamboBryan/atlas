@@ -10,6 +10,10 @@
     --ink: #111111;
     --ink-soft: #5a5a5a;
 
+    /* Subtle hairline for separating rows/sections. Use app-wide via the
+       `border-divider` utility instead of ad-hoc border-ink/10. */
+    --divider: color-mix(in srgb, var(--ink) 7%, transparent);
+
     /* Brand */
     --primary: #4b4df7;
     --primary-ink: #ffffff;
@@ -99,6 +103,9 @@
     --surface-raised: #171a3d;
     --ink: #f3f1e8;
     --ink-soft: #a5a8c7;
+
+    /* Slightly stronger on navy so the hairline stays visible but subtle. */
+    --divider: color-mix(in srgb, var(--ink) 12%, transparent);
 
     --primary: #8a8cff;
     --primary-ink: #0e1030;

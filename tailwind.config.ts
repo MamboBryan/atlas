@@ -47,6 +47,7 @@ const config: Config = {
         info: "var(--info)",
         destructive: { DEFAULT: "var(--destructive)" },
         border: "var(--border)",
+        divider: "var(--divider)",
         input: "var(--input)",
         ring: "var(--ring)",
       },

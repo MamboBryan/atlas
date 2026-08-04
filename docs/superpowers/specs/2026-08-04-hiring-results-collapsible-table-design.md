@@ -48,6 +48,26 @@ the whole group.
   server query need no changes.
 - No new dependencies (`lucide-react` already present).
 
+## Refinements (density, dividers, nested answers, pagination)
+
+Follow-up pass after the first implementation:
+
+- **Reusable divider token.** Added `--divider` to `globals.css` (light
+  `7%` ink, dark `12%` ink, both via `color-mix`) and mapped it to a
+  `border-divider` Tailwind utility in `tailwind.config.ts`. Replaces the
+  ad-hoc `border-ink/10` here and is available app-wide.
+- **Density.** Reduced row/header padding and font sizes so more candidates
+  fit in a long list.
+- **Expanded background.** The expanded candidate panel uses `bg-surface`
+  (the navigation/cream background) to distinguish it from the white card.
+- **Nested answer expansion.** Each question row is itself expandable to
+  reveal the candidate's `answer_text`. Answers are only fetched for
+  admins/panelists (`queries.ts`), so a question is expandable only when its
+  answer is present; for other viewers the question row is static. `page.tsx`
+  now passes `answers` into `ResultsView`; no query/RLS change.
+- **Pagination.** Client-side, `PAGE_SIZE = 10`. Controls (Previous / Page N
+  of M / Next) render only when candidates exceed the page size.
+
 ## Testing
 
 - Visual verification via screenshot in light + dark themes (collapsed and

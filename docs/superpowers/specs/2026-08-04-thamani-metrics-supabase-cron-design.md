@@ -121,11 +121,16 @@ A future "new devices per period" metric is the same three lines against
 
 ### 1. Edge Function `sync-thamani-metrics` (Deno/TypeScript, atlas project)
 
-- Deployed with `verify_jwt = false`; the handler instead compares the request's
-  `Authorization: Bearer <token>` against the auto-injected atlas
-  `SUPABASE_SERVICE_ROLE_KEY` (constant-time). Only the pg_cron caller (which holds
-  that key) can trigger it — the public anon key cannot. This mirrors the current
-  Vercel route's `CRON_SECRET` bearer check.
+- Deployed with `verify_jwt = false`; the handler compares the request's
+  `x-sync-secret` header against a self-managed `SYNC_SECRET` function secret
+  (constant-time; rejects when `SYNC_SECRET` is unset). Only the pg_cron caller
+  (which sends the secret) can trigger it. **Why not the service-role key:** an
+  earlier design compared the bearer to the auto-injected `SUPABASE_SERVICE_ROLE_KEY`,
+  but in the atlas prod project that injected value does NOT equal the dashboard
+  `service_role` JWT (the project runs both legacy JWT and new `sb_secret` keys), so
+  every call 401'd. A dedicated `SYNC_SECRET` is independent of Supabase's key
+  formats. A custom header (not `Authorization`) also avoids the gateway's API-key
+  validation. `SUPABASE_SERVICE_ROLE_KEY` is still used for the atlas write only.
 - Reads Thamani `accounts.created_at`, paginated (pageSize 1000), via
   `@supabase/supabase-js` (esm.sh import) using `THAMANI_SUPABASE_URL` +
   `THAMANI_SUPABASE_SERVICE_ROLE_KEY` (function secrets).
@@ -184,46 +189,32 @@ numbered migration: the env-specific function URL + Vault secrets would break lo
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
--- Store the callback URL and the atlas service_role key in Vault (once):
-select vault.create_secret(
-  'https://<atlas-ref>.supabase.co/functions/v1/sync-thamani-metrics', 'sync_metrics_url');
-select vault.create_secret('<atlas service_role key>', 'atlas_service_role_key');
+-- Store the SYNC_SECRET (same value set as the function secret) in Vault (once):
+select vault.create_secret('<SYNC_SECRET>', 'sync_secret');
 
 select cron.schedule('sync-thamani-metrics', '*/10 * * * *', $$
   select net.http_post(
-    url     := (select decrypted_secret from vault.decrypted_secrets where name = 'sync_metrics_url'),
+    url     := 'https://<atlas-ref>.supabase.co/functions/v1/sync-thamani-metrics',
     headers := jsonb_build_object(
       'Content-Type','application/json',
-      'Authorization','Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'atlas_service_role_key')
+      'x-sync-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'sync_secret')
     )
   );
 $$);
 ```
 
-```sql
-select cron.schedule(
-  'sync-thamani-metrics',
-  '*/10 * * * *',
-  $$
-  select net.http_post(
-    url     := <atlas-functions-url>/sync-thamani-metrics,
-    headers := jsonb_build_object(
-      'Content-Type','application/json',
-      'Authorization','Bearer ' || <atlas service_role key from Vault>
-    )
-  );
-  $$
-);
-```
-
-The `service_role` key is read from **Supabase Vault**, not hardcoded. Requires
-extensions `pg_cron` and `pg_net` enabled on the atlas project.
+The secret is read from **Supabase Vault**, not hardcoded. Requires extensions
+`pg_cron` and `pg_net` enabled on the atlas project. The `SYNC_SECRET` value stored
+here must equal the `SYNC_SECRET` Edge Function secret the handler checks.
 
 ## Secrets & access
 
 - Thamani credentials are set by the operator as Edge Function secrets on the atlas
   project (`supabase secrets set THAMANI_SUPABASE_URL=... THAMANI_SUPABASE_SERVICE_ROLE_KEY=...`)
   — **never pasted into chat or committed.**
+- `SYNC_SECRET` (the auth secret): set as an Edge Function secret
+  (`supabase secrets set SYNC_SECRET=...`) and stored identically in Vault as
+  `sync_secret` for the cron header. A strong random value.
 - atlas `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`: auto-injected, no action.
 - Provisioning input still needed: the **atlas prod Supabase project ref** to
   apply the migration, deploy the function, and schedule the cron. If not shared,

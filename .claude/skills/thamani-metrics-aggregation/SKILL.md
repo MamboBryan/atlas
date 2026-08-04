@@ -53,13 +53,17 @@ full context: `docs/superpowers/specs/2026-08-04-thamani-metrics-supabase-cron-d
    the new `metric_key` (follow `getAccountsSnapshot`), then a UI component. Always
    capture and `console.error` the query `error` — never swallow it.
 
-7. **Verify.** Manually invoke the function (bearer = atlas service_role key), assert
+7. **Verify.** Manually invoke the function with header `x-sync-secret: <SYNC_SECRET>`
+   (`curl -X POST <fn-url> -H "x-sync-secret: ..."` → `{"ok":true,"upserted":N}`), assert
    `upserted` grew, check `cron.job_run_details` for a `succeeded` run, and confirm the
    new rows: `select * from thamani_metrics where metric_key = '<key>' limit 20`.
 
 ## Guardrails
-- The function authorizes callers by comparing the bearer to `SUPABASE_SERVICE_ROLE_KEY`
-  (deployed with `verify_jwt = false`). Don't add anon-key access.
+- The function authorizes callers by comparing the `x-sync-secret` request header to a
+  self-managed `SYNC_SECRET` function secret (deployed with `verify_jwt = false`). Do
+  NOT revert to comparing against `SUPABASE_SERVICE_ROLE_KEY` — in the atlas prod project
+  the injected value differs from the dashboard `service_role` JWT, so that check 401s
+  every call. `SUPABASE_SERVICE_ROLE_KEY` is used only for the atlas write.
 - Thamani credentials live only as Edge Function secrets — never commit or paste them.
 - Upsert conflict target is always `metric_key,grain,period_start`.
 - `_shared/types.ts` and `_shared/periods.ts` are copies of `lib/thamani/{types,periods}.ts`;

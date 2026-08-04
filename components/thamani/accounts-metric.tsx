@@ -76,7 +76,7 @@ export function AccountsMetric({
                     {current[key]}
                   </span>
                   <TrendArrow current={current[key]} previous={previous[key]} />
-                  <PrevBadge previous={previous[key]} />
+                  <PrevBadge current={current[key]} previous={previous[key]} />
                 </span>
               </div>
             ))}

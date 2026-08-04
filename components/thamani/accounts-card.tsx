@@ -1,18 +1,33 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { trendDirection, type CurrentValues } from "@/lib/thamani/read";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowUp02Icon, ArrowDown02Icon } from "@hugeicons/core-free-icons";
 
-/** Previous-period value, shown as a compact badge beside the trend arrow. */
-export function PrevBadge({ previous }: { previous: number }) {
+/**
+ * Previous-period value as a soft-filled pill, tinted by the trend vs
+ * `current`: green when up, red when down, neutral when flat.
+ */
+export function PrevBadge({
+  current,
+  previous,
+}: {
+  current: number;
+  previous: number;
+}) {
+  const dir = trendDirection(current, previous);
+  const tone =
+    dir === "up"
+      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300"
+      : dir === "down"
+        ? "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300"
+        : "bg-ink/10 text-ink-soft";
   return (
-    <Badge
-      variant="secondary"
-      className="border-ink/20 px-1.5 py-0 text-[10px] font-semibold text-ink-soft tabular-nums"
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${tone}`}
+      aria-label={`previous ${previous}`}
     >
-      prev {previous}
-    </Badge>
+      {previous}
+    </span>
   );
 }
 
@@ -70,7 +85,7 @@ function Stat({
           {value}
         </span>
         <TrendArrow current={value} previous={previous} />
-        <PrevBadge previous={previous} />
+        <PrevBadge current={value} previous={previous} />
       </span>
     </div>
   );

@@ -95,3 +95,20 @@ export async function getAccountsSnapshot(
   const rows = (data ?? []) as MetricRow[];
   return { current: pickCurrent(rows, now), previous: pickPrevious(rows, now) };
 }
+
+export async function getAccountsDaily(
+  supabase: MinimalClient,
+  year: number,
+): Promise<{ date: string; value: number }[]> {
+  const { data } = await supabase
+    .from("thamani_metrics")
+    .select("period_start,value")
+    .eq("metric_key", ACCOUNTS_NEW)
+    .eq("grain", "day")
+    .gte("period_start", `${year}-01-01`)
+    .lt("period_start", `${year + 1}-01-01`)
+    .order("period_start", { ascending: true });
+  return ((data ?? []) as { period_start: string; value: number }[]).map(
+    (r) => ({ date: r.period_start, value: Number(r.value) }),
+  );
+}

@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "supabase": "supabase --workdir db/supabase",
     "test:rls": "pnpm supabase db test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:google": "node scripts/check-google-sa.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

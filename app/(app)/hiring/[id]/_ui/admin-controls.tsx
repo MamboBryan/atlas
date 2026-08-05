@@ -4,22 +4,23 @@ import { useRouter } from "next/navigation";
 import {
   connectSheetAction, previewMappingAction, refreshEvaluationAction,
   setPanelAction, openEvaluationAction, closeEvaluationAction, reopenEvaluationAction,
-  addEvaluationOwnerAction, removeEvaluationOwnerAction, setEvaluationFieldAction,
+  addEvaluationOwnerAction, removeEvaluationOwnerAction, saveEvaluationFieldsAction,
 } from "@/lib/actions/evaluation";
 import { parseCsv } from "@/lib/sheets/csv";
 import { detectMapping } from "@/lib/sheets/parse";
 import { MappingDialog } from "@/app/(app)/hiring/[id]/_ui/mapping-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
 type Ev = {
   id: string; status: "draft" | "open" | "closed";
   sheet_id: string | null; mapping_confirmed: boolean; last_synced_at: string | null;
 };
 type Detected = { emailColumn: string; nameColumn: string | null; timestampColumn: string | null; questionColumns: string[] };
-type Field = { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean };
+type FieldRole = "email" | "name" | "timestamp" | "question" | "context" | "ignore";
+type Field = { id: string; column_key: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean };
 type IdentityField = { role: "email" | "name" | "timestamp"; column: string };
 
 export function AdminControls({
@@ -263,10 +264,22 @@ export function AdminControls({
   );
 }
 
-const IDENTITY_META: Record<IdentityField["role"], { label: string; hint: string }> = {
-  email: { label: "Email", hint: "Matches candidates" },
-  name: { label: "Name", hint: "Candidate name" },
-  timestamp: { label: "Submitted", hint: "Submission time" },
+const ROLE_OPTIONS: { value: FieldRole; label: string }[] = [
+  { value: "question", label: "Question" },
+  { value: "context", label: "Context" },
+  { value: "email", label: "Email" },
+  { value: "name", label: "Name" },
+  { value: "timestamp", label: "Timestamp" },
+  { value: "ignore", label: "Ignore" },
+];
+
+const ROLE_HINT: Record<FieldRole, string> = {
+  question: "Scored question",
+  context: "Shown in results, not scored",
+  email: "Matches candidates",
+  name: "Candidate name",
+  timestamp: "Submission time",
+  ignore: "Not used",
 };
 
 function FieldsTab({
@@ -280,102 +293,111 @@ function FieldsTab({
   pending: boolean;
   run: (fn: () => Promise<{ ok: boolean; error?: { message: string } }>) => void;
 }) {
-  if (fields.length === 0 && identityFields.length === 0) {
+  // Unified column list (identity first, then questions), each with its role.
+  const columns = [
+    ...identityFields.map((f) => ({ column: f.column, label: f.column, role: f.role as FieldRole })),
+    ...fields.map((f) => ({
+      column: f.column_key,
+      label: f.prompt,
+      role: (!f.is_active ? "ignore" : f.is_hidden ? "context" : "question") as FieldRole,
+    })),
+  ];
+  const serverRoles = Object.fromEntries(columns.map((c) => [c.column, c.role]));
+
+  const [roles, setRoles] = useState<Record<string, FieldRole>>(serverRoles);
+  // Re-sync local edits when the server data changes (e.g. after a save/refresh).
+  const sig = JSON.stringify(serverRoles);
+  const [seenSig, setSeenSig] = useState(sig);
+  if (sig !== seenSig) {
+    setSeenSig(sig);
+    setRoles(serverRoles);
+  }
+
+  if (columns.length === 0) {
     return (
       <p className="text-sm text-ink-soft">
         No fields yet. Connect a sheet or upload a CSV to import fields.
       </p>
     );
   }
+
+  const setRole = (column: string, role: FieldRole) =>
+    setRoles((prev) => {
+      const next = { ...prev, [column]: role };
+      // Identity roles are singletons — displace any other holder to a question.
+      if (role === "email" || role === "name" || role === "timestamp") {
+        for (const k of Object.keys(next))
+          if (k !== column && next[k] === role) next[k] = "question";
+      }
+      return next;
+    });
+
+  const dirty = columns.some((c) => roles[c.column] !== serverRoles[c.column]);
+  const emailCount = Object.values(roles).filter((r) => r === "email").length;
+  const questionCount = Object.values(roles).filter((r) => r === "question" || r === "context").length;
+
+  const save = () =>
+    run(() =>
+      saveEvaluationFieldsAction({
+        evaluationId,
+        fields: columns.map((c) => ({ column: c.column, label: c.label, role: roles[c.column] })),
+      }),
+    );
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-ink-soft">
-        Every imported column and how it maps to the evaluation. Hidden fields
-        aren&apos;t scored during evaluation but appear as context in results.
+        Set each imported column&apos;s role. Context fields aren&apos;t scored
+        but appear in results; Ignore drops a column. Changes save together.
       </p>
-      {locked && (
+      {locked ? (
         <p className="text-xs font-semibold text-ink-soft">Fields lock after closing.</p>
+      ) : (
+        <Button className="w-full" disabled={!dirty || pending} onClick={save}>
+          {pending ? "Saving…" : "Save fields"}
+        </Button>
+      )}
+      {!locked && emailCount === 0 && (
+        <p className="text-[11px] text-ink-soft">No email column set yet — needed to open.</p>
+      )}
+      {!locked && questionCount === 0 && (
+        <p className="text-[11px] text-ink-soft">No questions yet — pick at least one to open.</p>
+      )}
+      {hideNames && (
+        <p className="text-[11px] text-ink-soft">Candidate names are anonymized during evaluation.</p>
       )}
       <ul className="space-y-2">
-        {/* Identity / meta columns — structural, not scored. */}
-        {identityFields.map((f) => {
-          const meta = IDENTITY_META[f.role];
+        {columns.map((c) => {
+          const role = roles[c.column];
+          const identity = role === "email" || role === "name" || role === "timestamp";
           return (
             <li
-              key={f.role}
-              className="flex items-center justify-between gap-3 rounded-md border-chunk border-ink/40 bg-surface px-3 py-2"
+              key={c.column}
+              className={
+                "flex items-center justify-between gap-3 rounded-md border-chunk px-3 py-2 " +
+                (identity ? "border-ink/40 bg-surface" : "border-ink bg-surface-raised")
+              }
             >
               <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-ink">{f.column}</span>
-                <span className="text-[11px] text-ink-soft">{meta.hint}</span>
+                <span className="block truncate text-sm font-medium text-ink">{c.label}</span>
+                <span className="text-[11px] text-ink-soft">{ROLE_HINT[role]}</span>
               </span>
-              <Badge size="sm" variant="outline" className="shrink-0 border-ink/40">
-                {meta.label}
-              </Badge>
+              <Select
+                value={role}
+                disabled={locked || pending}
+                onChange={(e) => setRole(c.column, e.target.value as FieldRole)}
+                className="w-32 shrink-0"
+              >
+                {ROLE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
             </li>
           );
         })}
-        {hideNames && (
-          <li className="rounded-md border-chunk border-ink/40 bg-surface px-3 py-2">
-            <span className="block text-sm font-medium text-ink">Candidate names</span>
-            <span className="text-[11px] text-ink-soft">Anonymized during evaluation</span>
-          </li>
-        )}
-
-        {/* Question columns — enable/disable and hide/reveal. */}
-        {fields.map((f) => (
-          <li
-            key={f.id}
-            className="flex items-center justify-between gap-3 rounded-md border-chunk border-ink bg-surface-raised px-3 py-2"
-          >
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium text-ink">{f.prompt}</span>
-              <span className="text-[11px] text-ink-soft">
-                {!f.is_active
-                  ? "Disabled"
-                  : f.is_hidden
-                    ? "Context · not scored"
-                    : "Scored question"}
-              </span>
-            </span>
-            <span className="flex shrink-0 gap-1.5">
-              <TogglePill
-                label="Enabled"
-                on={f.is_active}
-                disabled={locked || pending}
-                onClick={() => run(() => setEvaluationFieldAction({ evaluationId, questionId: f.id, isActive: !f.is_active }))}
-              />
-              <TogglePill
-                label="Hidden"
-                on={f.is_hidden}
-                disabled={locked || pending || !f.is_active}
-                onClick={() => run(() => setEvaluationFieldAction({ evaluationId, questionId: f.id, isHidden: !f.is_hidden }))}
-              />
-            </span>
-          </li>
-        ))}
       </ul>
     </div>
-  );
-}
-
-function TogglePill({
-  label, on, disabled, onClick,
-}: { label: string; on: boolean; disabled?: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      aria-pressed={on}
-      className={
-        "rounded-md border-chunk px-2.5 py-1 text-xs font-semibold transition-all duration-fast disabled:cursor-not-allowed disabled:opacity-50 " +
-        (on
-          ? "bg-primary text-primary-ink border-primary shadow-[-2px_2px_0_0_var(--primary-shadow)]"
-          : "bg-surface-raised text-ink-soft border-ink hover:text-ink")
-      }
-    >
-      {label}
-    </button>
   );
 }

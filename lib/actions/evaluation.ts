@@ -6,7 +6,7 @@ import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   createEvaluationInput, connectSheetInput, setPanelInput, evaluationIdInput,
   confirmMappingInput, rateAnswerInput, csvImportInput, evaluationOwnerInput,
-  setEvaluationFieldInput,
+  setEvaluationFieldInput, saveEvaluationFieldsInput,
 } from "@/lib/zod/evaluation";
 import { readSheet } from "@/lib/sheets/client";
 import { detectMapping } from "@/lib/sheets/parse";
@@ -205,6 +205,67 @@ export async function setEvaluationFieldAction(input: unknown): Promise<ActionRe
     .eq("evaluation_id", parsed.data.evaluationId);
   if (error) return err("db_error", error.message);
   revalidatePath(`/hiring/${parsed.data.evaluationId}`);
+  return ok(null);
+}
+
+// Batched save of the whole field mapping from the Fields tab. Persists roles
+// and keeps the evaluation in draft (separate from opening). Owner-gated,
+// rejects when closed. Partial mappings are allowed to save — "Open evaluation"
+// is the gate that requires a valid mapping.
+export async function saveEvaluationFieldsAction(input: unknown): Promise<ActionResult<null>> {
+  const parsed = saveEvaluationFieldsInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  const { evaluationId, fields } = parsed.data;
+  await requireEvaluationOwner(evaluationId);
+  const svc = atlasServiceClient();
+  const { data: ev } = await svc.from("evaluations")
+    .select("status").eq("id", evaluationId).single();
+  if (ev?.status === "closed")
+    return err("locked", "fields are locked after the evaluation is closed");
+
+  const columns = fields.map((f) => f.column);
+  if (new Set(columns).size !== columns.length)
+    return err("invalid_input", "a column appears more than once");
+  for (const role of ["email", "name", "timestamp"] as const) {
+    if (fields.filter((f) => f.role === role).length > 1)
+      return err("invalid_input", `only one ${role} column is allowed`);
+  }
+
+  const emailColumn = fields.find((f) => f.role === "email")?.column ?? null;
+  const nameColumn = fields.find((f) => f.role === "name")?.column ?? null;
+  const timestampColumn = fields.find((f) => f.role === "timestamp")?.column ?? null;
+  const identityCols = new Set(
+    [emailColumn, nameColumn, timestampColumn].filter(Boolean) as string[],
+  );
+
+  // Non-identity columns become questions: question=scored, context=hidden,
+  // ignore=disabled. `position` is required (not-null), so number by list order.
+  const qRows = fields
+    .filter((f) => !identityCols.has(f.column))
+    .map((f, i) => ({
+      evaluation_id: evaluationId, column_key: f.column, prompt: f.label, position: i,
+      is_active: f.role !== "ignore", is_hidden: f.role === "context",
+    }));
+  if (qRows.length) {
+    const { error } = await svc.from("evaluation_questions")
+      .upsert(qRows, { onConflict: "evaluation_id,column_key" });
+    if (error) return err("db_error", error.message);
+  }
+
+  // Identity columns must not double as questions — deactivate any question row.
+  if (identityCols.size) {
+    const { error } = await svc.from("evaluation_questions")
+      .update({ is_active: false })
+      .eq("evaluation_id", evaluationId).in("column_key", [...identityCols]);
+    if (error) return err("db_error", error.message);
+  }
+
+  const { error: evErr } = await svc.from("evaluations")
+    .update({ email_column: emailColumn, name_column: nameColumn, timestamp_column: timestampColumn })
+    .eq("id", evaluationId);
+  if (evErr) return err("db_error", evErr.message);
+
+  revalidatePath(`/hiring/${evaluationId}`);
   return ok(null);
 }
 

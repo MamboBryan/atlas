@@ -330,8 +330,10 @@ test.describe("hiring evaluations screenshots", () => {
       });
 
       // The hidden field surfaces as read-only "Context (not scored)" for
-      // owners/admins — with its answer text, but no score.
-      await expect(page.getByText("Context (not scored)")).toBeVisible();
+      // owners/admins — with its answer text, but no score. Scope the section
+      // label to the open candidate's row (every row renders one, collapsed).
+      const openRow = page.getByRole("button", { name: /#1/ }).locator("xpath=..");
+      await expect(openRow.getByText("Context (not scored)")).toBeVisible();
       await page.getByRole("button", { name: /Expected salary range\?/ }).click();
       await expect(page.getByText("$150k base; I value equity too.")).toBeVisible();
       await page.screenshot({
@@ -343,7 +345,7 @@ test.describe("hiring evaluations screenshots", () => {
     }
   });
 
-  test("open detail — Manage/Fields panel + toggles (owner)", async ({ browser, baseURL }) => {
+  test("open detail — Manage/Fields panel + role editor (owner)", async ({ browser, baseURL }) => {
     if (!baseURL) throw new Error("baseURL not configured");
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
     try {
@@ -361,24 +363,22 @@ test.describe("hiring evaluations screenshots", () => {
         fullPage: true,
       });
 
-      // Fields tab lists every imported question with Enabled + Hidden pills.
+      // Fields tab lists every imported column with a role selector. Scope to
+      // the rail — the prompt also appears in the main-column data preview.
+      const rail = page.locator("aside");
       await fieldsTab.click();
-      await expect(page.getByText("Why do you want this role?")).toBeVisible();
-      const enabledPills = page.getByRole("button", { name: "Enabled", exact: true });
-      const hiddenPills = page.getByRole("button", { name: "Hidden", exact: true });
-      await expect(enabledPills.first()).toBeVisible();
-      await expect(hiddenPills.first()).toBeVisible();
+      await expect(rail.getByText("Why do you want this role?")).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/06b-open-fields-tab.png",
         fullPage: true,
       });
 
-      // Toggling Hidden on the first field persists (aria-pressed flips true).
-      await expect(hiddenPills.first()).toHaveAttribute("aria-pressed", "false");
-      await hiddenPills.first().click();
-      await expect(hiddenPills.first()).toHaveAttribute("aria-pressed", "true");
+      // Change the first field's role to Context and save; it persists.
+      await rail.locator("select").first().selectOption("context");
+      await rail.getByRole("button", { name: "Save fields" }).click();
+      await expect(rail.getByText("Shown in results, not scored")).toBeVisible();
       await page.screenshot({
-        path: "qa-screenshots/hiring/06c-open-fields-hidden-toggled.png",
+        path: "qa-screenshots/hiring/06c-open-fields-saved.png",
         fullPage: true,
       });
     } finally {

@@ -47,3 +47,16 @@ export const setEvaluationFieldInput = z.object({
   isActive: z.boolean().optional(),
   isHidden: z.boolean().optional(),
 });
+
+export const evaluationFieldRole = z.enum([
+  "email", "name", "timestamp", "question", "context", "ignore",
+]);
+
+export const saveEvaluationFieldsInput = z.object({
+  evaluationId: z.string().uuid(),
+  fields: z.array(z.object({
+    column: z.string().min(1),
+    label: z.string().min(1),
+    role: evaluationFieldRole,
+  })).min(1),
+});

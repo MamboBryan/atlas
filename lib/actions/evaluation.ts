@@ -1,11 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { requireAdmin, requireUser } from "@/lib/auth/require";
+import { requireAdmin, requireUser, requireEvaluationOwner } from "@/lib/auth/require";
 import { atlasServiceClient } from "@/lib/supabase/service";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   createEvaluationInput, connectSheetInput, setPanelInput, evaluationIdInput,
-  confirmMappingInput, rateAnswerInput, csvImportInput,
+  confirmMappingInput, rateAnswerInput, csvImportInput, evaluationOwnerInput,
 } from "@/lib/zod/evaluation";
 import { readSheet } from "@/lib/sheets/client";
 import { detectMapping } from "@/lib/sheets/parse";
@@ -20,6 +20,10 @@ export async function createEvaluationAction(input: unknown): Promise<ActionResu
   const { data, error } = await svc.from("evaluations")
     .insert({ name: parsed.data.name, created_by: user.id }).select("id").single();
   if (error) return err("db_error", error.message);
+  // The creator is the evaluation's first (permanent) owner.
+  const { error: ownerErr } = await svc.from("evaluation_owners")
+    .insert({ evaluation_id: data.id, profile_id: user.id });
+  if (ownerErr) return err("db_error", ownerErr.message);
   revalidatePath("/hiring");
   return ok({ id: data.id });
 }
@@ -27,7 +31,7 @@ export async function createEvaluationAction(input: unknown): Promise<ActionResu
 export async function connectSheetAction(input: unknown): Promise<ActionResult<null>> {
   const parsed = connectSheetInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
-  await requireAdmin();
+  await requireEvaluationOwner(parsed.data.evaluationId);
   const svc = atlasServiceClient();
   const { error } = await svc.from("evaluations")
     .update({ sheet_id: parsed.data.sheetId, sheet_tab: parsed.data.sheetTab ?? null })
@@ -40,7 +44,7 @@ export async function connectSheetAction(input: unknown): Promise<ActionResult<n
 export async function setPanelAction(input: unknown): Promise<ActionResult<null>> {
   const parsed = setPanelInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
-  await requireAdmin();
+  await requireEvaluationOwner(parsed.data.evaluationId);
   const svc = atlasServiceClient();
   const { evaluationId, profileIds } = parsed.data;
   const { error } = await svc.rpc("set_evaluation_panel", {
@@ -51,10 +55,41 @@ export async function setPanelAction(input: unknown): Promise<ActionResult<null>
   return ok(null);
 }
 
+export async function addEvaluationOwnerAction(input: unknown): Promise<ActionResult<null>> {
+  const parsed = evaluationOwnerInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  await requireEvaluationOwner(parsed.data.evaluationId);
+  const svc = atlasServiceClient();
+  const { error } = await svc.from("evaluation_owners")
+    .upsert({ evaluation_id: parsed.data.evaluationId, profile_id: parsed.data.profileId },
+      { onConflict: "evaluation_id,profile_id" });
+  if (error) return err("db_error", error.message);
+  revalidatePath(`/hiring/${parsed.data.evaluationId}`);
+  return ok(null);
+}
+
+export async function removeEvaluationOwnerAction(input: unknown): Promise<ActionResult<null>> {
+  const parsed = evaluationOwnerInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  await requireEvaluationOwner(parsed.data.evaluationId);
+  const svc = atlasServiceClient();
+  // The original creator is a permanent owner and can never be removed.
+  const { data: ev } = await svc.from("evaluations")
+    .select("created_by").eq("id", parsed.data.evaluationId).single();
+  if (ev?.created_by === parsed.data.profileId)
+    return err("forbidden", "the original creator cannot be removed");
+  const { error } = await svc.from("evaluation_owners").delete()
+    .eq("evaluation_id", parsed.data.evaluationId)
+    .eq("profile_id", parsed.data.profileId);
+  if (error) return err("db_error", error.message);
+  revalidatePath(`/hiring/${parsed.data.evaluationId}`);
+  return ok(null);
+}
+
 async function setStatus(input: unknown, status: "open" | "closed"): Promise<ActionResult<null>> {
   const parsed = evaluationIdInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
-  await requireAdmin();
+  await requireEvaluationOwner(parsed.data.evaluationId);
   const svc = atlasServiceClient();
   const { error } = await svc.from("evaluations")
     .update({ status }).eq("id", parsed.data.evaluationId);
@@ -71,7 +106,7 @@ export async function reopenEvaluationAction(input: unknown) { return setStatus(
 export async function previewMappingAction(input: unknown) {
   const parsed = evaluationIdInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
-  await requireAdmin();
+  await requireEvaluationOwner(parsed.data.evaluationId);
   const svc = atlasServiceClient();
   const { data: ev } = await svc.from("evaluations")
     .select("sheet_id,sheet_tab").eq("id", parsed.data.evaluationId).single();
@@ -87,7 +122,7 @@ export async function previewMappingAction(input: unknown) {
 export async function confirmMappingAction(input: unknown) {
   const parsed = confirmMappingInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
-  await requireAdmin();
+  await requireEvaluationOwner(parsed.data.evaluationId);
   const svc = atlasServiceClient();
   const {
     evaluationId, emailColumn, nameColumn, timestampColumn, questionColumns,
@@ -114,7 +149,7 @@ export async function confirmMappingAction(input: unknown) {
 export async function importCsvAction(input: unknown) {
   const parsed = csvImportInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
-  await requireAdmin();
+  await requireEvaluationOwner(parsed.data.evaluationId);
   const svc = atlasServiceClient();
   const {
     evaluationId, csvText, emailColumn, nameColumn, timestampColumn, questionColumns,
@@ -153,7 +188,7 @@ export async function rateAnswerAction(input: unknown): Promise<ActionResult<nul
 export async function refreshEvaluationAction(input: unknown) {
   const parsed = evaluationIdInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
-  await requireAdmin();
+  await requireEvaluationOwner(parsed.data.evaluationId);
   const svc = atlasServiceClient();
   const { data: ev } = await svc.from("evaluations")
     .select("sheet_id,sheet_tab,email_column,name_column,timestamp_column,mapping_confirmed,hide_names")

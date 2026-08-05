@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   connectSheetAction, previewMappingAction, refreshEvaluationAction,
   setPanelAction, openEvaluationAction, closeEvaluationAction, reopenEvaluationAction,
+  addEvaluationOwnerAction, removeEvaluationOwnerAction,
 } from "@/lib/actions/evaluation";
 import { parseCsv } from "@/lib/sheets/csv";
 import { detectMapping } from "@/lib/sheets/parse";
@@ -20,10 +21,12 @@ type Ev = {
 type Detected = { emailColumn: string; nameColumn: string | null; timestampColumn: string | null; questionColumns: string[] };
 
 export function AdminControls({
-  evaluation, roster = [], panel = [],
+  evaluation, roster = [], panel = [], owners = [], createdBy = null,
 }: {
   evaluation: Ev; roster?: { id: string; display_name: string }[]; panel?: string[];
+  owners?: { id: string; display_name: string }[]; createdBy?: string | null;
 }) {
+  const ownerIds = new Set(owners.map((o) => o.id));
   const [sheetId, setSheetId] = useState(evaluation.sheet_id ?? "");
   const [tab, setTab] = useState("");
   const [detected, setDetected] = useState<{ d: Detected; headers: string[]; csvText?: string } | null>(null);
@@ -150,6 +153,40 @@ export function AdminControls({
           >
             Save panel
           </Button>
+        </div>
+
+        <div className="space-y-2">
+          <p className="font-display text-sm font-extrabold text-ink">Owners</p>
+          <p className="text-xs text-ink-soft">
+            Owners can manage and close this evaluation, and add or remove other
+            owners. The creator is a permanent owner.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {roster.map((p) => {
+              const isOwner = ownerIds.has(p.id);
+              const isCreator = p.id === createdBy;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={pending || isCreator}
+                  title={isCreator ? "The creator is a permanent owner" : undefined}
+                  onClick={() => run(() => isOwner
+                    ? removeEvaluationOwnerAction({ evaluationId: evaluation.id, profileId: p.id })
+                    : addEvaluationOwnerAction({ evaluationId: evaluation.id, profileId: p.id }))}
+                  className={
+                    "flex items-center gap-2 rounded-md border-chunk px-3 py-2 select-none transition-all duration-fast disabled:cursor-not-allowed " +
+                    (isOwner
+                      ? "bg-primary text-primary-ink border-primary shadow-[-3px_3px_0_0_var(--primary-shadow)]"
+                      : "bg-surface-raised text-ink border-ink hover:bg-surface hover:-translate-y-[1px] hover:shadow-flat")
+                  }
+                >
+                  <span className="font-medium">{p.display_name}</span>
+                  {isCreator && <span className="text-xs opacity-70">creator</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </CardContent>
 

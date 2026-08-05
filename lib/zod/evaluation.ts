@@ -29,6 +29,11 @@ export const setPanelInput = z.object({
   profileIds: z.array(z.string().uuid()),
 });
 
+export const evaluationOwnerInput = z.object({
+  evaluationId: z.string().uuid(),
+  profileId: z.string().uuid(),
+});
+
 export const rateAnswerInput = z.object({
   evaluationId: z.string().uuid(),
   candidateId: z.string().uuid(),

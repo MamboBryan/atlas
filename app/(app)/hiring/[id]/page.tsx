@@ -9,12 +9,12 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
   const { id } = await params;
   const data = await getEvaluationForViewer(id);
   if (!data) notFound();
-  const { ev, isAdmin, isPanelist, candidates, questions, answers, myRatings, personal, results } = data;
+  const { ev, isOwner, isPanelist, candidates, questions, answers, myRatings, personal, results, evaluatorBreakdown } = data;
 
-  // Admin management moved to the right rail (@right/hiring/[id]). When an admin
-  // has nothing to rate/review in the main column, point them there.
-  const adminManageOnly =
-    isAdmin && (ev.status === "draft" || (ev.status === "open" && !isPanelist));
+  // Management moved to the right rail (@right/hiring/[id]). When an owner has
+  // nothing to rate/review in the main column, point them there.
+  const ownerManageOnly =
+    isOwner && (ev.status === "draft" || (ev.status === "open" && !isPanelist));
 
   return (
     <div className="space-y-8">
@@ -24,7 +24,7 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
       </header>
 
       {ev.status === "closed" && results != null && (
-        <ResultsView results={results as any} answers={answers} />
+        <ResultsView results={results as any} answers={answers} evaluators={evaluatorBreakdown} />
       )}
 
       {ev.status === "open" && isPanelist && (
@@ -32,19 +32,19 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
           answers={answers} myRatings={myRatings} ranked={personal} />
       )}
 
-      {ev.status === "open" && !isPanelist && !isAdmin && (
+      {ev.status === "open" && !isPanelist && !isOwner && (
         <EmptyState
           headline="Not on the panel"
           body="You’re not on this evaluation’s panel."
         />
       )}
-      {ev.status === "draft" && !isAdmin && (
+      {ev.status === "draft" && !isOwner && (
         <EmptyState
           headline="Not open yet"
           body="This evaluation isn’t open yet."
         />
       )}
-      {adminManageOnly && (
+      {ownerManageOnly && (
         <EmptyState
           headline="Manage from the side panel"
           body="Use the controls on the right to connect a sheet, set the evaluator panel, and open or close this evaluation."

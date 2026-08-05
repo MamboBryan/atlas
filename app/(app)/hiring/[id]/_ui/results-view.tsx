@@ -11,15 +11,19 @@ type Cell = { question_id: string; prompt: string; avg: number | null };
 type Cand = { candidate_id: string; display_name: string; overall: number | null; rank: number; cells: Cell[] };
 type Results = { suppressed: boolean; rater_bucket: string; rater_count: number | null; candidates: Cand[] };
 type Answer = { candidate_id: string; question_id: string; answer_text: string | null };
+type EvaluatorScore = { name: string; overall: number };
 
 const PAGE_SIZE = 10;
 
 export function ResultsView({
   results,
   answers = [],
+  evaluators = {},
 }: {
   results: Results;
   answers?: Answer[];
+  // Owner/admin-only, keyed by candidate_id. Absent/empty for other viewers.
+  evaluators?: Record<string, EvaluatorScore[]>;
 }) {
   const [openCand, setOpenCand] = useState<Set<string>>(new Set());
   const [openQ, setOpenQ] = useState<Set<string>>(new Set());
@@ -65,8 +69,6 @@ export function ResultsView({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-ink-soft">{results.rater_count} evaluators</p>
-
       <Card size="sm" className="gap-0 py-0">
         {/* Header row */}
         <div className="flex items-center justify-between border-b border-divider px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
@@ -102,6 +104,21 @@ export function ResultsView({
 
               {isOpen && (
                 <div className="border-t border-divider bg-surface">
+                  {(evaluators[c.candidate_id]?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1.5 px-4 py-2.5">
+                      {evaluators[c.candidate_id].map((e, i) => (
+                        <span
+                          key={`${e.name}-${i}`}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-divider bg-ink/5 py-0.5 pl-2.5 pr-1.5 text-xs text-ink-soft"
+                        >
+                          <span className="truncate">{e.name}</span>
+                          <span className="rounded-full bg-ink/10 px-1.5 font-semibold tabular-nums text-ink">
+                            {e.overall}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {c.cells.map((cell) => {
                     const key = `${c.candidate_id}|${cell.question_id}`;
                     const answer = answerFor.get(key);

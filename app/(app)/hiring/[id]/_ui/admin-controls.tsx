@@ -4,12 +4,11 @@ import { useRouter } from "next/navigation";
 import {
   connectSheetAction, previewMappingAction, refreshEvaluationAction,
   setPanelAction, openEvaluationAction, closeEvaluationAction, reopenEvaluationAction,
-  addEvaluationOwnerAction, removeEvaluationOwnerAction,
+  addEvaluationOwnerAction, removeEvaluationOwnerAction, setEvaluationFieldAction,
 } from "@/lib/actions/evaluation";
 import { parseCsv } from "@/lib/sheets/csv";
 import { detectMapping } from "@/lib/sheets/parse";
 import { MappingDialog } from "@/app/(app)/hiring/[id]/_ui/mapping-dialog";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -19,12 +18,14 @@ type Ev = {
   sheet_id: string | null; mapping_confirmed: boolean; last_synced_at: string | null;
 };
 type Detected = { emailColumn: string; nameColumn: string | null; timestampColumn: string | null; questionColumns: string[] };
+type Field = { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean };
 
 export function AdminControls({
-  evaluation, roster = [], panel = [], owners = [], createdBy = null,
+  evaluation, roster = [], panel = [], owners = [], createdBy = null, fields = [],
 }: {
   evaluation: Ev; roster?: { id: string; display_name: string }[]; panel?: string[];
   owners?: { id: string; display_name: string }[]; createdBy?: string | null;
+  fields?: Field[];
 }) {
   const ownerIds = new Set(owners.map((o) => o.id));
   const [sheetId, setSheetId] = useState(evaluation.sheet_id ?? "");
@@ -35,6 +36,7 @@ export function AdminControls({
   const [pending, start] = useTransition();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<"manage" | "fields">("manage");
 
   const handleCsvChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,13 +57,30 @@ export function AdminControls({
     selected.length !== panel.length || !selected.every((id) => panel.includes(id));
 
   return (
-    <Card size="sm" className="gap-4">
-      <CardHeader>
-        <CardTitle>Manage evaluation</CardTitle>
-      </CardHeader>
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      {/* Segmented tabs (pinned) */}
+      <div className="flex shrink-0 gap-1 rounded-md border-chunk border-ink bg-surface-raised p-1">
+        {(["manage", "fields"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setActiveTab(t)}
+            className={
+              "flex-1 rounded-sm px-3 py-1.5 text-sm font-semibold capitalize transition-all duration-fast " +
+              (activeTab === t
+                ? "bg-primary text-primary-ink shadow-[-2px_2px_0_0_var(--primary-shadow)]"
+                : "text-ink-soft hover:text-ink")
+            }
+          >
+            {t}
+          </button>
+        ))}
+      </div>
 
-      {/* Configuration — sheet + panel */}
-      <CardContent className="space-y-5">
+      {/* Active tab body (scrolls) */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+      {activeTab === "manage" ? (
+      <div className="space-y-5">
         <div className="space-y-3">
           <p className="font-display text-sm font-extrabold text-ink">Sheet</p>
           <Label className="flex-col items-start gap-1">
@@ -188,10 +207,20 @@ export function AdminControls({
             })}
           </div>
         </div>
-      </CardContent>
+      </div>
+      ) : (
+        <FieldsTab
+          evaluationId={evaluation.id}
+          fields={fields}
+          locked={evaluation.status === "closed"}
+          pending={pending}
+          run={run}
+        />
+      )}
+      </div>
 
       {/* Lifecycle actions — pinned at the bottom */}
-      <CardFooter className="flex-col items-stretch gap-2">
+      <div className="flex shrink-0 flex-col items-stretch gap-2 border-t border-divider pt-4">
         {evaluation.last_synced_at && (
           <p className="text-xs text-ink-soft">
             Last synced {new Date(evaluation.last_synced_at).toLocaleString()}
@@ -221,7 +250,80 @@ export function AdminControls({
           </Button>
         )}
         {msg && <p className="text-sm text-ink-soft">{msg}</p>}
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
+  );
+}
+
+function FieldsTab({
+  evaluationId, fields, locked, pending, run,
+}: {
+  evaluationId: string;
+  fields: Field[];
+  locked: boolean;
+  pending: boolean;
+  run: (fn: () => Promise<{ ok: boolean; error?: { message: string } }>) => void;
+}) {
+  if (fields.length === 0) {
+    return (
+      <p className="text-sm text-ink-soft">
+        No fields yet. Connect a sheet or upload a CSV to import fields.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-ink-soft">
+        Hidden fields aren&apos;t scored during evaluation but appear as context in results.
+      </p>
+      {locked && (
+        <p className="text-xs font-semibold text-ink-soft">Fields lock after closing.</p>
+      )}
+      <ul className="space-y-2">
+        {fields.map((f) => (
+          <li
+            key={f.id}
+            className="flex items-center justify-between gap-3 rounded-md border-chunk border-ink bg-surface-raised px-3 py-2"
+          >
+            <span className="min-w-0 truncate text-sm font-medium text-ink">{f.prompt}</span>
+            <span className="flex shrink-0 gap-1.5">
+              <TogglePill
+                label="Enabled"
+                on={f.is_active}
+                disabled={locked || pending}
+                onClick={() => run(() => setEvaluationFieldAction({ evaluationId, questionId: f.id, isActive: !f.is_active }))}
+              />
+              <TogglePill
+                label="Hidden"
+                on={f.is_hidden}
+                disabled={locked || pending || !f.is_active}
+                onClick={() => run(() => setEvaluationFieldAction({ evaluationId, questionId: f.id, isHidden: !f.is_hidden }))}
+              />
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TogglePill({
+  label, on, disabled, onClick,
+}: { label: string; on: boolean; disabled?: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-pressed={on}
+      className={
+        "rounded-md border-chunk px-2.5 py-1 text-xs font-semibold transition-all duration-fast disabled:cursor-not-allowed disabled:opacity-50 " +
+        (on
+          ? "bg-primary text-primary-ink border-primary shadow-[-2px_2px_0_0_var(--primary-shadow)]"
+          : "bg-surface-raised text-ink-soft border-ink hover:text-ink")
+      }
+    >
+      {label}
+    </button>
   );
 }

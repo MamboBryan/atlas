@@ -28,6 +28,7 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
             panel={data.panel}
             owners={data.owners}
             createdBy={data.createdBy}
+            fields={data.fields}
           />
         ) : null
       }

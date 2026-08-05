@@ -81,7 +81,7 @@ export function DataPreview({
                   isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                 )}
               >
-                <div className="overflow-hidden">
+                <div className="overflow-hidden" inert={!isOpen} aria-hidden={!isOpen}>
                   <div className="border-t border-divider bg-surface">
                     {questions.map((q) => {
                       const ans = answerFor.get(`${c.id}|${q.id}`);

@@ -154,7 +154,7 @@ export function ResultsView({
                   isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                 )}
               >
-                <div className="overflow-hidden">
+                <div className="overflow-hidden" inert={!isOpen} aria-hidden={!isOpen}>
                   <div className="border-t border-divider bg-surface">
                   {c.cells.map((cell) => {
                     const key = `${c.candidate_id}|${cell.question_id}`;

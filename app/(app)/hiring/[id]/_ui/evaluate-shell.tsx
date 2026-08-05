@@ -92,16 +92,17 @@ export function EvaluateShell({
 
   return (
     <div className="flex min-h-full flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-divider bg-surface px-6 py-4">
+      {/* Header — a <div>, not <header>, so the app layout's global
+          [&_header] rules don't hijack the fullscreen chrome. */}
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-divider bg-surface px-8 py-5">
         <div className="min-w-0">
           <p className="truncate font-display text-lg font-extrabold text-ink">{evaluationName}</p>
-          <p className="text-xs text-ink-soft">{isPending ? "Saving…" : "All changes saved"}</p>
+          <p className="mt-0.5 text-xs text-ink-soft">{isPending ? "Saving…" : "All changes saved"}</p>
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={close} aria-label="Close">
+        <Button variant="outline" size="icon" onClick={close} aria-label="Close evaluation">
           <XIcon className="size-5" />
         </Button>
-      </header>
+      </div>
 
       {/* Progress */}
       <div className="mx-auto w-full max-w-2xl space-y-2 px-6 pt-6">

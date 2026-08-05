@@ -181,7 +181,13 @@ signature change required.
 **Results context** (`getEvaluationForViewer` + `results-view.tsx`): when
 `status === 'closed'` and the viewer is panelist/admin, fetch hidden-but-active
 questions (`is_active=true, is_hidden=true`, ordered by `position`) and their
-answers. Pass a **separate** payload to `ResultsView`:
+answers **via the service client** (`svc`). This is required because the
+`answers_read` RLS policy explicitly blocks non-admin panelists from reading
+hidden-question answer text; revealing it in closed results is the intended
+behavior, mirroring how `evaluatorBreakdown` already bypasses RLS with `svc` in
+the closed branch. The fetch is strictly gated to `closed && (isPanelist ||
+isAdmin)`; all other viewers receive an empty payload. Pass a **separate**
+payload to `ResultsView`:
 
 ```ts
 contextFields: {

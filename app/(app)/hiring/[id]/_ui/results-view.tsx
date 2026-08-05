@@ -130,12 +130,13 @@ export function ResultsView({
                         className="animate-in fade-in-0 slide-in-from-right-1 gap-1.5 py-0.5 pr-1 pl-2.5 font-medium text-ink-soft duration-med ease-soft"
                       >
                         <span className="truncate">{e.name}</span>
-                        <span
-                          className="rounded-full px-1.5 font-semibold tabular-nums text-[#111]"
+                        <Badge
+                          size="sm"
+                          className="border-transparent px-1.5 py-0 font-semibold tabular-nums text-[#111]"
                           style={{ backgroundColor: scoreBandColor(e.overall) }}
                         >
                           {e.overall}
-                        </span>
+                        </Badge>
                       </Badge>
                     ))}
                 </span>

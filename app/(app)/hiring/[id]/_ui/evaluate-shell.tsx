@@ -92,41 +92,45 @@ export function EvaluateShell({
 
   return (
     <div className="flex min-h-full flex-col">
-      {/* Header — a <div>, not <header>, so the app layout's global
-          [&_header] rules don't hijack the fullscreen chrome. */}
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-divider bg-surface px-8 py-5">
-        <div className="min-w-0">
-          <p className="truncate font-display text-lg font-extrabold text-ink">{evaluationName}</p>
-          <p className="mt-0.5 text-xs text-ink-soft">{isPending ? "Saving…" : "All changes saved"}</p>
+      {/* Top panel — a <div>, not <header>, so the app layout's global
+          [&_header] rules don't hijack the fullscreen chrome. Holds the
+          candidates-rated progress in the middle. */}
+      <div className="sticky top-0 z-10 flex items-center gap-6 border-b border-divider bg-surface px-8 py-4">
+        {/* Left: name + minimal save status */}
+        <div className="flex min-w-0 flex-1 items-baseline gap-2">
+          <p className="truncate font-display text-base font-extrabold text-ink">{evaluationName}</p>
+          <span className="shrink-0 text-xs text-ink-soft">{isPending ? "Saving…" : "Saved"}</span>
         </div>
-        <Button variant="outline" size="icon" onClick={close} aria-label="Close evaluation">
-          <XIcon className="size-5" />
-        </Button>
-      </div>
 
-      {/* Progress */}
-      <div className="mx-auto w-full max-w-2xl space-y-2 px-6 pt-6">
+        {/* Middle: candidates-rated progress */}
         {!single && (
-          <>
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-ink">
-                {candidatesRated} of {candidates.length} candidates rated
-              </span>
-              <span className="text-ink-soft">
-                Candidate {idx + 1} of {candidates.length}
-              </span>
-            </div>
-            <ProgressBar value={candidatesRated} max={candidates.length} />
-          </>
+          <div className="flex flex-1 items-center gap-2.5">
+            <ProgressBar value={candidatesRated} max={candidates.length} className="h-1.5 flex-1" />
+            <span className="shrink-0 text-xs font-semibold tabular-nums text-ink-soft">
+              {candidatesRated}/{candidates.length}
+            </span>
+          </div>
         )}
+
+        {/* Right: candidate position + close */}
+        <div className="flex flex-1 items-center justify-end gap-4">
+          {!single && (
+            <span className="text-xs tabular-nums text-ink-soft">
+              {idx + 1}/{candidates.length}
+            </span>
+          )}
+          <Button variant="outline" size="icon" onClick={close} aria-label="Close evaluation">
+            <XIcon className="size-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Candidate */}
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-6">
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
           <h1 className="font-display text-2xl font-extrabold text-ink">{current.display_name}</h1>
-          <span className="shrink-0 text-sm text-ink-soft">
-            {currentAnswered} of {questions.length} answered
+          <span className="shrink-0 text-xs tabular-nums text-ink-soft">
+            {currentAnswered}/{questions.length}
           </span>
         </div>
         <ProgressBar value={currentAnswered} max={questions.length} className="mb-8 h-1.5" />

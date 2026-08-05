@@ -223,11 +223,16 @@ test.describe("hiring evaluations screenshots", () => {
       await page.locator(`a[href="/hiring/${openId}/evaluate"]`).click();
       await expect(page).toHaveURL(new RegExp(`/hiring/${openId}/evaluate$`));
       await expect(page.getByRole("heading", { name: "Ada Nakamura" })).toBeVisible();
-      await expect(page.getByText(/0 of 3 candidates rated/)).toBeVisible();
+      // Top panel holds the candidates-rated progress bar.
+      await expect(page.getByRole("progressbar").first()).toBeVisible();
 
-      // Rate the first question; progress updates and it auto-saves.
+      // Rate the first question; the per-candidate progress bar advances and
+      // it auto-saves.
       await page.getByRole("button", { name: "4", exact: true }).first().click();
-      await expect(page.getByText(/1 of 3 answered/)).toBeVisible();
+      await expect(page.getByRole("progressbar").nth(1)).toHaveAttribute(
+        "aria-valuenow",
+        "1",
+      );
       await page.screenshot({
         path: "qa-screenshots/hiring/04b-fullscreen-evaluate.png",
         fullPage: true,

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -105,9 +106,9 @@ export function ResultsView({
                 type="button"
                 onClick={() => toggleCand(c.candidate_id)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center justify-between gap-4 px-4 py-2.5 text-left transition-colors duration-fast ease-soft hover:bg-ink/5"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-fast ease-soft hover:bg-ink/5"
               >
-                <span className="flex min-w-0 items-center gap-2">
+                <span className="flex min-w-0 shrink-0 items-center gap-2">
                   <ChevronDownIcon
                     className={cn(
                       "size-4 shrink-0 text-ink-soft transition-transform duration-fast ease-soft",
@@ -118,31 +119,42 @@ export function ResultsView({
                     #{c.rank} {c.display_name}
                   </span>
                 </span>
+                {/* Per-evaluator badges ride the candidate row, revealed only
+                    when expanded (owner/admin-only data; empty otherwise). */}
+                <span className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5">
+                  {isOpen &&
+                    evaluators[c.candidate_id]?.map((e, i) => (
+                      <Badge
+                        key={`${e.name}-${i}`}
+                        size="sm"
+                        className="animate-in fade-in-0 slide-in-from-right-1 gap-1.5 py-0.5 pr-1 pl-2.5 font-medium text-ink-soft duration-med ease-soft"
+                      >
+                        <span className="truncate">{e.name}</span>
+                        <span
+                          className="rounded-full px-1.5 font-semibold tabular-nums text-[#111]"
+                          style={{ backgroundColor: scoreBandColor(e.overall) }}
+                        >
+                          {e.overall}
+                        </span>
+                      </Badge>
+                    ))}
+                </span>
                 <span className="shrink-0 font-display text-lg font-extrabold text-ink">
                   {c.overall ?? "—"}
                 </span>
               </button>
 
-              {isOpen && (
-                <div className="border-t border-divider bg-surface">
-                  {(evaluators[c.candidate_id]?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap justify-end gap-1.5 px-4 py-2.5">
-                      {evaluators[c.candidate_id].map((e, i) => (
-                        <span
-                          key={`${e.name}-${i}`}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-divider bg-ink/5 py-0.5 pl-2.5 pr-1 text-xs text-ink-soft"
-                        >
-                          <span className="truncate">{e.name}</span>
-                          <span
-                            className="rounded-full px-1.5 font-semibold tabular-nums text-[#111]"
-                            style={{ backgroundColor: scoreBandColor(e.overall) }}
-                          >
-                            {e.overall}
-                          </span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
+              {/* Expandable body: grid-rows 0fr→1fr animates height with no JS
+                  library. Content stays mounted so both expand and collapse
+                  transition smoothly. */}
+              <div
+                className={cn(
+                  "grid transition-[grid-template-rows] duration-med ease-soft",
+                  isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className="border-t border-divider bg-surface">
                   {c.cells.map((cell) => {
                     const key = `${c.candidate_id}|${cell.question_id}`;
                     const answer = answerFor.get(key);
@@ -225,8 +237,9 @@ export function ResultsView({
                       })}
                     </div>
                   )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}

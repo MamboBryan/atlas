@@ -11,7 +11,7 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
   const { id } = await params;
   const data = await getEvaluationForViewer(id);
   if (!data) notFound();
-  const { ev, isOwner, isPanelist, candidates, questions, answers, myRatings, personal, results, evaluatorBreakdown } = data;
+  const { ev, isOwner, isPanelist, candidates, questions, answers, myRatings, personal, results, evaluatorBreakdown, contextFields } = data;
 
   // Management lives in the right rail. When an owner has nothing to
   // rate/review in the main column, point them there.
@@ -39,7 +39,7 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
         </header>
 
         {ev.status === "closed" && results != null && (
-          <ResultsView results={results as any} answers={answers} evaluators={evaluatorBreakdown} />
+          <ResultsView results={results as any} answers={answers} evaluators={evaluatorBreakdown} contextFields={contextFields} />
         )}
 
         {ev.status === "open" && isPanelist && (

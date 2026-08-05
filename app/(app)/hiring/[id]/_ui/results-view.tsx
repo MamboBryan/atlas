@@ -12,6 +12,9 @@ type Cand = { candidate_id: string; display_name: string; overall: number | null
 type Results = { suppressed: boolean; rater_bucket: string; rater_count: number | null; candidates: Cand[] };
 type Answer = { candidate_id: string; question_id: string; answer_text: string | null };
 type EvaluatorScore = { name: string; overall: number };
+type ContextQuestion = { question_id: string; prompt: string };
+type ContextAnswer = { candidate_id: string; question_id: string; answer_text: string | null };
+type ContextFields = { questions: ContextQuestion[]; answers: ContextAnswer[] };
 
 const PAGE_SIZE = 10;
 
@@ -19,11 +22,14 @@ export function ResultsView({
   results,
   answers = [],
   evaluators = {},
+  contextFields = { questions: [], answers: [] },
 }: {
   results: Results;
   answers?: Answer[];
   // Owner/admin-only, keyed by candidate_id. Absent/empty for other viewers.
   evaluators?: Record<string, EvaluatorScore[]>;
+  // Hidden (unscored) fields, shown as read-only context. Empty for non-panelist viewers.
+  contextFields?: ContextFields;
 }) {
   const [openCand, setOpenCand] = useState<Set<string>>(new Set());
   const [openQ, setOpenQ] = useState<Set<string>>(new Set());
@@ -44,6 +50,12 @@ export function ResultsView({
   for (const a of answers) {
     const text = a.answer_text?.trim();
     if (text) answerFor.set(`${a.candidate_id}|${a.question_id}`, text);
+  }
+
+  const contextAnswerFor = new Map<string, string>();
+  for (const a of contextFields.answers) {
+    const text = a.answer_text?.trim();
+    if (text) contextAnswerFor.set(`${a.candidate_id}|${a.question_id}`, text);
   }
 
   const toggleCand = (id: string) =>
@@ -158,6 +170,49 @@ export function ResultsView({
                       </div>
                     );
                   })}
+                  {contextFields.questions.length > 0 && (
+                    <div className="border-t border-divider">
+                      <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+                        Context (not scored)
+                      </p>
+                      {contextFields.questions.map((q) => {
+                        const key = `ctx|${c.candidate_id}|${q.question_id}`;
+                        const answer = contextAnswerFor.get(`${c.candidate_id}|${q.question_id}`);
+                        const qOpen = openQ.has(key);
+                        return (
+                          <div key={q.question_id} className="border-b border-divider last:border-b-0">
+                            {answer ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleQ(key)}
+                                aria-expanded={qOpen}
+                                className="flex w-full items-center justify-between gap-4 py-2 pl-10 pr-4 text-left text-sm transition-colors duration-fast ease-soft hover:bg-ink/5"
+                              >
+                                <span className="flex min-w-0 items-center gap-1.5">
+                                  <ChevronDownIcon
+                                    className={cn(
+                                      "size-3 shrink-0 text-ink-soft transition-transform duration-fast ease-soft",
+                                      qOpen && "rotate-180",
+                                    )}
+                                  />
+                                  <span className="truncate text-ink-soft">{q.prompt}</span>
+                                </span>
+                              </button>
+                            ) : (
+                              <div className="py-2 pl-10 pr-4 text-sm">
+                                <span className="truncate text-ink-soft">{q.prompt}</span>
+                              </div>
+                            )}
+                            {answer && qOpen && (
+                              <p className="whitespace-pre-wrap py-2 pl-[3.75rem] pr-4 text-sm leading-relaxed text-ink">
+                                {answer}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

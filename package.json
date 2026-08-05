@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "supabase": "supabase --workdir db/supabase",
+    "supabase": "supabase --workdir db",
     "test:rls": "pnpm supabase db test",
     "typecheck": "tsc --noEmit",
     "check:google": "node scripts/check-google-sa.mjs"

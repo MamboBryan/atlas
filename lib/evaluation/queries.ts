@@ -102,6 +102,29 @@ export async function getEvaluationForViewer(id: string) {
     }
   }
 
+  // Hidden fields become read-only context in closed results. Read via the
+  // service client because answers_read RLS blocks non-admin panelists from
+  // hidden-question answer text. Strictly gated to closed + panelist/admin.
+  let contextFields: {
+    questions: { question_id: string; prompt: string }[];
+    answers: { candidate_id: string; question_id: string; answer_text: string | null }[];
+  } = { questions: [], answers: [] };
+  if (ev.status === "closed" && (isPanelist || isAdmin)) {
+    const hiddenQs = (await svc.from("evaluation_questions")
+      .select("id,prompt,position").eq("evaluation_id", id)
+      .eq("is_active", true).eq("is_hidden", true).order("position")).data ?? [];
+    if (hiddenQs.length) {
+      const hqIds = hiddenQs.map((q) => q.id);
+      const hAns = (await svc.from("evaluation_answers")
+        .select("candidate_id,question_id,answer_text")
+        .eq("evaluation_id", id).in("question_id", hqIds)).data ?? [];
+      contextFields = {
+        questions: hiddenQs.map((q) => ({ question_id: q.id, prompt: q.prompt })),
+        answers: hAns,
+      };
+    }
+  }
+
   // Owner-only: roster for the panel/owner pickers, current panel & owners.
   // Fetched via the service client because a non-admin owner can't read the
   // full panelist/owner lists under RLS.
@@ -109,6 +132,7 @@ export async function getEvaluationForViewer(id: string) {
   let panel: string[] = [];
   let owners: { id: string; display_name: string }[] = [];
   let createdBy: string | null = null;
+  let fields: { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean }[] = [];
   if (isOwner) {
     roster = (await svc.from("profiles")
       .select("id,display_name").eq("is_active", true).order("display_name")).data ?? [];
@@ -120,10 +144,14 @@ export async function getEvaluationForViewer(id: string) {
     owners = ownerIds.map((oid) => ({ id: oid, display_name: nameById.get(oid) ?? "Unknown" }));
     createdBy = (await svc.from("evaluations")
       .select("created_by").eq("id", id).single()).data?.created_by ?? null;
+    fields = (await svc.from("evaluation_questions")
+      .select("id,prompt,position,is_active,is_hidden")
+      .eq("evaluation_id", id).order("position")).data ?? [];
   }
 
   return {
     ev, isAdmin, isPanelist, isOwner, questions, candidates, answers,
     personal, myRatings, results, evaluatorBreakdown, roster, panel, owners, createdBy,
+    fields, contextFields,
   };
 }

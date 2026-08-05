@@ -14,6 +14,129 @@ export async function listEvaluations() {
   return data ?? [];
 }
 
+export type PendingEvaluation = {
+  id: string;
+  name: string;
+  candidatesRated: number;
+  totalCandidates: number;
+};
+
+/**
+ * Open evaluations where the current user is a panelist and still has rating
+ * work to do — at least one active candidate isn't yet scored on every active,
+ * visible question. Powers the home rail's Evaluations section, so it mirrors
+ * the evaluate screen's "candidatesRated / candidates" completion rule.
+ *
+ * Returns only evaluations with outstanding work, newest first. Uses the
+ * service client (like the rest of this module) so panelist/rating reads don't
+ * depend on RLS; every query is explicitly scoped to the current user.
+ */
+export async function listPendingEvaluationsForViewer(): Promise<
+  PendingEvaluation[]
+> {
+  const { user } = await requireUser();
+  const svc = atlasServiceClient();
+
+  const { data: panelRows } = await svc
+    .from("evaluation_panelists")
+    .select("evaluation_id")
+    .eq("profile_id", user.id);
+  const panelIds = (panelRows ?? []).map((r) => r.evaluation_id as string);
+  if (panelIds.length === 0) return [];
+
+  const { data: evalRows } = await svc
+    .from("evaluations")
+    .select("id,name,created_at")
+    .in("id", panelIds)
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+  const evals = (evalRows ?? []) as {
+    id: string;
+    name: string;
+    created_at: string;
+  }[];
+  if (evals.length === 0) return [];
+  const ids = evals.map((e) => e.id);
+
+  const [{ data: candRows }, { data: qRows }, { data: rateRows }] =
+    await Promise.all([
+      svc
+        .from("evaluation_candidates")
+        .select("id,evaluation_id")
+        .in("evaluation_id", ids)
+        .eq("is_active", true),
+      svc
+        .from("evaluation_questions")
+        .select("id,evaluation_id")
+        .in("evaluation_id", ids)
+        .eq("is_active", true)
+        .eq("is_hidden", false),
+      svc
+        .from("evaluation_ratings")
+        .select("evaluation_id,candidate_id,question_id")
+        .in("evaluation_id", ids)
+        .eq("rater_id", user.id),
+    ]);
+
+  const candidatesByEval = new Map<string, string[]>();
+  for (const c of (candRows ?? []) as {
+    id: string;
+    evaluation_id: string;
+  }[]) {
+    const arr = candidatesByEval.get(c.evaluation_id) ?? [];
+    arr.push(c.id);
+    candidatesByEval.set(c.evaluation_id, arr);
+  }
+
+  // The set of questions that actually count toward completion per evaluation.
+  const activeQuestionsByEval = new Map<string, Set<string>>();
+  for (const q of (qRows ?? []) as { id: string; evaluation_id: string }[]) {
+    const set = activeQuestionsByEval.get(q.evaluation_id) ?? new Set<string>();
+    set.add(q.id);
+    activeQuestionsByEval.set(q.evaluation_id, set);
+  }
+
+  // Per (evaluation, candidate): which counting questions the user has scored.
+  // Ratings for questions that are now inactive/hidden are ignored so they
+  // can't mark a candidate "done".
+  const ratedByEvalCandidate = new Map<string, Set<string>>();
+  for (const r of (rateRows ?? []) as {
+    evaluation_id: string;
+    candidate_id: string;
+    question_id: string;
+  }[]) {
+    const activeQ = activeQuestionsByEval.get(r.evaluation_id);
+    if (!activeQ || !activeQ.has(r.question_id)) continue;
+    const key = `${r.evaluation_id}:${r.candidate_id}`;
+    const set = ratedByEvalCandidate.get(key) ?? new Set<string>();
+    set.add(r.question_id);
+    ratedByEvalCandidate.set(key, set);
+  }
+
+  const pending: PendingEvaluation[] = [];
+  for (const e of evals) {
+    const candidates = candidatesByEval.get(e.id) ?? [];
+    const questionCount = activeQuestionsByEval.get(e.id)?.size ?? 0;
+    // Nothing to rate yet (no candidates or no questions) isn't "pending".
+    if (candidates.length === 0 || questionCount === 0) continue;
+
+    const candidatesRated = candidates.filter((cid) => {
+      const scored = ratedByEvalCandidate.get(`${e.id}:${cid}`);
+      return scored !== undefined && scored.size >= questionCount;
+    }).length;
+
+    if (candidatesRated < candidates.length) {
+      pending.push({
+        id: e.id,
+        name: e.name,
+        candidatesRated,
+        totalCandidates: candidates.length,
+      });
+    }
+  }
+  return pending;
+}
+
 export async function getEvaluationForViewer(id: string) {
   const { user, supabase } = await requireUser();
   const { data: ev } = await supabase

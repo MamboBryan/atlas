@@ -13,11 +13,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   MeetingRoomIcon,
-  Quiz02Icon,
+  ThumbsUpDownIcon,
+  UserGroup03Icon,
   Calendar03Icon,
   Target02Icon,
 } from "@hugeicons/core-free-icons";
 import { requireUser } from "@/lib/auth/require";
+import { listPendingEvaluationsForViewer } from "@/lib/evaluation/queries";
 
 type UnavailableRow = {
   id: string;
@@ -62,6 +64,7 @@ export async function HomeRail() {
     { data: meetingRows },
     { data: promptRows },
     { data: myParticipation },
+    pendingEvals,
   ] = await Promise.all([
     supabase
       .from("unavailability_windows")
@@ -87,6 +90,7 @@ export async function HomeRail() {
       .order("created_at", { ascending: false })
       .limit(20),
     supabase.from("participation").select("prompt_id").eq("user_id", user.id),
+    listPendingEvaluationsForViewer(),
   ]);
 
   const unavailable = (unavail ?? []) as unknown as UnavailableRow[];
@@ -234,11 +238,59 @@ export async function HomeRail() {
         )}
       </section>
 
+      {/* Evaluations */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-1.5">
+          <HugeiconsIcon
+            icon={UserGroup03Icon}
+            size={16}
+            strokeWidth={2}
+            className="text-ink-soft shrink-0"
+          />
+          <h2 className="font-display text-sm font-bold uppercase tracking-wide text-ink-soft">
+            Evaluations
+          </h2>
+          {pendingEvals.length > 0 && (
+            <Badge variant="open">{pendingEvals.length}</Badge>
+          )}
+        </div>
+        {pendingEvals.length === 0 ? (
+          <EmptyState
+            icon={UserGroup03Icon}
+            headline="All caught up"
+            body="No evaluations waiting on your score."
+          />
+        ) : (
+          <div className="space-y-2">
+            {pendingEvals.map((e) => (
+              <Card key={e.id} size="sm" interactive>
+                <CardHeader>
+                  <CardTitle>
+                    <Link
+                      href={`/hiring/${e.id}/evaluate` as never}
+                      className="hover:underline"
+                    >
+                      {e.name}
+                    </Link>
+                  </CardTitle>
+                  <CardDescription>
+                    {e.candidatesRated}/{e.totalCandidates} rated
+                  </CardDescription>
+                  <CardAction>
+                    <Badge variant="open">Open</Badge>
+                  </CardAction>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* Polls */}
       <section className="space-y-3">
         <div className="flex items-center gap-1.5">
           <HugeiconsIcon
-            icon={Quiz02Icon}
+            icon={ThumbsUpDownIcon}
             size={16}
             strokeWidth={2}
             className="text-ink-soft shrink-0"

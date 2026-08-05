@@ -32,6 +32,9 @@ for (const table of [
   "meetings",
   "meeting_series",
   "unavailability_windows",
+  // Deleting evaluations cascades to questions/candidates/answers/ratings/
+  // panelists/owners (all FK on delete cascade).
+  "evaluations",
 ]) {
   const { error } = await c.from(table).delete().not("id", "is", null);
   if (error) console.warn(`  ${table}: ${error.message}`);
@@ -64,6 +67,149 @@ const u2 = await ensureUser("user2@atlas.com", "User 2");
 
 const now = Date.now();
 const iso = (offset) => new Date(now + offset).toISOString();
+
+// ---- Hiring evaluations ----
+// Seeds the panel/rating data behind the home rail's Evaluations section.
+console.log("creating hiring evaluations…");
+
+const slug = (s) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+async function seedEvaluation({
+  name,
+  status,
+  panelists,
+  questions,
+  candidates,
+}) {
+  const { data: ev, error: evErr } = await c
+    .from("evaluations")
+    .insert({
+      name,
+      status,
+      mapping_confirmed: true,
+      created_by: admin.id,
+      last_synced_at: iso(-3600_000),
+    })
+    .select("id")
+    .single();
+  if (evErr) throw new Error(`evaluation ${name}: ${evErr.message}`);
+
+  const { data: qRows, error: qErr } = await c
+    .from("evaluation_questions")
+    .insert(
+      questions.map((prompt, i) => ({
+        evaluation_id: ev.id,
+        column_key: `q${i + 1}`,
+        prompt,
+        position: i,
+      })),
+    )
+    .select("id");
+  if (qErr) throw new Error(`questions ${name}: ${qErr.message}`);
+
+  const { data: cRows, error: cErr } = await c
+    .from("evaluation_candidates")
+    .insert(
+      candidates.map((display_name, i) => ({
+        evaluation_id: ev.id,
+        email: `${slug(name)}-cand${i + 1}@example.com`,
+        display_name,
+        submitted_at: iso(-2 * 86_400_000),
+      })),
+    )
+    .select("id");
+  if (cErr) throw new Error(`candidates ${name}: ${cErr.message}`);
+
+  await c
+    .from("evaluation_panelists")
+    .insert(panelists.map((p) => ({ evaluation_id: ev.id, profile_id: p })));
+  await c
+    .from("evaluation_owners")
+    .insert({ evaluation_id: ev.id, profile_id: admin.id });
+
+  // Answer text so the evaluate screen has something to show when clicked.
+  const answerRows = [];
+  for (const cand of cRows)
+    for (const q of qRows)
+      answerRows.push({
+        evaluation_id: ev.id,
+        candidate_id: cand.id,
+        question_id: q.id,
+        answer_text: "Sample QA response.",
+      });
+  await c.from("evaluation_answers").insert(answerRows);
+
+  return { id: ev.id, questions: qRows, candidates: cRows };
+}
+
+// Fully rate the first `count` candidates across every question, as `rater`.
+async function rate(evId, rater, cRows, qRows, count) {
+  const rows = [];
+  cRows.slice(0, count).forEach((cand) => {
+    qRows.forEach((q, i) => {
+      rows.push({
+        evaluation_id: evId,
+        candidate_id: cand.id,
+        question_id: q.id,
+        rater_id: rater,
+        score: (i % 5) + 1,
+      });
+    });
+  });
+  if (rows.length) {
+    const { error } = await c.from("evaluation_ratings").insert(rows);
+    if (error) throw new Error(`ratings: ${error.message}`);
+  }
+}
+
+// A — open, test is a panelist, only 1 of 4 candidates rated.
+//     → SHOWS on the home rail as pending ("1/4 rated").
+const evA = await seedEvaluation({
+  name: "Backend Engineer — Senior",
+  status: "open",
+  panelists: [admin.id, test.id],
+  questions: ["Technical depth", "Communication", "Ownership"],
+  candidates: ["Amara Okoro", "Brian Kim", "Chen Wei", "Diana Prince"],
+});
+await rate(evA.id, test.id, evA.candidates, evA.questions, 1);
+
+// B — open, test is a panelist, fully rated → does NOT show (caught up).
+const evB = await seedEvaluation({
+  name: "Product Designer",
+  status: "open",
+  panelists: [admin.id, test.id],
+  questions: ["Craft", "Collaboration"],
+  candidates: ["Esi Mensah", "Farhan Ali"],
+});
+await rate(
+  evB.id,
+  test.id,
+  evB.candidates,
+  evB.questions,
+  evB.candidates.length,
+);
+
+// C — open, but test is NOT a panelist → does NOT show.
+await seedEvaluation({
+  name: "Data Analyst",
+  status: "open",
+  panelists: [admin.id],
+  questions: ["SQL", "Storytelling"],
+  candidates: ["Grace Hopper", "Hassan Noor"],
+});
+
+// D — draft (not open), test is a panelist → does NOT show.
+await seedEvaluation({
+  name: "Growth Marketer (draft)",
+  status: "draft",
+  panelists: [admin.id, test.id],
+  questions: ["Experimentation"],
+  candidates: ["Ivy Zhang"],
+});
 
 // ---- Prompts ----
 console.log("creating polls…");
@@ -302,10 +448,23 @@ async function magic(email) {
 const adminLink = await magic("admin@atlas.com");
 const testLink = await magic("test@atlas.com");
 
+// One-click sign-in (needs the dev server running + ATLAS_TEST_MODE=1).
+const signin = (email, next = "/") =>
+  `${baseURL}/auth/test-signin?email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`;
+
 console.log("\n============================================");
-console.log("READY. Open these in your browsers:\n");
-console.log("Chrome (admin):");
-console.log(adminLink);
-console.log("\nBrave  (test):");
-console.log(testLink);
+console.log("READY. Test accounts — password: atlas-test-password-1234\n");
+console.log("▶ TEST  (panelist — 1 pending evaluation on the home rail)");
+console.log("   email:     test@atlas.com");
+console.log("   one-click: " + signin("test@atlas.com"));
+console.log("\n▶ ADMIN (workspace admin)");
+console.log("   email:     admin@atlas.com");
+console.log("   one-click: " + signin("admin@atlas.com"));
+console.log("\nExpected on TEST's home rail → Evaluations:");
+console.log('   • "Backend Engineer — Senior"  1/4 rated   (only pending one)');
+console.log("   Product Designer (done), Data Analyst (not on panel),");
+console.log("   and Growth Marketer (draft) are correctly hidden.");
+console.log("\nMagic-link fallback (if ATLAS_TEST_MODE is off):");
+console.log("   admin: " + adminLink);
+console.log("   test:  " + testLink);
 console.log("============================================\n");

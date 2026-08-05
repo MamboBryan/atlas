@@ -94,16 +94,22 @@ test("score: 'closest player' awarded to earliest submitter on tie", () => {
 });
 
 test("score: player with no guesses gets 0", () => {
-  const results = scoreZeroInRound(500, [
-    { player_id: "p1", guesses: [] },
-  ]);
+  const results = scoreZeroInRound(500, [{ player_id: "p1", guesses: [] }]);
   expect(results[0].points).toBe(0);
 });
 
 test("score: player who submitted but was far gets participation 1", () => {
   const results = scoreZeroInRound(500, [
-    { player_id: "p1", guesses: [{ value: 900, at: "t", feedback: "lower" }], earliest_closest_at: "t" },
-    { player_id: "p2", guesses: [{ value: 100, at: "t", feedback: "higher" }], earliest_closest_at: "t" },
+    {
+      player_id: "p1",
+      guesses: [{ value: 900, at: "t", feedback: "lower" }],
+      earliest_closest_at: "t",
+    },
+    {
+      player_id: "p2",
+      guesses: [{ value: 100, at: "t", feedback: "higher" }],
+      earliest_closest_at: "t",
+    },
   ]);
   // Neither is within 5% (±50). Closest is p1 (distance 400) vs p2 (400). Tie → earliest wins closest bonus.
   const total = results.reduce((n, r) => n + r.points, 0);

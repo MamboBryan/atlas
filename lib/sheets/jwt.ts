@@ -1,7 +1,6 @@
 import { createSign } from "node:crypto";
 
-const b64url = (buf: Buffer | string) =>
-  Buffer.from(buf).toString("base64url");
+const b64url = (buf: Buffer | string) => Buffer.from(buf).toString("base64url");
 
 export function mintServiceJwt(
   sa: { client_email: string; private_key: string },

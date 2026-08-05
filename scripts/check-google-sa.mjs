@@ -22,7 +22,8 @@ const ok = (msg) => console.log(`✓ ${msg}`);
 
 // ---- 1. env present ----
 const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-if (!raw) fail("GOOGLE_SERVICE_ACCOUNT_JSON is not set (checked .env.local and .env)");
+if (!raw)
+  fail("GOOGLE_SERVICE_ACCOUNT_JSON is not set (checked .env.local and .env)");
 ok("GOOGLE_SERVICE_ACCOUNT_JSON is set");
 
 // ---- 2. parses to JSON with required fields ----
@@ -112,4 +113,6 @@ if (!readRes.ok) {
   fail(`sheet read failed: ${status} ${await readRes.text()}\n${hint}`);
 }
 const { values = [] } = await readRes.json();
-ok(`read sheet — ${values.length} row(s), ${values[0]?.length ?? 0} column(s) in the first row`);
+ok(
+  `read sheet — ${values.length} row(s), ${values[0]?.length ?? 0} column(s) in the first row`,
+);

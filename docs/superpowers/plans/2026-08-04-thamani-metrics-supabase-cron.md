@@ -27,10 +27,12 @@
 The dashboard read helpers swallow query errors (`const { data } = await …`), so a broken pipeline renders as silent zeros. Make failures observable. This is the defect that hid the current outage.
 
 **Files:**
+
 - Modify: `lib/thamani/read.ts` (functions `getAccountsMonthly`, `getAccountsSnapshot`, `getAccountsDaily`)
 - Test: `tests/thamani/read.test.ts`
 
 **Interfaces:**
+
 - Consumes: `MinimalClient` (existing), `MetricRow` (existing).
 - Produces: same function signatures; behavior change is that a query `error` is logged via `console.error` before falling back to empty.
 
@@ -115,6 +117,7 @@ git commit -m "fix(thamani): surface thamani_metrics read errors instead of sile
 Create the function skeleton and its self-contained pure logic. This task ends with a green Deno test proving the copied period math and `bucketCounts` match the app.
 
 **Files:**
+
 - Create (via CLI scaffold, then edit): `db/supabase/supabase/functions/sync-thamani-metrics/index.ts` (placeholder for now)
 - Create: `db/supabase/supabase/functions/sync-thamani-metrics/_shared/types.ts`
 - Create: `db/supabase/supabase/functions/sync-thamani-metrics/_shared/periods.ts`
@@ -122,6 +125,7 @@ Create the function skeleton and its self-contained pure logic. This task ends w
 - Create: `db/supabase/supabase/functions/sync-thamani-metrics/aggregate_test.ts`
 
 **Interfaces:**
+
 - Produces: `bucketCounts(metricKey: string, values: string[], now: Date): MetricRow[]` in `_shared/aggregate.ts`; `MetricRow`/`Grain` in `_shared/types.ts`; the period functions in `_shared/periods.ts` (same signatures as `lib/thamani/periods.ts`).
 
 - [ ] **Step 1: Ensure Deno is installed**
@@ -215,36 +219,54 @@ const createdAts = [
 ];
 
 Deno.test("periodStart: Monday-start week", () => {
-  assertEquals(periodStart(new Date("2026-08-02T10:00:00Z"), "week"), "2026-07-27");
+  assertEquals(
+    periodStart(new Date("2026-08-02T10:00:00Z"), "week"),
+    "2026-07-27",
+  );
 });
 
 Deno.test("bucketCounts tags every row with the metric key", () => {
   const rows = bucketCounts("accounts_new", createdAts, now);
-  assertEquals(rows.every((r) => r.metric_key === "accounts_new"), true);
+  assertEquals(
+    rows.every((r) => r.metric_key === "accounts_new"),
+    true,
+  );
 });
 
-Deno.test("bucketCounts: Jan month = 1, Jul month = 2, year = 3, today = 1", () => {
-  const rows = bucketCounts("accounts_new", createdAts, now);
-  const at = (grain: string, ps: string) =>
-    rows.find((r) => r.grain === grain && r.period_start === ps)?.value;
-  assertEquals(at("month", "2026-01-01"), 1);
-  assertEquals(at("month", "2026-07-01"), 2);
-  assertEquals(rows.find((r) => r.grain === "year")?.value, 3);
-  assertEquals(at("day", "2026-07-30"), 1);
-});
+Deno.test(
+  "bucketCounts: Jan month = 1, Jul month = 2, year = 3, today = 1",
+  () => {
+    const rows = bucketCounts("accounts_new", createdAts, now);
+    const at = (grain: string, ps: string) =>
+      rows.find((r) => r.grain === grain && r.period_start === ps)?.value;
+    assertEquals(at("month", "2026-01-01"), 1);
+    assertEquals(at("month", "2026-07-01"), 2);
+    assertEquals(rows.find((r) => r.grain === "year")?.value, 3);
+    assertEquals(at("day", "2026-07-30"), 1);
+  },
+);
 
 Deno.test("bucketCounts: empty input → all-zero rows, unique keys", () => {
   const rows = bucketCounts("accounts_new", [], now);
   assertEquals(rows.length > 0, true);
-  assertEquals(rows.every((r) => r.value === 0), true);
+  assertEquals(
+    rows.every((r) => r.value === 0),
+    true,
+  );
   const keys = rows.map((r) => `${r.grain}|${r.period_start}`);
   assertEquals(new Set(keys).size, keys.length);
 });
 
 Deno.test("bucketCounts: includes previous-period buckets", () => {
   const rows = bucketCounts("accounts_new", [], now);
-  assertEquals(rows.some((r) => r.grain === "month" && r.period_start === "2026-06-01"), true);
-  assertEquals(rows.some((r) => r.grain === "year" && r.period_start === "2025-01-01"), true);
+  assertEquals(
+    rows.some((r) => r.grain === "month" && r.period_start === "2026-06-01"),
+    true,
+  );
+  assertEquals(
+    rows.some((r) => r.grain === "year" && r.period_start === "2025-01-01"),
+    true,
+  );
 });
 ```
 
@@ -267,6 +289,7 @@ git commit -m "feat(thamani): sync-thamani-metrics function skeleton + bucketCou
 Wire the metric registry, the Thamani reader, and the HTTP handler with bearer auth. This task ends with a local smoke run returning `{ ok: true, upserted: N }`.
 
 **Files:**
+
 - Create: `db/supabase/supabase/functions/sync-thamani-metrics/_shared/pageAll.ts`
 - Create: `db/supabase/supabase/functions/sync-thamani-metrics/_shared/registry.ts`
 - Create: `db/supabase/supabase/functions/sync-thamani-metrics/metrics/accounts_new.ts`
@@ -274,6 +297,7 @@ Wire the metric registry, the Thamani reader, and the HTTP handler with bearer a
 - Modify: `db/supabase/config.toml` (add `[functions.sync-thamani-metrics] verify_jwt = false`)
 
 **Interfaces:**
+
 - Consumes: `bucketCounts` (Task 2), `MetricRow` (Task 2).
 - Produces:
   - `pageAll(client: SupabaseClient, table: string, column: string): Promise<string[]>`
@@ -301,7 +325,10 @@ export async function pageAll(
       .from(table)
       .select(column)
       .range(from, from + pageSize - 1);
-    if (error) throw new Error(`Thamani ${table}.${column} read failed: ${error.message}`);
+    if (error)
+      throw new Error(
+        `Thamani ${table}.${column} read failed: ${error.message}`,
+      );
     const rows = (data ?? []) as Record<string, string | null>[];
     for (const r of rows) {
       const v = r[column];
@@ -324,7 +351,11 @@ import type { MetricRow } from "../_shared/types.ts";
 export const accountsNew = {
   metric_key: "accounts_new",
   compute: async (thamani: SupabaseClient, now: Date): Promise<MetricRow[]> =>
-    bucketCounts("accounts_new", await pageAll(thamani, "accounts", "created_at"), now),
+    bucketCounts(
+      "accounts_new",
+      await pageAll(thamani, "accounts", "created_at"),
+      now,
+    ),
 };
 ```
 
@@ -371,18 +402,22 @@ Deno.serve(async (req) => {
       Deno.env.get("THAMANI_SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
-    const atlas = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      serviceKey,
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    );
+    const atlas = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
-    const rows = (await Promise.all(METRICS.map((m) => m.compute(thamani, now)))).flat();
+    const rows = (
+      await Promise.all(METRICS.map((m) => m.compute(thamani, now)))
+    ).flat();
     const { error } = await atlas.from("thamani_metrics").upsert(
       rows.map((r) => ({ ...r, computed_at: now.toISOString() })),
       { onConflict: "metric_key,grain,period_start" },
     );
-    if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+    if (error)
+      return Response.json(
+        { ok: false, error: error.message },
+        { status: 500 },
+      );
     return Response.json({ ok: true, upserted: rows.length });
   } catch (e) {
     return Response.json(
@@ -414,9 +449,11 @@ it to `false` here.
 - [ ] **Step 6: Type-check the function with Deno (REQUIRED gate)**
 
 Run from inside the function directory (deno.json resolves relative to CWD):
+
 ```bash
 cd db/supabase/supabase/functions/sync-thamani-metrics && deno check index.ts && cd -
 ```
+
 Expected: no type errors. (Downloads esm.sh types on first run.) This is the
 authoritative correctness gate for this task. Also re-run the Deno tests from that
 directory: `deno test` (expect the Task 2 suite still 5/5).
@@ -561,11 +598,13 @@ No commit (infra). Note the confirmed prod state (table present, cron scheduled,
 With Supabase live and verified, remove the old trigger and the now-unused Node compute path.
 
 **Files:**
+
 - Modify: `vercel.json` (remove the `thamani-metrics` cron entry)
 - Delete: `app/api/cron/thamani-metrics/route.ts`
 - Modify: `lib/thamani/metrics/accounts.ts` (remove `computeAccountsMetrics` + its `thamaniReadClient` import; keep `ACCOUNTS_NEW` and `bucketAccounts`)
 
 **Interfaces:**
+
 - `ACCOUNTS_NEW` and `bucketAccounts` remain exported (still imported by `read.ts` and `tests/thamani/accounts.test.ts`).
 
 - [ ] **Step 1: Remove the Vercel cron entry**
@@ -621,13 +660,14 @@ git commit -m "chore(thamani): retire Vercel metrics cron in favor of Supabase s
 Capture the repeatable recipe so future Thamani aggregations follow a known path.
 
 **Files:**
+
 - Create: `.claude/skills/thamani-metrics-aggregation/SKILL.md`
 
 - [ ] **Step 1: Write the skill**
 
 Create `.claude/skills/thamani-metrics-aggregation/SKILL.md`:
 
-```markdown
+````markdown
 ---
 name: thamani-metrics-aggregation
 description: Use when adding a new pre-aggregated metric sourced from the Thamani production database into atlas's thamani_metrics table (e.g. new devices per period, active users, transaction counts). Covers the metric registry, the Supabase Edge Function + pg_cron pipeline, and verification. Triggers on "add a metric", "aggregate from Thamani", "new growth metric", or editing db/supabase/supabase/functions/sync-thamani-metrics.
@@ -641,6 +681,7 @@ read by the growth dashboard. The pipeline is a `MetricDef[]` registry run every
 full context: `docs/superpowers/specs/2026-08-04-thamani-metrics-supabase-cron-design.md`.
 
 ## When NOT to use
+
 - Metrics computed from atlas's OWN tables (meetings, prompts) — those can aggregate
   in-DB with plain SQL; no Edge Function needed.
 - One-off analytics queries — this is for recurring, dashboard-backed metrics.
@@ -662,8 +703,15 @@ full context: `docs/superpowers/specs/2026-08-04-thamani-metrics-supabase-cron-d
 
      export const devicesNew = {
        metric_key: "devices_new",
-       compute: async (thamani: SupabaseClient, now: Date): Promise<MetricRow[]> =>
-         bucketCounts("devices_new", await pageAll(thamani, "devices", "created_at"), now),
+       compute: async (
+         thamani: SupabaseClient,
+         now: Date,
+       ): Promise<MetricRow[]> =>
+         bucketCounts(
+           "devices_new",
+           await pageAll(thamani, "devices", "created_at"),
+           now,
+         ),
      };
      ```
    - Sum / distinct / custom: write a bespoke `compute` using `pageAll` (or your own
@@ -688,13 +736,14 @@ full context: `docs/superpowers/specs/2026-08-04-thamani-metrics-supabase-cron-d
    new rows: `select * from thamani_metrics where metric_key = '<key>' limit 20`.
 
 ## Guardrails
+
 - The function authorizes callers by comparing the bearer to `SUPABASE_SERVICE_ROLE_KEY`
   (deployed with `verify_jwt = false`). Don't add anon-key access.
 - Thamani credentials live only as Edge Function secrets — never commit or paste them.
 - Upsert conflict target is always `metric_key,grain,period_start`.
 - `_shared/types.ts` and `_shared/periods.ts` are copies of `lib/thamani/{types,periods}.ts`;
   if you change period math, change BOTH and update both test suites.
-```
+````
 
 - [ ] **Step 2: Sanity-check the skill file**
 

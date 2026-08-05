@@ -121,7 +121,11 @@ export function AccountsCard({
             value={current.quarter}
             previous={previous.quarter}
           />
-          <Stat label="This year" value={current.year} previous={previous.year} />
+          <Stat
+            label="This year"
+            value={current.year}
+            previous={previous.year}
+          />
         </div>
         <p className="mt-3 text-[11px] text-ink-soft">Tap for details</p>
       </CardContent>

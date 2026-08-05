@@ -6,7 +6,11 @@ const VARIANT = {
   closed: "revealed",
 } as const;
 
-export function StatusBadge({ status }: { status: "draft" | "open" | "closed" }) {
+export function StatusBadge({
+  status,
+}: {
+  status: "draft" | "open" | "closed";
+}) {
   return (
     <Badge variant={VARIANT[status]} size="lg">
       {status}

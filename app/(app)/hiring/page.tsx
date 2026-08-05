@@ -9,12 +9,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { DetailWithRail } from "@/components/app/detail-with-rail";
 
 export default async function HiringPage() {
-  const [evals, admin] = await Promise.all([listEvaluations(), isCurrentUserAdmin()]);
+  const [evals, admin] = await Promise.all([
+    listEvaluations(),
+    isCurrentUserAdmin(),
+  ]);
   return (
     <DetailWithRail>
       <div className="space-y-8">
         <header className="flex items-center justify-between">
-          <h1 className="font-display text-3xl font-extrabold text-ink">Hiring</h1>
+          <h1 className="font-display text-3xl font-extrabold text-ink">
+            Hiring
+          </h1>
           {admin && <CreateEvaluation />}
         </header>
 

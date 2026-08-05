@@ -93,13 +93,17 @@ Shared helpers make the common case (count rows by a timestamp column) a one-lin
 ```ts
 // Generic paginated column reader over a Thamani table.
 export async function pageAll(
-  thamani: SupabaseClient, table: string, column: string,
+  thamani: SupabaseClient,
+  table: string,
+  column: string,
 ): Promise<string[]>;
 
 // Bucket timestamp values into counts across the standard period set,
 // parameterized by metric_key. (Generalized from today's bucketAccounts.)
 export function bucketCounts(
-  metricKey: string, values: string[], now: Date,
+  metricKey: string,
+  values: string[],
+  now: Date,
 ): MetricRow[];
 ```
 
@@ -109,7 +113,11 @@ So `accounts_new` is:
 export const accountsNew: MetricDef = {
   metric_key: "accounts_new",
   compute: async (thamani, now) =>
-    bucketCounts("accounts_new", await pageAll(thamani, "accounts", "created_at"), now),
+    bucketCounts(
+      "accounts_new",
+      await pageAll(thamani, "accounts", "created_at"),
+      now,
+    ),
 };
 ```
 
@@ -143,6 +151,7 @@ A future "new devices per period" metric is the same three lines against
 Directory (function lives at `db/supabase/supabase/functions/`, joining the existing
 `migrations/` and `tests/` siblings; scaffold with `pnpm supabase functions new` so
 the CLI places it correctly):
+
 ```
 db/supabase/supabase/functions/sync-thamani-metrics/
   index.ts              # handler: bearer check → run registry → upsert
@@ -156,6 +165,7 @@ db/supabase/supabase/functions/sync-thamani-metrics/
     accounts_new.ts     # the accountsNew MetricDef
   aggregate_test.ts     # Deno test: bucketCounts + periods parity
 ```
+
 Adding a future metric touches only `metrics/<key>.ts` and one line in
 `_shared/registry.ts`. Nothing else in the function changes.
 
@@ -181,7 +191,7 @@ function copies keep `types.ts` byte-identical to the app's for easy diffing.
 
 ### 2. pg_cron schedule (atlas DB, provisioning SQL — not a versioned migration)
 
-Run once against **prod** (via MCP `execute_sql` or the dashboard). It is *not* a
+Run once against **prod** (via MCP `execute_sql` or the dashboard). It is _not_ a
 numbered migration: the env-specific function URL + Vault secrets would break local
 `supabase start` / CI. Enabling the extensions is likewise a prod provisioning step.
 

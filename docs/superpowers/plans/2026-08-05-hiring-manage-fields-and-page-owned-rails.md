@@ -24,6 +24,7 @@
 ## File Structure
 
 **Part B (rails):**
+
 - Create `components/app/detail-with-rail.tsx` — the two-pane shell (main chrome + optional rail column).
 - Create `components/app/home-rail.tsx` — home dashboard rail (extracted from `@right/page.tsx`).
 - Create `components/meetings/meeting-rail.tsx` — meeting rail (extracted from `@right/meetings/[id]/page.tsx`).
@@ -32,6 +33,7 @@
 - Delete `app/(app)/@right/**` and `components/app/right-slot.tsx`.
 
 **Part A (Manage/Fields):**
+
 - Create `lib/evaluation/refresh.ts` — pure `partitionRefreshColumns` helper.
 - Create `tests/evaluation/refresh.test.ts` — unit tests for the helper.
 - Modify `lib/zod/evaluation.ts` — `setEvaluationFieldInput`.
@@ -48,9 +50,11 @@
 ### Task B1: `DetailWithRail` shell component
 
 **Files:**
+
 - Create: `components/app/detail-with-rail.tsx`
 
 **Interfaces:**
+
 - Produces: `DetailWithRail({ children, rail }: { children: React.ReactNode; rail?: React.ReactNode })` — a server-compatible component (no hooks). When `rail` is falsy, renders only the main column full-width; otherwise a `md:grid md:grid-cols-[7fr_3fr]` with main + a `hidden md:flex md:flex-col md:h-screen md:overflow-y-auto` rail column.
 
 - [ ] **Step 1: Create the component**
@@ -105,12 +109,14 @@ git commit -m "feat(app): add DetailWithRail two-pane shell"
 Safe no-op refactor: the `@right` routes keep working, now delegating to reusable components that the pages will import in Task B3.
 
 **Files:**
+
 - Create: `components/app/home-rail.tsx`
 - Create: `components/meetings/meeting-rail.tsx`
 - Modify: `app/(app)/@right/page.tsx`
 - Modify: `app/(app)/@right/meetings/[id]/page.tsx`
 
 **Interfaces:**
+
 - Produces: `HomeRail()` — async server component returning the home dashboard rail (Picker + Availability + Meetings + Polls).
 - Produces: `MeetingRail({ id }: { id: string })` — async server component returning the meeting rail.
 
@@ -142,7 +148,10 @@ Move the body of `app/(app)/@right/meetings/[id]/page.tsx` into `components/meet
 
 ```tsx
 import { requireUser } from "@/lib/auth/require";
-import { AgendaAddItem, type PromptOption } from "@/components/meetings/agenda-add-item";
+import {
+  AgendaAddItem,
+  type PromptOption,
+} from "@/components/meetings/agenda-add-item";
 import { MeetingCommentBox } from "@/components/meetings/meeting-comment-box";
 
 export async function MeetingRail({ id }: { id: string }) {
@@ -185,11 +194,13 @@ git commit -m "refactor(app): extract home and meeting rails into standalone com
 This is the single point where main-column chrome moves from the layout into the shell, so it must land together: the layout change, every page wrap, and the `@right`/`RightSlot` deletion. There is no working intermediate.
 
 **Files:**
+
 - Modify: `app/(app)/layout.tsx`
 - Modify (wrap in shell): all pages under `app/(app)/` listed below
 - Delete: `app/(app)/@right/` (whole folder), `components/app/right-slot.tsx`
 
 **Interfaces:**
+
 - Consumes: `DetailWithRail` (B1), `HomeRail` + `MeetingRail` (B2), existing `PollDetailPanel`, `PastPollsList`, `AdminControls`.
 
 - [ ] **Step 1: Rewrite the app layout**
@@ -252,6 +263,7 @@ For each, import `DetailWithRail` and wrap the page's existing returned root ele
   ```
 - `app/(app)/polls/past/page.tsx` — same import; heading text `"Past polls"`.
 - `app/(app)/hiring/[id]/page.tsx` — `import { AdminControls } from "@/app/(app)/hiring/[id]/_ui/admin-controls";` (already imported indirectly via `@right` today — add here). The page already computes `data = await getEvaluationForViewer(id)`. Pass:
+
   ```tsx
   rail={
     data.isOwner ? (
@@ -265,6 +277,7 @@ For each, import `DetailWithRail` and wrap the page's existing returned root ele
     ) : null
   }
   ```
+
   Wrap the existing `<div className="space-y-8">…</div>` return as `children`.
 
 - [ ] **Step 3: Wrap the rail-less routes**
@@ -294,6 +307,7 @@ Expected: PASS.
 - [ ] **Step 7: Verify each rail renders (driven)**
 
 Use the `run`/`verify` skill to launch the app and confirm, on desktop width:
+
 - `/` shows the dashboard rail; `/polls` + `/polls/past` show the polls rail; `/polls/[id]` shows the poll detail rail; `/meetings/[id]` shows the agenda/comment rail (host vs participant); `/hiring/[id]` shows the Manage panel for an owner and nothing for a non-owner.
 - A rail-less route (e.g. `/settings`) renders full-width with the sticky header intact.
 - The fullscreen `/hiring/[id]/evaluate` and `/meetings/[id]/present` routes are visually unchanged.
@@ -314,11 +328,13 @@ git commit -m "refactor(app): page-owned right rails via DetailWithRail; retire 
 Extracts the refresh-time column partition into a pure, tested function that also preserves **disabled** fields (today only hidden state is carried forward).
 
 **Files:**
+
 - Create: `lib/evaluation/refresh.ts`
 - Test: `tests/evaluation/refresh.test.ts`
 - Modify: `lib/actions/evaluation.ts:188-221` (`refreshEvaluationAction`)
 
 **Interfaces:**
+
 - Produces: `partitionRefreshColumns(existing: { column_key: string; is_active: boolean; is_hidden: boolean }[], nonIdentityHeaders: string[]): { questionColumns: string[]; hiddenColumns: string[] }` — headers whose existing row is inactive are dropped from **both** arrays (so `syncEvaluation` deactivates them); existing hidden rows go to `hiddenColumns`; everything else (including brand-new headers) goes to `questionColumns`.
 
 - [ ] **Step 1: Write the failing test**
@@ -399,10 +415,14 @@ Expected: PASS (4 tests).
 In `lib/actions/evaluation.ts`, add `import { partitionRefreshColumns } from "@/lib/evaluation/refresh";`. Replace the existing hidden-only partition block (currently selecting `column_key,is_hidden` and computing `hiddenKeys`/`questionColumns`/`hiddenColumns`) with:
 
 ```ts
-const { data: existingQs } = await svc.from("evaluation_questions")
-  .select("column_key,is_active,is_hidden").eq("evaluation_id", parsed.data.evaluationId);
-const { questionColumns, hiddenColumns } =
-  partitionRefreshColumns(existingQs ?? [], nonIdentityHeaders);
+const { data: existingQs } = await svc
+  .from("evaluation_questions")
+  .select("column_key,is_active,is_hidden")
+  .eq("evaluation_id", parsed.data.evaluationId);
+const { questionColumns, hiddenColumns } = partitionRefreshColumns(
+  existingQs ?? [],
+  nonIdentityHeaders,
+);
 ```
 
 Leave the surrounding `identity`/`nonIdentityHeaders` computation and the `syncEvaluation(...)` call unchanged.
@@ -424,10 +444,12 @@ git commit -m "feat(hiring): preserve disabled fields across evaluation refresh"
 ### Task A2: `setEvaluationFieldAction` + input schema
 
 **Files:**
+
 - Modify: `lib/zod/evaluation.ts`
 - Modify: `lib/actions/evaluation.ts`
 
 **Interfaces:**
+
 - Produces: `setEvaluationFieldAction(input: unknown): Promise<ActionResult<null>>` — owner-gated; rejects when the evaluation is `closed`; updates `is_active`/`is_hidden` (only the provided keys) for `questionId` scoped to `evaluationId`.
 - Produces (zod): `setEvaluationFieldInput` with `{ evaluationId: uuid, questionId: uuid, isActive?: boolean, isHidden?: boolean }`.
 
@@ -449,21 +471,30 @@ export const setEvaluationFieldInput = z.object({
 In `lib/actions/evaluation.ts`, add `setEvaluationFieldInput` to the existing import from `@/lib/zod/evaluation`, then:
 
 ```ts
-export async function setEvaluationFieldAction(input: unknown): Promise<ActionResult<null>> {
+export async function setEvaluationFieldAction(
+  input: unknown,
+): Promise<ActionResult<null>> {
   const parsed = setEvaluationFieldInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireEvaluationOwner(parsed.data.evaluationId);
   const svc = atlasServiceClient();
-  const { data: ev } = await svc.from("evaluations")
-    .select("status").eq("id", parsed.data.evaluationId).single();
+  const { data: ev } = await svc
+    .from("evaluations")
+    .select("status")
+    .eq("id", parsed.data.evaluationId)
+    .single();
   if (ev?.status === "closed")
     return err("locked", "fields are locked after the evaluation is closed");
   const patch: { is_active?: boolean; is_hidden?: boolean } = {};
-  if (parsed.data.isActive !== undefined) patch.is_active = parsed.data.isActive;
-  if (parsed.data.isHidden !== undefined) patch.is_hidden = parsed.data.isHidden;
+  if (parsed.data.isActive !== undefined)
+    patch.is_active = parsed.data.isActive;
+  if (parsed.data.isHidden !== undefined)
+    patch.is_hidden = parsed.data.isHidden;
   if (Object.keys(patch).length === 0) return ok(null);
-  const { error } = await svc.from("evaluation_questions")
-    .update(patch).eq("id", parsed.data.questionId)
+  const { error } = await svc
+    .from("evaluation_questions")
+    .update(patch)
+    .eq("id", parsed.data.questionId)
     .eq("evaluation_id", parsed.data.evaluationId);
   if (error) return err("db_error", error.message);
   revalidatePath(`/hiring/${parsed.data.evaluationId}`);
@@ -488,10 +519,12 @@ git commit -m "feat(hiring): add setEvaluationFieldAction for per-field enable/h
 ### Task A3: Query — owner `fields` + closed-results `contextFields`
 
 **Files:**
+
 - Modify: `lib/evaluation/queries.ts`
 - Modify: `app/(app)/hiring/[id]/page.tsx`
 
 **Interfaces:**
+
 - Produces (from `getEvaluationForViewer`): `fields: { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean }[]` (owner-only, else `[]`); and `contextFields: { questions: { question_id: string; prompt: string }[]; answers: { candidate_id: string; question_id: string; answer_text: string | null }[] }` (closed + panelist/admin, else empty arrays).
 
 - [ ] **Step 1: Add `fields` to the owner block**
@@ -499,15 +532,26 @@ git commit -m "feat(hiring): add setEvaluationFieldAction for per-field enable/h
 In `getEvaluationForViewer`, inside the existing `if (isOwner) { … }` block, add:
 
 ```ts
-fields = (await svc.from("evaluation_questions")
-  .select("id,prompt,position,is_active,is_hidden")
-  .eq("evaluation_id", id).order("position")).data ?? [];
+fields =
+  (
+    await svc
+      .from("evaluation_questions")
+      .select("id,prompt,position,is_active,is_hidden")
+      .eq("evaluation_id", id)
+      .order("position")
+  ).data ?? [];
 ```
 
 And declare above the block, alongside the other owner vars:
 
 ```ts
-let fields: { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean }[] = [];
+let fields: {
+  id: string;
+  prompt: string;
+  position: number;
+  is_active: boolean;
+  is_hidden: boolean;
+}[] = [];
 ```
 
 - [ ] **Step 2: Add the `contextFields` fetch (service client, closed + panelist/admin)**
@@ -520,17 +564,33 @@ After the `evaluatorBreakdown` block, add:
 // hidden-question answer text. Strictly gated to closed + panelist/admin.
 let contextFields: {
   questions: { question_id: string; prompt: string }[];
-  answers: { candidate_id: string; question_id: string; answer_text: string | null }[];
+  answers: {
+    candidate_id: string;
+    question_id: string;
+    answer_text: string | null;
+  }[];
 } = { questions: [], answers: [] };
 if (ev.status === "closed" && (isPanelist || isAdmin)) {
-  const hiddenQs = (await svc.from("evaluation_questions")
-    .select("id,prompt,position").eq("evaluation_id", id)
-    .eq("is_active", true).eq("is_hidden", true).order("position")).data ?? [];
+  const hiddenQs =
+    (
+      await svc
+        .from("evaluation_questions")
+        .select("id,prompt,position")
+        .eq("evaluation_id", id)
+        .eq("is_active", true)
+        .eq("is_hidden", true)
+        .order("position")
+    ).data ?? [];
   if (hiddenQs.length) {
     const hqIds = hiddenQs.map((q) => q.id);
-    const hAns = (await svc.from("evaluation_answers")
-      .select("candidate_id,question_id,answer_text")
-      .eq("evaluation_id", id).in("question_id", hqIds)).data ?? [];
+    const hAns =
+      (
+        await svc
+          .from("evaluation_answers")
+          .select("candidate_id,question_id,answer_text")
+          .eq("evaluation_id", id)
+          .in("question_id", hqIds)
+      ).data ?? [];
     contextFields = {
       questions: hiddenQs.map((q) => ({ question_id: q.id, prompt: q.prompt })),
       answers: hAns,
@@ -564,9 +624,11 @@ git commit -m "feat(hiring): query owner fields and closed-results context field
 ### Task A4: `ResultsView` — hidden-field context rows
 
 **Files:**
+
 - Modify: `app/(app)/hiring/[id]/_ui/results-view.tsx`
 
 **Interfaces:**
+
 - Consumes: `contextFields` (A3).
 - Produces: `ResultsView` accepts a new optional prop `contextFields?: { questions: { question_id: string; prompt: string }[]; answers: { candidate_id: string; question_id: string; answer_text: string | null }[] }` (default `{ questions: [], answers: [] }`).
 
@@ -587,44 +649,56 @@ for (const a of contextFields.answers) {
 Inside the expanded-candidate block, **after** the `{c.cells.map(...)}` list, add (reusing the existing `openQ`/`toggleQ` expansion, keyed to avoid collision with scored cells):
 
 ```tsx
-{contextFields.questions.length > 0 && (
-  <div className="border-t border-divider">
-    <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
-      Context (not scored)
-    </p>
-    {contextFields.questions.map((q) => {
-      const key = `ctx|${c.candidate_id}|${q.question_id}`;
-      const answer = contextAnswerFor.get(`${c.candidate_id}|${q.question_id}`);
-      const qOpen = openQ.has(key);
-      return (
-        <div key={q.question_id} className="border-b border-divider last:border-b-0">
-          {answer ? (
-            <button
-              type="button"
-              onClick={() => toggleQ(key)}
-              aria-expanded={qOpen}
-              className="flex w-full items-center justify-between gap-4 py-2 pl-10 pr-4 text-left text-sm transition-colors duration-fast ease-soft hover:bg-ink/5"
-            >
-              <span className="flex min-w-0 items-center gap-1.5">
-                <ChevronDownIcon className={cn("size-3 shrink-0 text-ink-soft transition-transform duration-fast ease-soft", qOpen && "rotate-180")} />
+{
+  contextFields.questions.length > 0 && (
+    <div className="border-t border-divider">
+      <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+        Context (not scored)
+      </p>
+      {contextFields.questions.map((q) => {
+        const key = `ctx|${c.candidate_id}|${q.question_id}`;
+        const answer = contextAnswerFor.get(
+          `${c.candidate_id}|${q.question_id}`,
+        );
+        const qOpen = openQ.has(key);
+        return (
+          <div
+            key={q.question_id}
+            className="border-b border-divider last:border-b-0"
+          >
+            {answer ? (
+              <button
+                type="button"
+                onClick={() => toggleQ(key)}
+                aria-expanded={qOpen}
+                className="flex w-full items-center justify-between gap-4 py-2 pl-10 pr-4 text-left text-sm transition-colors duration-fast ease-soft hover:bg-ink/5"
+              >
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <ChevronDownIcon
+                    className={cn(
+                      "size-3 shrink-0 text-ink-soft transition-transform duration-fast ease-soft",
+                      qOpen && "rotate-180",
+                    )}
+                  />
+                  <span className="truncate text-ink-soft">{q.prompt}</span>
+                </span>
+              </button>
+            ) : (
+              <div className="py-2 pl-10 pr-4 text-sm">
                 <span className="truncate text-ink-soft">{q.prompt}</span>
-              </span>
-            </button>
-          ) : (
-            <div className="py-2 pl-10 pr-4 text-sm">
-              <span className="truncate text-ink-soft">{q.prompt}</span>
-            </div>
-          )}
-          {answer && qOpen && (
-            <p className="whitespace-pre-wrap py-2 pl-[3.75rem] pr-4 text-sm leading-relaxed text-ink">
-              {answer}
-            </p>
-          )}
-        </div>
-      );
-    })}
-  </div>
-)}
+              </div>
+            )}
+            {answer && qOpen && (
+              <p className="whitespace-pre-wrap py-2 pl-[3.75rem] pr-4 text-sm leading-relaxed text-ink">
+                {answer}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 ```
 
 - [ ] **Step 3: Pass the prop from the page**
@@ -648,9 +722,11 @@ git commit -m "feat(hiring): show hidden fields as context in closed results"
 ### Task A5: `AdminControls` — full-height Manage/Fields tabbed panel
 
 **Files:**
+
 - Modify: `app/(app)/hiring/[id]/_ui/admin-controls.tsx`
 
 **Interfaces:**
+
 - Consumes: `fields` (A3), `setEvaluationFieldAction` (A2).
 - Produces: `AdminControls` gains `fields?: { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean }[]` and uses `evaluation.status` (add `status` to its `Ev` type) to lock the Fields tab when closed.
 
@@ -690,7 +766,9 @@ return (
     {/* Active tab body (scrolls) */}
     <div className="min-h-0 flex-1 overflow-y-auto">
       {activeTab === "manage" ? (
-        <div className="space-y-5">{/* Sheet + Panel + Owners sections, moved verbatim from the old CardContent */}</div>
+        <div className="space-y-5">
+          {/* Sheet + Panel + Owners sections, moved verbatim from the old CardContent */}
+        </div>
       ) : (
         <FieldsTab
           evaluationId={evaluation.id}
@@ -716,13 +794,25 @@ Move the existing Sheet/Panel/Owners JSX (currently in `CardContent`) into the M
 
 ```tsx
 function FieldsTab({
-  evaluationId, fields, locked, pending, run,
+  evaluationId,
+  fields,
+  locked,
+  pending,
+  run,
 }: {
   evaluationId: string;
-  fields: { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean }[];
+  fields: {
+    id: string;
+    prompt: string;
+    position: number;
+    is_active: boolean;
+    is_hidden: boolean;
+  }[];
   locked: boolean;
   pending: boolean;
-  run: (fn: () => Promise<{ ok: boolean; error?: { message: string } }>) => void;
+  run: (
+    fn: () => Promise<{ ok: boolean; error?: { message: string } }>,
+  ) => void;
 }) {
   if (fields.length === 0) {
     return (
@@ -734,10 +824,13 @@ function FieldsTab({
   return (
     <div className="space-y-3">
       <p className="text-xs text-ink-soft">
-        Hidden fields aren&apos;t scored during evaluation but appear as context in results.
+        Hidden fields aren&apos;t scored during evaluation but appear as context
+        in results.
       </p>
       {locked && (
-        <p className="text-xs font-semibold text-ink-soft">Fields lock after closing.</p>
+        <p className="text-xs font-semibold text-ink-soft">
+          Fields lock after closing.
+        </p>
       )}
       <ul className="space-y-2">
         {fields.map((f) => (
@@ -745,19 +838,37 @@ function FieldsTab({
             key={f.id}
             className="flex items-center justify-between gap-3 rounded-md border-chunk border-ink bg-surface-raised px-3 py-2"
           >
-            <span className="min-w-0 truncate text-sm font-medium text-ink">{f.prompt}</span>
+            <span className="min-w-0 truncate text-sm font-medium text-ink">
+              {f.prompt}
+            </span>
             <span className="flex shrink-0 gap-1.5">
               <TogglePill
                 label="Enabled"
                 on={f.is_active}
                 disabled={locked || pending}
-                onClick={() => run(() => setEvaluationFieldAction({ evaluationId, questionId: f.id, isActive: !f.is_active }))}
+                onClick={() =>
+                  run(() =>
+                    setEvaluationFieldAction({
+                      evaluationId,
+                      questionId: f.id,
+                      isActive: !f.is_active,
+                    }),
+                  )
+                }
               />
               <TogglePill
                 label="Hidden"
                 on={f.is_hidden}
                 disabled={locked || pending || !f.is_active}
-                onClick={() => run(() => setEvaluationFieldAction({ evaluationId, questionId: f.id, isHidden: !f.is_hidden }))}
+                onClick={() =>
+                  run(() =>
+                    setEvaluationFieldAction({
+                      evaluationId,
+                      questionId: f.id,
+                      isHidden: !f.is_hidden,
+                    }),
+                  )
+                }
               />
             </span>
           </li>
@@ -768,8 +879,16 @@ function FieldsTab({
 }
 
 function TogglePill({
-  label, on, disabled, onClick,
-}: { label: string; on: boolean; disabled?: boolean; onClick: () => void }) {
+  label,
+  on,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  on: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -801,6 +920,7 @@ Expected: PASS.
 - [ ] **Step 6: Verify the panel end-to-end (driven)**
 
 Use the `run`/`verify` skill on an owned evaluation:
+
 - The rail is full-height; tabs switch between Manage and Fields; the lifecycle footer (Refresh/Open/Close) stays visible on both tabs.
 - In Fields (status `open`), disable field A and hide field B → the `open` rating screen (`/hiring/[id]` main / evaluate) omits both.
 - Close the evaluation → results exclude A entirely and show B under "Context (not scored)" with its answer text (as an owner/admin), no score.
@@ -819,6 +939,7 @@ git commit -m "feat(hiring): full-height Manage/Fields tabbed evaluation panel"
 ## Self-Review
 
 **Spec coverage:**
+
 - Part B shell / layout / rail extraction / deletion → B1, B2, B3. ✓
 - All ~18 pages wrapped → B3 Steps 2–3. ✓
 - Part A field semantics (enable/hide, closed-lock) → A2 (action lock), A5 (UI lock). ✓
@@ -828,7 +949,7 @@ git commit -m "feat(hiring): full-height Manage/Fields tabbed evaluation panel"
 - Full-height tabbed panel + toggles → A5. ✓
 - No migration; no RPC change → honored (Global Constraints, Out of Scope). ✓
 
-**Placeholder scan:** Rail-content moves in B2 and section moves in A5 say "verbatim/unchanged" rather than re-printing large existing blocks — intentional (moving existing code, not authoring new logic); every *new* code block is written in full. No TBD/TODO remain.
+**Placeholder scan:** Rail-content moves in B2 and section moves in A5 say "verbatim/unchanged" rather than re-printing large existing blocks — intentional (moving existing code, not authoring new logic); every _new_ code block is written in full. No TBD/TODO remain.
 
 **Type consistency:** `fields` shape `{ id, prompt, position, is_active, is_hidden }` is identical across A3 (query), A5 (`AdminControls`/`FieldsTab`). `contextFields` shape `{ questions: { question_id, prompt }[]; answers: { candidate_id, question_id, answer_text }[] }` is identical across A3 (query) and A4 (`ResultsView`). `setEvaluationFieldAction` input keys (`evaluationId, questionId, isActive?, isHidden?`) match between A2 (zod/action) and A5 (call sites). `partitionRefreshColumns` signature matches between A1 helper and its `refreshEvaluationAction` call site.
 

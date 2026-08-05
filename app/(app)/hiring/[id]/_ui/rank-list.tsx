@@ -10,14 +10,27 @@ import { cn } from "@/lib/utils";
 
 type Q = { id: string; prompt: string };
 type C = { id: string; display_name: string };
-type A = { candidate_id: string; question_id: string; answer_text: string | null };
+type A = {
+  candidate_id: string;
+  question_id: string;
+  answer_text: string | null;
+};
 type R = { candidateId: string; questionId: string; score: number };
-type Ranked = { candidateId: string; average: number | null; ratedCount: number };
+type Ranked = {
+  candidateId: string;
+  average: number | null;
+  ratedCount: number;
+};
 
 const cellKey = (cid: string, qid: string) => `${cid}:${qid}`;
 
 export function RankList({
-  evaluationId, candidates, questions, answers, myRatings, ranked,
+  evaluationId,
+  candidates,
+  questions,
+  answers,
+  myRatings,
+  ranked,
 }: {
   evaluationId: string;
   candidates: C[];
@@ -31,7 +44,8 @@ export function RankList({
 
   const nameById = new Map(candidates.map((c) => [c.id, c.display_name]));
   const scoreFor = new Map<string, number>();
-  for (const r of myRatings) scoreFor.set(cellKey(r.candidateId, r.questionId), r.score);
+  for (const r of myRatings)
+    scoreFor.set(cellKey(r.candidateId, r.questionId), r.score);
   const answerFor = new Map<string, string>();
   for (const a of answers) {
     const t = a.answer_text?.trim();
@@ -81,7 +95,11 @@ export function RankList({
           variant="default"
           render={<Link href={`/hiring/${evaluationId}/evaluate`} />}
         >
-          {candidatesRated === 0 ? "Evaluate" : allDone ? "Re-evaluate" : "Continue"}
+          {candidatesRated === 0
+            ? "Evaluate"
+            : allDone
+              ? "Re-evaluate"
+              : "Continue"}
         </Button>
       </div>
 
@@ -95,7 +113,10 @@ export function RankList({
           const name = nameById.get(r.candidateId) ?? "—";
           const isOpen = openCand.has(r.candidateId);
           return (
-            <div key={r.candidateId} className="border-b border-divider last:border-b-0">
+            <div
+              key={r.candidateId}
+              className="border-b border-divider last:border-b-0"
+            >
               <div className="flex items-stretch">
                 <button
                   type="button"
@@ -128,7 +149,9 @@ export function RankList({
                     variant="outline"
                     size="sm"
                     render={
-                      <Link href={`/hiring/${evaluationId}/evaluate?candidate=${r.candidateId}`} />
+                      <Link
+                        href={`/hiring/${evaluationId}/evaluate?candidate=${r.candidateId}`}
+                      />
                     }
                   >
                     Evaluate
@@ -144,7 +167,10 @@ export function RankList({
                     const answer = answerFor.get(key);
                     const qOpen = openQ.has(key);
                     return (
-                      <div key={q.id} className="border-b border-divider last:border-b-0">
+                      <div
+                        key={q.id}
+                        className="border-b border-divider last:border-b-0"
+                      >
                         {answer ? (
                           <button
                             type="button"
@@ -159,14 +185,22 @@ export function RankList({
                                   qOpen && "rotate-180",
                                 )}
                               />
-                              <span className="truncate text-ink-soft">{q.prompt}</span>
+                              <span className="truncate text-ink-soft">
+                                {q.prompt}
+                              </span>
                             </span>
-                            <span className="shrink-0 text-ink">{myScore ?? "—"}</span>
+                            <span className="shrink-0 text-ink">
+                              {myScore ?? "—"}
+                            </span>
                           </button>
                         ) : (
                           <div className="flex items-center justify-between gap-4 py-2 pl-10 pr-4 text-sm">
-                            <span className="truncate text-ink-soft">{q.prompt}</span>
-                            <span className="shrink-0 text-ink">{myScore ?? "—"}</span>
+                            <span className="truncate text-ink-soft">
+                              {q.prompt}
+                            </span>
+                            <span className="shrink-0 text-ink">
+                              {myScore ?? "—"}
+                            </span>
                           </div>
                         )}
                         {answer && qOpen && (

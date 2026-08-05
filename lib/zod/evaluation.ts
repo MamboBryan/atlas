@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-export const createEvaluationInput = z.object({ name: z.string().min(1).max(200) });
+export const createEvaluationInput = z.object({
+  name: z.string().min(1).max(200),
+});
 
 export const connectSheetInput = z.object({
   evaluationId: z.string().uuid(),
@@ -49,14 +51,23 @@ export const setEvaluationFieldInput = z.object({
 });
 
 export const evaluationFieldRole = z.enum([
-  "email", "name", "timestamp", "question", "context", "ignore",
+  "email",
+  "name",
+  "timestamp",
+  "question",
+  "context",
+  "ignore",
 ]);
 
 export const saveEvaluationFieldsInput = z.object({
   evaluationId: z.string().uuid(),
-  fields: z.array(z.object({
-    column: z.string().min(1),
-    label: z.string().min(1),
-    role: evaluationFieldRole,
-  })).min(1),
+  fields: z
+    .array(
+      z.object({
+        column: z.string().min(1),
+        label: z.string().min(1),
+        role: evaluationFieldRole,
+      }),
+    )
+    .min(1),
 });

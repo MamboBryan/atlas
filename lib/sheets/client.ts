@@ -10,7 +10,9 @@ function readSA(): SA {
   if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not set");
   const sa = JSON.parse(raw) as SA;
   if (!sa.client_email || !sa.private_key)
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON missing client_email/private_key");
+    throw new Error(
+      "GOOGLE_SERVICE_ACCOUNT_JSON missing client_email/private_key",
+    );
   return sa;
 }
 
@@ -28,20 +30,34 @@ async function getAccessToken(): Promise<string> {
       assertion,
     }),
   });
-  if (!res.ok) throw new Error(`Sheets token exchange failed: ${res.status} ${await res.text()}`);
-  const json = (await res.json()) as { access_token: string; expires_in: number };
+  if (!res.ok)
+    throw new Error(
+      `Sheets token exchange failed: ${res.status} ${await res.text()}`,
+    );
+  const json = (await res.json()) as {
+    access_token: string;
+    expires_in: number;
+  };
   cachedToken = { value: json.access_token, expiresAt: now + json.expires_in };
   return json.access_token;
 }
 
-export async function readSheet(spreadsheetId: string, tab?: string | null): Promise<SheetGrid> {
+export async function readSheet(
+  spreadsheetId: string,
+  tab?: string | null,
+): Promise<SheetGrid> {
   const token = await getAccessToken();
   const range = tab ? encodeURIComponent(tab) : "A1:ZZ";
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${range}?majorDimension=ROWS`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Sheets read failed: ${res.status} ${await res.text()}`);
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok)
+    throw new Error(`Sheets read failed: ${res.status} ${await res.text()}`);
   const json = (await res.json()) as { values?: string[][] };
-  const values = (json.values ?? []).filter((r) => r.some((c) => (c ?? "").trim() !== ""));
+  const values = (json.values ?? []).filter((r) =>
+    r.some((c) => (c ?? "").trim() !== ""),
+  );
   if (values.length === 0) return { headers: [], rows: [] };
   const headers = values[0].map((h) => (h ?? "").trim());
   const width = headers.length;

@@ -90,7 +90,11 @@ describe("selectionDays", () => {
 describe("selectionCount", () => {
   it("counts a range selection", () => {
     expect(
-      selectionCount(daily, { kind: "range", from: "2026-07-01", to: "2026-07-02" }),
+      selectionCount(daily, {
+        kind: "range",
+        from: "2026-07-01",
+        to: "2026-07-02",
+      }),
     ).toBe(5);
   });
   it("blank selection is 0", () => {

@@ -8,11 +8,27 @@ import { DetailWithRail } from "@/components/app/detail-with-rail";
 import { AdminControls } from "@/app/(app)/hiring/[id]/_ui/admin-controls";
 import { DataPreview } from "@/app/(app)/hiring/[id]/_ui/data-preview";
 
-export default async function EvaluationDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function EvaluationDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const data = await getEvaluationForViewer(id);
   if (!data) notFound();
-  const { ev, isOwner, isPanelist, candidates, questions, answers, myRatings, personal, results, evaluatorBreakdown, contextFields } = data;
+  const {
+    ev,
+    isOwner,
+    isPanelist,
+    candidates,
+    questions,
+    answers,
+    myRatings,
+    personal,
+    results,
+    evaluatorBreakdown,
+    contextFields,
+  } = data;
 
   // Management lives in the right rail. When an owner has nothing to
   // rate/review in the main column, point them there.
@@ -38,17 +54,30 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
     >
       <div className="space-y-8">
         <header className="flex items-center justify-between">
-          <h1 className="font-display text-3xl font-extrabold text-ink">{ev.name}</h1>
+          <h1 className="font-display text-3xl font-extrabold text-ink">
+            {ev.name}
+          </h1>
           <StatusBadge status={ev.status} />
         </header>
 
         {ev.status === "closed" && results != null && (
-          <ResultsView results={results as any} answers={answers} evaluators={evaluatorBreakdown} contextFields={contextFields} />
+          <ResultsView
+            results={results as any}
+            answers={answers}
+            evaluators={evaluatorBreakdown}
+            contextFields={contextFields}
+          />
         )}
 
         {ev.status === "open" && isPanelist && (
-          <RankList evaluationId={ev.id} candidates={candidates} questions={questions}
-            answers={answers} myRatings={myRatings} ranked={personal} />
+          <RankList
+            evaluationId={ev.id}
+            candidates={candidates}
+            questions={questions}
+            answers={answers}
+            myRatings={myRatings}
+            ranked={personal}
+          />
         )}
 
         {ev.status === "open" && !isPanelist && !isOwner && (

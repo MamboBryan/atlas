@@ -21,28 +21,30 @@
 
 ## File Structure
 
-| File | Create/Modify | Responsibility |
-| --- | --- | --- |
-| `lib/thamani/periods.ts` | Modify | `computeSet` also emits every `day` Jan→today |
-| `tests/thamani/periods.test.ts` | Modify | Update the `computeSet` "day" assertion |
-| `lib/thamani/compare.ts` | Create | Pure `Selection` type + date enumeration, sums, overlap detection |
-| `tests/thamani/compare.test.ts` | Create | Unit tests for `compare.ts` |
-| `lib/thamani/read.ts` | Modify | `getAccountsDaily(supabase, year)` read helper |
-| `components/thamani/accounts-card.tsx` | Modify | Slim presentational stat face + exported `TrendArrow` |
-| `components/thamani/accounts-compare.tsx` | Create | Client compare tool (mode/selection state, bars, overlap UI) |
-| `components/thamani/accounts-metric.tsx` | Create | Client: small card as `DialogTrigger` + dialog composition |
-| `app/(app)/page.tsx` | Modify | Fetch `daily`, render `<AccountsMetric>` |
-| `components/thamani/accounts-chart.tsx` | Unchanged | Reused inside the dialog |
+| File                                      | Create/Modify | Responsibility                                                    |
+| ----------------------------------------- | ------------- | ----------------------------------------------------------------- |
+| `lib/thamani/periods.ts`                  | Modify        | `computeSet` also emits every `day` Jan→today                     |
+| `tests/thamani/periods.test.ts`           | Modify        | Update the `computeSet` "day" assertion                           |
+| `lib/thamani/compare.ts`                  | Create        | Pure `Selection` type + date enumeration, sums, overlap detection |
+| `tests/thamani/compare.test.ts`           | Create        | Unit tests for `compare.ts`                                       |
+| `lib/thamani/read.ts`                     | Modify        | `getAccountsDaily(supabase, year)` read helper                    |
+| `components/thamani/accounts-card.tsx`    | Modify        | Slim presentational stat face + exported `TrendArrow`             |
+| `components/thamani/accounts-compare.tsx` | Create        | Client compare tool (mode/selection state, bars, overlap UI)      |
+| `components/thamani/accounts-metric.tsx`  | Create        | Client: small card as `DialogTrigger` + dialog composition        |
+| `app/(app)/page.tsx`                      | Modify        | Fetch `daily`, render `<AccountsMetric>`                          |
+| `components/thamani/accounts-chart.tsx`   | Unchanged     | Reused inside the dialog                                          |
 
 ---
 
 ### Task 1: `computeSet` emits a daily span (Jan → today)
 
 **Files:**
+
 - Modify: `lib/thamani/periods.ts:57-78` (the `computeSet` function)
 - Test: `tests/thamani/periods.test.ts:68-91` (the `describe("computeSet")` block)
 
 **Interfaces:**
+
 - Consumes: `periodStart`, `iso` (already in this file).
 - Produces: `computeSet(now: Date)` unchanged signature — still returns `{ grain: Grain; period_start: string }[]` — but now additionally includes one `{ grain: "day", period_start }` per day from `YYYY-01-01` through the UTC date of `now`, ascending. Months/quarters/year/week entries are unchanged. (The old single "today" day entry is now the last element of the daily span.)
 
@@ -108,20 +110,24 @@ Expected: FAIL — `computeSet` still emits only one day row (`["2026-07-30"]`),
 In `lib/thamani/periods.ts`, replace the tail of `computeSet` (the three `out.push(...)` lines for year/week/day at lines 73-77) with the year, week, and a daily loop from Jan 1 → today:
 
 ```ts
-  // Year and this week
-  out.push({ grain: "year", period_start: periodStart(now, "year") });
-  out.push({ grain: "week", period_start: periodStart(now, "week") });
+// Year and this week
+out.push({ grain: "year", period_start: periodStart(now, "year") });
+out.push({ grain: "week", period_start: periodStart(now, "week") });
 
-  // Every day Jan 1 → today (inclusive), ascending.
-  const todayMs = Date.UTC(y, currentMonth0, now.getUTCDate());
-  for (let ms = Date.UTC(y, 0, 1); ms <= todayMs; ms += 86_400_000) {
-    const day = new Date(ms);
-    out.push({
-      grain: "day",
-      period_start: iso(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate()),
-    });
-  }
-  return out;
+// Every day Jan 1 → today (inclusive), ascending.
+const todayMs = Date.UTC(y, currentMonth0, now.getUTCDate());
+for (let ms = Date.UTC(y, 0, 1); ms <= todayMs; ms += 86_400_000) {
+  const day = new Date(ms);
+  out.push({
+    grain: "day",
+    period_start: iso(
+      day.getUTCFullYear(),
+      day.getUTCMonth() + 1,
+      day.getUTCDate(),
+    ),
+  });
+}
+return out;
 ```
 
 (Leave the months and quarters loops above unchanged. The final `return out;` at the old line 77 is now inside this block — do not duplicate it.)
@@ -143,10 +149,12 @@ git commit -m "feat(thamani): computeSet emits daily span Jan→today for compar
 ### Task 2: Pure comparison module
 
 **Files:**
+
 - Create: `lib/thamani/compare.ts`
 - Test: `tests/thamani/compare.test.ts`
 
 **Interfaces:**
+
 - Consumes: `luxon` (`DateTime`).
 - Produces:
   - `type Selection = { kind: "single"; date: string } | { kind: "multiple"; dates: string[] } | { kind: "range"; from: string; to: string }` — `date`/`from`/`to` are `YYYY-MM-DD` or `""` when unset.
@@ -155,7 +163,7 @@ git commit -m "feat(thamani): computeSet emits daily span Jan→today for compar
   - `sumRange(daily: Map<string, number>, from: string, to: string): number` — `sumDays(daily, datesInRange(from, to))`.
   - `selectionDays(sel: Selection): string[]` — the unique, blank-filtered calendar days a selection occupies.
   - `selectionCount(daily: Map<string, number>, sel: Selection): number` — `sumDays(daily, selectionDays(sel))`.
-  - `overlappingIndices(selections: Selection[]): number[]` — indices of selections that share a day with any *earlier* selection.
+  - `overlappingIndices(selections: Selection[]): number[]` — indices of selections that share a day with any _earlier_ selection.
   - `hasOverlap(selections: Selection[]): boolean` — `overlappingIndices(selections).length > 0`.
 
 - [ ] **Step 1: Write the failing test**
@@ -254,7 +262,11 @@ describe("selectionDays", () => {
 describe("selectionCount", () => {
   it("counts a range selection", () => {
     expect(
-      selectionCount(daily, { kind: "range", from: "2026-07-01", to: "2026-07-02" }),
+      selectionCount(daily, {
+        kind: "range",
+        from: "2026-07-01",
+        to: "2026-07-02",
+      }),
     ).toBe(5);
   });
   it("blank selection is 0", () => {
@@ -391,9 +403,11 @@ git commit -m "feat(thamani): pure date-comparison module (sums + overlap)"
 ### Task 3: Daily read helper
 
 **Files:**
+
 - Modify: `lib/thamani/read.ts` (append a new exported function)
 
 **Interfaces:**
+
 - Consumes: `ACCOUNTS_NEW` (`lib/thamani/metrics/accounts.ts`), `MinimalClient` (already defined and exported in `read.ts`).
 - Produces: `getAccountsDaily(supabase: MinimalClient, year: number): Promise<{ date: string; value: number }[]>` — the year's `grain:"day"` rows, ascending, mapping `period_start → date` and `Number(value) → value`. Mirrors the existing `getAccountsMonthly`.
 
@@ -439,9 +453,11 @@ git commit -m "feat(thamani): getAccountsDaily read helper for the year's daily 
 ### Task 4: Slim the card into a presentational stat face
 
 **Files:**
+
 - Modify: `components/thamani/accounts-card.tsx` (full rewrite — smaller)
 
 **Interfaces:**
+
 - Consumes: `trendDirection`, `CurrentValues` (`lib/thamani/read.ts`); `Card`, `CardContent`, `CardHeader`, `CardTitle` (`@/components/ui/card`); Hugeicons.
 - Produces:
   - `export function TrendArrow({ current, previous }: { current: number; previous: number })` — the up/down/flat arrow (now exported for reuse by the dialog roll-up).
@@ -545,7 +561,11 @@ export function AccountsCard({
             value={current.quarter}
             previous={previous.quarter}
           />
-          <Stat label="This year" value={current.year} previous={previous.year} />
+          <Stat
+            label="This year"
+            value={current.year}
+            previous={previous.year}
+          />
         </div>
         <p className="mt-3 text-xs text-ink-soft">Tap for details</p>
       </CardContent>
@@ -571,9 +591,11 @@ git commit -m "feat(thamani): slim AccountsCard to presentational stat face, exp
 ### Task 5: Compare tool component
 
 **Files:**
+
 - Create: `components/thamani/accounts-compare.tsx`
 
 **Interfaces:**
+
 - Consumes: `Selection`, `selectionCount`, `overlappingIndices` (`lib/thamani/compare.ts`); `Button` (`@/components/ui/button`, variants `accent`/`outline`/`ghost`, size `sm`); `Input` (`@/components/ui/input`, `type="date"`).
 - Produces: `export function AccountsCompare({ daily, year }: { daily: { date: string; value: number }[]; year: number })` — the client compare tool.
 
@@ -633,10 +655,7 @@ export function AccountsCompare({
     [selections],
   );
   const counts = selections.map((sel) => selectionCount(dailyMap, sel));
-  const maxCount = Math.max(
-    1,
-    ...counts.filter((_, i) => !overlaps.has(i)),
-  );
+  const maxCount = Math.max(1, ...counts.filter((_, i) => !overlaps.has(i)));
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -890,9 +909,11 @@ git commit -m "feat(thamani): date-comparison tool (modes, non-overlapping selec
 ### Task 6: Metric component (card-as-trigger + dialog)
 
 **Files:**
+
 - Create: `components/thamani/accounts-metric.tsx`
 
 **Interfaces:**
+
 - Consumes: `Dialog`, `DialogContent`, `DialogTrigger`, `DialogHeader`, `DialogTitle` (`@/components/ui/dialog`); `AccountsCard`, `TrendArrow` (`@/components/thamani/accounts-card`); `AccountsChart` (`@/components/thamani/accounts-chart`); `AccountsCompare` (`@/components/thamani/accounts-compare`); `CurrentValues` (`lib/thamani/read.ts`).
 - Produces: `export function AccountsMetric({ current, previous, monthly, daily, year })` — client component: the small card wrapped in a `DialogTrigger`, plus a `DialogContent` with roll-ups, the month chart, and the compare tool. Prop types:
   - `current: CurrentValues; previous: CurrentValues;`
@@ -1013,9 +1034,11 @@ git commit -m "feat(thamani): AccountsMetric — small card trigger + detail dia
 ### Task 7: Wire the page, repopulate daily rows, verify live
 
 **Files:**
+
 - Modify: `app/(app)/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `getAccountsSnapshot`, `getAccountsMonthly`, `getAccountsDaily` (`lib/thamani/read.ts`); `AccountsMetric` (`components/thamani/accounts-metric.tsx`); `requireUser` (existing).
 
 - [ ] **Step 1: Rewrite the page**
@@ -1093,6 +1116,7 @@ Expected: a count equal to the current day-of-year (e.g. 216 on Aug 4). If the s
 - [ ] **Step 4: Manual E2E in the browser**
 
 Open `http://localhost:3000`:
+
 - The **small card** shows the five roll-ups + trend arrows and "Tap for details"; no chart on the card.
 - Clicking the card (or focusing it and pressing Enter) opens the **dialog** with roll-ups (each showing `prev N`), the month-by-month chart, and the **Compare** tool.
 - **Single dates**: pick two different days → each bar shows that day's new-account count.

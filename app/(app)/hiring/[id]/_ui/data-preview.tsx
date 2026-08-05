@@ -9,7 +9,11 @@ import { cn } from "@/lib/utils";
 
 type Question = { id: string; prompt: string; is_hidden: boolean };
 type Candidate = { id: string; display_name: string };
-type Answer = { candidate_id: string; question_id: string; answer_text: string | null };
+type Answer = {
+  candidate_id: string;
+  question_id: string;
+  answer_text: string | null;
+};
 
 const PAGE_SIZE = 15;
 
@@ -45,14 +49,16 @@ export function DataPreview({
   const paginated = total > PAGE_SIZE;
   const pageCount = Math.ceil(total / PAGE_SIZE);
   const start = page * PAGE_SIZE;
-  const shown = paginated ? candidates.slice(start, start + PAGE_SIZE) : candidates;
+  const shown = paginated
+    ? candidates.slice(start, start + PAGE_SIZE)
+    : candidates;
 
   return (
     <div className="space-y-3">
       <p className="text-sm text-ink-soft">
         Imported data preview — {total} candidate{total === 1 ? "" : "s"},{" "}
-        {questions.length} field{questions.length === 1 ? "" : "s"}. Not open for
-        evaluation yet.
+        {questions.length} field{questions.length === 1 ? "" : "s"}. Not open
+        for evaluation yet.
       </p>
       <Card size="sm" className="gap-0 py-0">
         {shown.map((c) => {
@@ -81,7 +87,11 @@ export function DataPreview({
                   isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                 )}
               >
-                <div className="overflow-hidden" inert={!isOpen} aria-hidden={!isOpen}>
+                <div
+                  className="overflow-hidden"
+                  inert={!isOpen}
+                  aria-hidden={!isOpen}
+                >
                   <div className="border-t border-divider bg-surface">
                     {questions.map((q) => {
                       const ans = answerFor.get(`${c.id}|${q.id}`);
@@ -91,9 +101,15 @@ export function DataPreview({
                           className="border-b border-divider px-4 py-2 last:border-b-0"
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-ink">{q.prompt}</span>
+                            <span className="text-sm font-medium text-ink">
+                              {q.prompt}
+                            </span>
                             {q.is_hidden && (
-                              <Badge size="sm" variant="outline" className="border-ink/40">
+                              <Badge
+                                size="sm"
+                                variant="outline"
+                                className="border-ink/40"
+                              >
                                 Context
                               </Badge>
                             )}

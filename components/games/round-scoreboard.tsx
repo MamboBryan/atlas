@@ -86,23 +86,39 @@ export function RoundScoreboard({
       {tab === "round" ? (
         <ol className="space-y-1">
           {sorted.map((r, i) => (
-            <li key={r.player_id} className="flex items-center justify-between rounded-md border px-3 py-2">
-              <span className="tabular-nums">{i + 1}. {r.display}</span>
+            <li
+              key={r.player_id}
+              className="flex items-center justify-between rounded-md border px-3 py-2"
+            >
+              <span className="tabular-nums">
+                {i + 1}. {r.display}
+              </span>
               <span className="font-semibold tabular-nums">+{r.points}</span>
             </li>
           ))}
           {sorted.length === 0 && (
-            <li className="text-sm text-muted-foreground">No one submitted this round.</li>
+            <li className="text-sm text-muted-foreground">
+              No one submitted this round.
+            </li>
           )}
         </ol>
       ) : loading || !alltime ? (
-        <div className="text-sm text-muted-foreground">Loading leaderboard…</div>
+        <div className="text-sm text-muted-foreground">
+          Loading leaderboard…
+        </div>
       ) : (
         <ol className="space-y-1">
           {alltime.slice(0, 20).map((r, i) => (
-            <li key={r.player_id} className="flex items-center justify-between rounded-md border px-3 py-2">
-              <span>{i + 1}. {r.display_name}</span>
-              <span className="font-semibold tabular-nums">{r.total_points}</span>
+            <li
+              key={r.player_id}
+              className="flex items-center justify-between rounded-md border px-3 py-2"
+            >
+              <span>
+                {i + 1}. {r.display_name}
+              </span>
+              <span className="font-semibold tabular-nums">
+                {r.total_points}
+              </span>
             </li>
           ))}
         </ol>

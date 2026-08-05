@@ -30,14 +30,21 @@ export function ZeroInRound({
       return;
     }
     startTx(async () => {
-      const res = await submitZeroInGuessAction({ round_id: roundId, guess: n });
+      const res = await submitZeroInGuessAction({
+        round_id: roundId,
+        guess: n,
+      });
       if (!res.ok) {
         toast.error(res.error.message);
         return;
       }
-      setGuesses((prev) => [...prev, { value: n, feedback: res.data.feedback }]);
+      setGuesses((prev) => [
+        ...prev,
+        { value: n, feedback: res.data.feedback },
+      ]);
       setValue("");
-      if (res.data.feedback === "exact") toast.success("Exact! Wait for the reveal.");
+      if (res.data.feedback === "exact")
+        toast.success("Exact! Wait for the reveal.");
     });
   }
 
@@ -45,10 +52,14 @@ export function ZeroInRound({
     <div className="space-y-4">
       <RoundCountdown endsAt={endsAt} totalMs={ZERO_IN_DURATION_MS} />
       <div>
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">Secret number</div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          Secret number
+        </div>
         <div className="text-4xl font-bold">1 – 1000</div>
         <div className="text-sm text-muted-foreground">
-          {done ? "You're done — waiting for reveal." : `${guessesLeft} guesses left`}
+          {done
+            ? "You're done — waiting for reveal."
+            : `${guessesLeft} guesses left`}
         </div>
       </div>
 
@@ -87,7 +98,11 @@ export function ZeroInRound({
                     : "text-blue-600"
               }
             >
-              {g.feedback === "exact" ? "exact!" : g.feedback === "higher" ? "higher ↑" : "lower ↓"}
+              {g.feedback === "exact"
+                ? "exact!"
+                : g.feedback === "higher"
+                  ? "higher ↑"
+                  : "lower ↓"}
             </span>
           </li>
         ))}

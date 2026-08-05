@@ -161,128 +161,128 @@ export default async function MeetingDetailPage({
       <div className="space-y-8">
         <header className="space-y-3">
           {/* Breadcrumbs */}
-        <nav
-          aria-label="Breadcrumb"
-          className="flex items-center gap-1.5 text-sm text-ink-soft"
-        >
-          <Link
-            href={"/meetings" as never}
-            className="hover:text-ink transition-colors"
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-1.5 text-sm text-ink-soft"
           >
-            Meetings
-          </Link>
-          <span aria-hidden>/</span>
-          <span className="text-ink truncate">{m.title}</span>
-        </nav>
+            <Link
+              href={"/meetings" as never}
+              className="hover:text-ink transition-colors"
+            >
+              Meetings
+            </Link>
+            <span aria-hidden>/</span>
+            <span className="text-ink truncate">{m.title}</span>
+          </nav>
 
-        {/* Title + actions */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-display text-3xl font-extrabold text-ink leading-tight">
-                {m.title}
-              </h1>
-              <StatusBadge status={m.status} />
-            </div>
-            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
-              <span>{fmtWhen(m.scheduled_start, m.timezone, viewerTz)}</span>
-              <span aria-hidden>·</span>
-              <span className="inline-flex items-center gap-1.5">
-                <HugeiconsIcon
-                  icon={ChessKingIcon}
-                  size={16}
-                  strokeWidth={2}
-                  className="shrink-0"
-                />
-                <span className="capitalize">
-                  {hostRow?.display_name ?? "?"}
-                </span>
-              </span>
-              {participantCount !== null && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>{participantCount} participants</span>
-                </>
-              )}
-              {seriesRow && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>
-                    Series:{" "}
-                    <Link
-                      href={`/series/${seriesRow.id}` as never}
-                      className="underline hover:text-ink"
-                    >
-                      {seriesRow.name}
-                    </Link>
+          {/* Title + actions */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="font-display text-3xl font-extrabold text-ink leading-tight">
+                  {m.title}
+                </h1>
+                <StatusBadge status={m.status} />
+              </div>
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
+                <span>{fmtWhen(m.scheduled_start, m.timezone, viewerTz)}</span>
+                <span aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <HugeiconsIcon
+                    icon={ChessKingIcon}
+                    size={16}
+                    strokeWidth={2}
+                    className="shrink-0"
+                  />
+                  <span className="capitalize">
+                    {hostRow?.display_name ?? "?"}
                   </span>
-                </>
-              )}
-            </p>
-          </div>
-          {isHost && (
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <MeetingHeaderActions
-                meetingId={m.id}
-                status={m.status}
-                scheduledStart={m.scheduled_start}
-                isHost={isHost}
-              />
-              {m.status !== "ended" && m.status !== "cancelled" && (
-                <DelegateHostButton
-                  meetingId={m.id}
-                  currentHostId={m.host_user_id}
-                  roster={roster}
-                />
-              )}
+                </span>
+                {participantCount !== null && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{participantCount} participants</span>
+                  </>
+                )}
+                {seriesRow && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>
+                      Series:{" "}
+                      <Link
+                        href={`/series/${seriesRow.id}` as never}
+                        className="underline hover:text-ink"
+                      >
+                        {seriesRow.name}
+                      </Link>
+                    </span>
+                  </>
+                )}
+              </p>
             </div>
-          )}
-        </div>
-      </header>
+            {isHost && (
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <MeetingHeaderActions
+                  meetingId={m.id}
+                  status={m.status}
+                  scheduledStart={m.scheduled_start}
+                  isHost={isHost}
+                />
+                {m.status !== "ended" && m.status !== "cancelled" && (
+                  <DelegateHostButton
+                    meetingId={m.id}
+                    currentHostId={m.host_user_id}
+                    roster={roster}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </header>
 
-      {m.status === "scheduled" && (
-        <GameLobbyPanel
-          meetingId={m.id}
-          scheduledStart={m.scheduled_start}
-          status={m.status}
-        />
-      )}
-
-      {(m.status === "live" || m.status === "ended") && (
-        <MeetingLiveView
-          meetingId={m.id}
-          scheduledStart={m.scheduled_start}
-          initialMeeting={{
-            id: m.id,
-            status: m.status,
-            current_agenda_item_id: m.current_agenda_item_id,
-          }}
-          initialItems={agendaItems}
-          isHost={isHost}
-        />
-      )}
-
-      {isHost && m.status !== "ended" && (
-        <section className="space-y-3">
-          <h2 className="font-display text-xl font-extrabold text-ink">
-            Agenda
-          </h2>
-          <AgendaEditor
+        {m.status === "scheduled" && (
+          <GameLobbyPanel
             meetingId={m.id}
-            items={agendaItems}
-            availablePrompts={availablePrompts}
+            scheduledStart={m.scheduled_start}
+            status={m.status}
           />
-        </section>
-      )}
+        )}
 
-      {!isHost && m.status === "scheduled" && (
-        <section className="space-y-3">
-          <h2 className="font-display text-xl font-extrabold text-ink">
-            Agenda
-          </h2>
-          <AgendaEditor meetingId={m.id} items={agendaItems} readOnly />
-        </section>
-      )}
+        {(m.status === "live" || m.status === "ended") && (
+          <MeetingLiveView
+            meetingId={m.id}
+            scheduledStart={m.scheduled_start}
+            initialMeeting={{
+              id: m.id,
+              status: m.status,
+              current_agenda_item_id: m.current_agenda_item_id,
+            }}
+            initialItems={agendaItems}
+            isHost={isHost}
+          />
+        )}
+
+        {isHost && m.status !== "ended" && (
+          <section className="space-y-3">
+            <h2 className="font-display text-xl font-extrabold text-ink">
+              Agenda
+            </h2>
+            <AgendaEditor
+              meetingId={m.id}
+              items={agendaItems}
+              availablePrompts={availablePrompts}
+            />
+          </section>
+        )}
+
+        {!isHost && m.status === "scheduled" && (
+          <section className="space-y-3">
+            <h2 className="font-display text-xl font-extrabold text-ink">
+              Agenda
+            </h2>
+            <AgendaEditor meetingId={m.id} items={agendaItems} readOnly />
+          </section>
+        )}
       </div>
     </DetailWithRail>
   );

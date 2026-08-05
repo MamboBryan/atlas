@@ -185,78 +185,78 @@ export default async function MeetingsPage() {
 
         <MeetingsTabs />
 
-      {live.length > 0 && (
+        {live.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
+              Live now ({live.length})
+            </h2>
+            <div className="space-y-2">
+              {live.map((m) => (
+                <MeetingCard
+                  key={m.id}
+                  m={m}
+                  host={
+                    m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
+                  }
+                  viewerTz={viewerTz}
+                  participantCount={pc(m)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
-            Live now ({live.length})
+            Upcoming ({upcoming.length})
           </h2>
-          <div className="space-y-2">
-            {live.map((m) => (
-              <MeetingCard
-                key={m.id}
-                m={m}
-                host={
-                  m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
-                }
-                viewerTz={viewerTz}
-                participantCount={pc(m)}
-              />
-            ))}
-          </div>
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-ink-soft">
+              No upcoming meetings. Schedule one!
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {upcoming.map((m) => (
+                <MeetingCard
+                  key={m.id}
+                  m={m}
+                  host={
+                    m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
+                  }
+                  viewerTz={viewerTz}
+                  participantCount={pc(m)}
+                />
+              ))}
+            </div>
+          )}
         </section>
-      )}
 
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
-          Upcoming ({upcoming.length})
-        </h2>
-        {upcoming.length === 0 ? (
-          <p className="text-sm text-ink-soft">
-            No upcoming meetings. Schedule one!
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {upcoming.map((m) => (
-              <MeetingCard
-                key={m.id}
-                m={m}
-                host={
-                  m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
-                }
-                viewerTz={viewerTz}
-                participantCount={pc(m)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
-          Recent past ({past.length})
-        </h2>
-        {past.length === 0 ? (
-          <EmptyState
-            icon={MeetingRoomIcon}
-            headline="No past meetings yet"
-            body="Completed meetings will show up here."
-          />
-        ) : (
-          <div className="space-y-2">
-            {past.map((m) => (
-              <MeetingCard
-                key={m.id}
-                m={m}
-                host={
-                  m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
-                }
-                viewerTz={viewerTz}
-                participantCount={pc(m)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-soft">
+            Recent past ({past.length})
+          </h2>
+          {past.length === 0 ? (
+            <EmptyState
+              icon={MeetingRoomIcon}
+              headline="No past meetings yet"
+              body="Completed meetings will show up here."
+            />
+          ) : (
+            <div className="space-y-2">
+              {past.map((m) => (
+                <MeetingCard
+                  key={m.id}
+                  m={m}
+                  host={
+                    m.host_user_id ? (nameById.get(m.host_user_id) ?? "?") : "?"
+                  }
+                  viewerTz={viewerTz}
+                  participantCount={pc(m)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </DetailWithRail>
   );

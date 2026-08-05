@@ -26,7 +26,11 @@ export function RoundCountdown({
 
   const pct = Math.max(0, Math.min(100, (remainMs / totalMs) * 100));
   const tone =
-    remainMs <= 5_000 ? "bg-red-500" : remainMs <= 15_000 ? "bg-amber-500" : "bg-primary";
+    remainMs <= 5_000
+      ? "bg-red-500"
+      : remainMs <= 15_000
+        ? "bg-amber-500"
+        : "bg-primary";
   const seconds = Math.ceil(remainMs / 1000);
   const label = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
@@ -38,7 +42,10 @@ export function RoundCountdown({
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className={cn("h-full transition-[width] duration-200 ease-linear", tone)}
+          className={cn(
+            "h-full transition-[width] duration-200 ease-linear",
+            tone,
+          )}
           style={{ width: `${pct}%` }}
         />
       </div>

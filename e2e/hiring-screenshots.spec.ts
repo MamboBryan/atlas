@@ -23,7 +23,10 @@ test.describe("hiring evaluations screenshots", () => {
 
     // First user after reset auto-becomes admin via the on_auth_user_created
     // trigger; set roles explicitly anyway so this doesn't depend on that.
-    const adminUser = await createUser("hiring-shot-admin@atlas.com", "Amina Okoro");
+    const adminUser = await createUser(
+      "hiring-shot-admin@atlas.com",
+      "Amina Okoro",
+    );
     await c.from("profiles").update({ role: "admin" }).eq("id", adminUser.id);
 
     const p1 = await createUser("hiring-shot-p1@atlas.com", "Brian Kim");
@@ -36,7 +39,11 @@ test.describe("hiring evaluations screenshots", () => {
     // --- DRAFT: no sheet, no questions, no candidates. -------------------
     const { data: draft, error: draftErr } = await c
       .from("evaluations")
-      .insert({ name: "Backend Engineer — Sept 2026", status: "draft", created_by: adminUser.id })
+      .insert({
+        name: "Backend Engineer — Sept 2026",
+        status: "draft",
+        created_by: adminUser.id,
+      })
       .select()
       .single();
     if (draftErr || !draft) throw draftErr ?? new Error("draft insert failed");
@@ -46,7 +53,11 @@ test.describe("hiring evaluations screenshots", () => {
     // --- OPEN: questions + candidates + answers + panel, no ratings. -----
     const { data: open, error: openErr } = await c
       .from("evaluations")
-      .insert({ name: "Product Designer — Sept 2026", status: "open", created_by: adminUser.id })
+      .insert({
+        name: "Product Designer — Sept 2026",
+        status: "open",
+        created_by: adminUser.id,
+      })
       .select()
       .single();
     if (openErr || !open) throw openErr ?? new Error("open insert failed");
@@ -68,25 +79,35 @@ test.describe("hiring evaluations screenshots", () => {
         "I love turning fuzzy problems into interfaces people actually enjoy using.",
       "ada@example.com|q_proud":
         "Led the redesign of our onboarding flow, cutting drop-off by a third.",
-      "ada@example.com|q_tools": "Figma daily, with FigJam for workshops and Linear for tracking work.",
-      "leo@example.com|q_why": "Product design at this stage of a company is where I do my best work.",
+      "ada@example.com|q_tools":
+        "Figma daily, with FigJam for workshops and Linear for tracking work.",
+      "leo@example.com|q_why":
+        "Product design at this stage of a company is where I do my best work.",
       "leo@example.com|q_proud":
         "Built a design system from scratch that three squads now share.",
-      "leo@example.com|q_tools": "Figma, Framer for prototypes, and Notion for documentation.",
-      "mira@example.com|q_why": "I want to work somewhere design decisions are backed by real research.",
+      "leo@example.com|q_tools":
+        "Figma, Framer for prototypes, and Notion for documentation.",
+      "mira@example.com|q_why":
+        "I want to work somewhere design decisions are backed by real research.",
       "mira@example.com|q_proud":
         "Ran a generative research study that reshaped our checkout flow.",
-      "mira@example.com|q_tools": "Figma, Maze for usability testing, and Miro for synthesis.",
+      "mira@example.com|q_tools":
+        "Figma, Maze for usability testing, and Miro for synthesis.",
     });
     await setPanel(c, open.id, [p1.id, p2.id, p3.id]);
 
     // --- CLOSED: same shape, plus ratings from all three panelists. ------
     const { data: closed, error: closedErr } = await c
       .from("evaluations")
-      .insert({ name: "Frontend Engineer — Aug 2026", status: "closed", created_by: adminUser.id })
+      .insert({
+        name: "Frontend Engineer — Aug 2026",
+        status: "closed",
+        created_by: adminUser.id,
+      })
       .select()
       .single();
-    if (closedErr || !closed) throw closedErr ?? new Error("closed insert failed");
+    if (closedErr || !closed)
+      throw closedErr ?? new Error("closed insert failed");
     closedId = closed.id;
     await makeOwner(c, closedId, adminUser.id);
 
@@ -101,18 +122,24 @@ test.describe("hiring evaluations screenshots", () => {
       ["omar@example.com", "Omar Farah"],
     ]);
     await insertAnswers(c, closed.id, closedCandidates, closedQuestions, {
-      "noah@example.com|q_why": "I want to build interfaces that hold up under real production load.",
+      "noah@example.com|q_why":
+        "I want to build interfaces that hold up under real production load.",
       "noah@example.com|q_proud":
         "Rebuilt our checkout in React and cut time-to-interactive in half.",
-      "noah@example.com|q_stack": "React, TypeScript, and Tailwind, with some Remix on the side.",
-      "sara@example.com|q_why": "I care most about accessibility and want a team that shares that bar.",
+      "noah@example.com|q_stack":
+        "React, TypeScript, and Tailwind, with some Remix on the side.",
+      "sara@example.com|q_why":
+        "I care most about accessibility and want a team that shares that bar.",
       "sara@example.com|q_proud":
         "Shipped a fully keyboard-navigable data table used across five products.",
-      "sara@example.com|q_stack": "Vue and TypeScript, plus a fair amount of vanilla web components.",
-      "omar@example.com|q_why": "Frontend performance work is what gets me out of bed.",
+      "sara@example.com|q_stack":
+        "Vue and TypeScript, plus a fair amount of vanilla web components.",
+      "omar@example.com|q_why":
+        "Frontend performance work is what gets me out of bed.",
       "omar@example.com|q_proud":
         "Cut our largest bundle by 40% through route-level code splitting.",
-      "omar@example.com|q_stack": "React, Next.js, and a lot of time in the Chrome performance panel.",
+      "omar@example.com|q_stack":
+        "React, Next.js, and a lot of time in the Chrome performance panel.",
     });
 
     // A hidden context field: imported + answered but never rated. It must not
@@ -130,16 +157,19 @@ test.describe("hiring evaluations screenshots", () => {
       })
       .select()
       .single();
-    if (hiddenErr || !hiddenQ) throw hiddenErr ?? new Error("hidden question insert failed");
+    if (hiddenErr || !hiddenQ)
+      throw hiddenErr ?? new Error("hidden question insert failed");
     await insertAnswers(
       c,
       closed.id,
       closedCandidates,
       [{ id: hiddenQ.id, column_key: "q_salary" }],
       {
-        "noah@example.com|q_salary": "Around $140k, flexible for the right team.",
+        "noah@example.com|q_salary":
+          "Around $140k, flexible for the right team.",
         "sara@example.com|q_salary": "$150k base; I value equity too.",
-        "omar@example.com|q_salary": "Open — most interested in the problem space.",
+        "omar@example.com|q_salary":
+          "Open — most interested in the problem space.",
       },
     );
     await setPanel(c, closed.id, [p1.id, p2.id, p3.id]);
@@ -182,22 +212,35 @@ test.describe("hiring evaluations screenshots", () => {
         });
       }
     }
-    const { error: ratingsErr } = await c.from("evaluation_ratings").insert(ratingRows);
+    const { error: ratingsErr } = await c
+      .from("evaluation_ratings")
+      .insert(ratingRows);
     if (ratingsErr) throw ratingsErr;
   });
 
   test("list (admin)", async ({ browser, baseURL }) => {
     if (!baseURL) throw new Error("baseURL not configured");
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+    });
     try {
       await signIn(ctx, "hiring-shot-admin@atlas.com", baseURL);
       const page = await ctx.newPage();
       await page.goto("/hiring");
       await expect(page.getByRole("heading", { name: "Hiring" })).toBeVisible();
-      await expect(page.getByText("Backend Engineer — Sept 2026")).toBeVisible();
-      await expect(page.getByText("Product Designer — Sept 2026")).toBeVisible();
-      await expect(page.getByText("Frontend Engineer — Aug 2026")).toBeVisible();
-      await page.screenshot({ path: "qa-screenshots/hiring/01-list.png", fullPage: true });
+      await expect(
+        page.getByText("Backend Engineer — Sept 2026"),
+      ).toBeVisible();
+      await expect(
+        page.getByText("Product Designer — Sept 2026"),
+      ).toBeVisible();
+      await expect(
+        page.getByText("Frontend Engineer — Aug 2026"),
+      ).toBeVisible();
+      await page.screenshot({
+        path: "qa-screenshots/hiring/01-list.png",
+        fullPage: true,
+      });
     } finally {
       await ctx.close();
     }
@@ -205,13 +248,20 @@ test.describe("hiring evaluations screenshots", () => {
 
   test("create form (admin)", async ({ browser, baseURL }) => {
     if (!baseURL) throw new Error("baseURL not configured");
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+    });
     try {
       await signIn(ctx, "hiring-shot-admin@atlas.com", baseURL);
       const page = await ctx.newPage();
       await page.goto("/hiring");
-      await page.getByPlaceholder("Evaluation name").fill("Data Scientist — Oct 2026");
-      await page.screenshot({ path: "qa-screenshots/hiring/02-create-form.png", fullPage: true });
+      await page
+        .getByPlaceholder("Evaluation name")
+        .fill("Data Scientist — Oct 2026");
+      await page.screenshot({
+        path: "qa-screenshots/hiring/02-create-form.png",
+        fullPage: true,
+      });
     } finally {
       await ctx.close();
     }
@@ -219,7 +269,9 @@ test.describe("hiring evaluations screenshots", () => {
 
   test("draft detail — admin controls", async ({ browser, baseURL }) => {
     if (!baseURL) throw new Error("baseURL not configured");
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+    });
     try {
       await signIn(ctx, "hiring-shot-admin@atlas.com", baseURL);
       const page = await ctx.newPage();
@@ -236,7 +288,9 @@ test.describe("hiring evaluations screenshots", () => {
       // Fields tab on a draft with no imported sheet shows the empty state.
       await fieldsTab.click();
       await expect(
-        page.getByText("No fields yet. Connect a sheet or upload a CSV to import fields."),
+        page.getByText(
+          "No fields yet. Connect a sheet or upload a CSV to import fields.",
+        ),
       ).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/03b-detail-draft-fields-empty.png",
@@ -247,9 +301,14 @@ test.describe("hiring evaluations screenshots", () => {
     }
   });
 
-  test("open detail — ranked list + fullscreen evaluate (panelist)", async ({ browser, baseURL }) => {
+  test("open detail — ranked list + fullscreen evaluate (panelist)", async ({
+    browser,
+    baseURL,
+  }) => {
     if (!baseURL) throw new Error("baseURL not configured");
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+    });
     try {
       await signIn(ctx, "hiring-shot-p1@atlas.com", baseURL);
       const page = await ctx.newPage();
@@ -266,13 +325,18 @@ test.describe("hiring evaluations screenshots", () => {
       // --- Enter the fullscreen evaluate flow (top CTA links to /evaluate). ---
       await page.locator(`a[href="/hiring/${openId}/evaluate"]`).click();
       await expect(page).toHaveURL(new RegExp(`/hiring/${openId}/evaluate$`));
-      await expect(page.getByRole("heading", { name: "Ada Nakamura" })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Ada Nakamura" }),
+      ).toBeVisible();
       // Top panel holds the candidates-rated progress bar.
       await expect(page.getByRole("progressbar").first()).toBeVisible();
 
       // Rate the first question; the per-candidate progress bar advances and
       // it auto-saves.
-      await page.getByRole("button", { name: "4", exact: true }).first().click();
+      await page
+        .getByRole("button", { name: "4", exact: true })
+        .first()
+        .click();
       await expect(page.getByRole("progressbar").nth(1)).toHaveAttribute(
         "aria-valuenow",
         "1",
@@ -305,7 +369,9 @@ test.describe("hiring evaluations screenshots", () => {
 
   test("closed detail — results", async ({ browser, baseURL }) => {
     if (!baseURL) throw new Error("baseURL not configured");
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+    });
     try {
       await signIn(ctx, "hiring-shot-admin@atlas.com", baseURL);
       const page = await ctx.newPage();
@@ -320,9 +386,13 @@ test.describe("hiring evaluations screenshots", () => {
       // Expand the top-ranked row to reveal its per-question breakdown, then
       // expand a question to reveal the candidate's answer.
       await page.getByRole("button", { name: /#1/ }).click();
-      await page.getByRole("button", { name: /Why do you want this role\?/ }).click();
+      await page
+        .getByRole("button", { name: /Why do you want this role\?/ })
+        .click();
       await expect(
-        page.getByText("I care most about accessibility and want a team that shares that bar."),
+        page.getByText(
+          "I care most about accessibility and want a team that shares that bar.",
+        ),
       ).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/05b-detail-closed-results-expanded.png",
@@ -332,10 +402,16 @@ test.describe("hiring evaluations screenshots", () => {
       // The hidden field surfaces as read-only "Context (not scored)" for
       // owners/admins — with its answer text, but no score. Scope the section
       // label to the open candidate's row (every row renders one, collapsed).
-      const openRow = page.getByRole("button", { name: /#1/ }).locator("xpath=..");
+      const openRow = page
+        .getByRole("button", { name: /#1/ })
+        .locator("xpath=..");
       await expect(openRow.getByText("Context (not scored)")).toBeVisible();
-      await page.getByRole("button", { name: /Expected salary range\?/ }).click();
-      await expect(page.getByText("$150k base; I value equity too.")).toBeVisible();
+      await page
+        .getByRole("button", { name: /Expected salary range\?/ })
+        .click();
+      await expect(
+        page.getByText("$150k base; I value equity too."),
+      ).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/05c-detail-closed-context.png",
         fullPage: true,
@@ -345,9 +421,14 @@ test.describe("hiring evaluations screenshots", () => {
     }
   });
 
-  test("open detail — Manage/Fields panel + role editor (owner)", async ({ browser, baseURL }) => {
+  test("open detail — Manage/Fields panel + role editor (owner)", async ({
+    browser,
+    baseURL,
+  }) => {
     if (!baseURL) throw new Error("baseURL not configured");
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+    });
     try {
       // The admin is an owner (not a panelist) of the open eval, so the main
       // column shows the manage hint and the rail shows the full panel.
@@ -376,7 +457,9 @@ test.describe("hiring evaluations screenshots", () => {
       // Change the first field's role to Context and save; it persists.
       await rail.locator("select").first().selectOption("context");
       await rail.getByRole("button", { name: "Save fields" }).click();
-      await expect(rail.getByText("Shown in results, not scored")).toBeVisible();
+      await expect(
+        rail.getByText("Shown in results, not scored"),
+      ).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/06c-open-fields-saved.png",
         fullPage: true,
@@ -412,7 +495,11 @@ async function insertQuestions(
   return data as { id: string; column_key: string }[];
 }
 
-async function insertCandidates(c: SupabaseAdmin, evaluationId: string, rows: [string, string][]) {
+async function insertCandidates(
+  c: SupabaseAdmin,
+  evaluationId: string,
+  rows: [string, string][],
+) {
   const { data, error } = await c
     .from("evaluation_candidates")
     .insert(
@@ -450,18 +537,30 @@ async function insertAnswers(
 // The creator→owner link is only auto-created by createEvaluationAction; when
 // seeding evaluations directly we must add the owner row ourselves, otherwise
 // the owner-only management UI (sheet import, panel, lifecycle) never renders.
-async function makeOwner(c: SupabaseAdmin, evaluationId: string, profileId: string) {
-  const { error } = await c
-    .from("evaluation_owners")
-    .upsert({ evaluation_id: evaluationId, profile_id: profileId }, {
+async function makeOwner(
+  c: SupabaseAdmin,
+  evaluationId: string,
+  profileId: string,
+) {
+  const { error } = await c.from("evaluation_owners").upsert(
+    { evaluation_id: evaluationId, profile_id: profileId },
+    {
       onConflict: "evaluation_id,profile_id",
-    });
+    },
+  );
   if (error) throw error;
 }
 
-async function setPanel(c: SupabaseAdmin, evaluationId: string, profileIds: string[]) {
-  const { error } = await c
-    .from("evaluation_panelists")
-    .insert(profileIds.map((profile_id) => ({ evaluation_id: evaluationId, profile_id })));
+async function setPanel(
+  c: SupabaseAdmin,
+  evaluationId: string,
+  profileIds: string[],
+) {
+  const { error } = await c.from("evaluation_panelists").insert(
+    profileIds.map((profile_id) => ({
+      evaluation_id: evaluationId,
+      profile_id,
+    })),
+  );
   if (error) throw error;
 }

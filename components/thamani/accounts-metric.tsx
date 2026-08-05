@@ -51,10 +51,7 @@ export function AccountsMetric({
     <Dialog>
       <DialogTrigger
         render={
-          <button
-            type="button"
-            className="block w-full text-left sm:w-80"
-          />
+          <button type="button" className="block w-full text-left sm:w-80" />
         }
       >
         <AccountsCard current={current} previous={previous} />

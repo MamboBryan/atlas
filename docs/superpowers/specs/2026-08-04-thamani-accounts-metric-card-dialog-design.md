@@ -36,7 +36,7 @@ card), and a new **Compare** tool for comparing arbitrary dates and date ranges.
    - **single date ↔ single date** (each selection is one day),
    - **multiple dates ↔ multiple dates** (each selection is a set of specific days),
    - **date range ↔ date range** (each selection is a contiguous from→to range).
-   Each selection shows its **count of new accounts**; selections are compared side by side.
+     Each selection shows its **count of new accounts**; selections are compared side by side.
 
 ## Non-goals
 
@@ -51,16 +51,16 @@ card), and a new **Compare** tool for comparing arbitrary dates and date ranges.
 
 ## Decisions locked in (from brainstorming)
 
-| Decision | Choice |
-| --- | --- |
-| Small card content | Five roll-ups (Today/Week/Month/Quarter/Year) **+ trend arrows**, clickable |
-| Where the chart lives | Moved from the card **into the dialog** |
-| Compare semantics | Homogeneous per mode: date↔date, date-set↔date-set, range↔range. Each selection → **count of new accounts** within it |
-| Overlap | Selections in a comparison **must not share any calendar day**; overlapping selection is flagged and its bar suppressed until fixed |
-| Compare data source | **Store daily rows** in `thamani_metrics` (extend `computeSet` to emit every day Jan→today); dialog reads the daily series and sums client-side |
-| Date input | Native `<input type="date">` styled via the existing `Input` — no new dependency |
-| Comparison scope | **Current year only** (the only data stored); inputs clamped to Jan 1 this year → today |
-| Time zone | **UTC** bucketing, consistent with the existing slice (documented skew) |
+| Decision              | Choice                                                                                                                                          |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Small card content    | Five roll-ups (Today/Week/Month/Quarter/Year) **+ trend arrows**, clickable                                                                     |
+| Where the chart lives | Moved from the card **into the dialog**                                                                                                         |
+| Compare semantics     | Homogeneous per mode: date↔date, date-set↔date-set, range↔range. Each selection → **count of new accounts** within it                           |
+| Overlap               | Selections in a comparison **must not share any calendar day**; overlapping selection is flagged and its bar suppressed until fixed             |
+| Compare data source   | **Store daily rows** in `thamani_metrics` (extend `computeSet` to emit every day Jan→today); dialog reads the daily series and sums client-side |
+| Date input            | Native `<input type="date">` styled via the existing `Input` — no new dependency                                                                |
+| Comparison scope      | **Current year only** (the only data stored); inputs clamped to Jan 1 this year → today                                                         |
+| Time zone             | **UTC** bucketing, consistent with the existing slice (documented skew)                                                                         |
 
 ## Design
 
@@ -87,7 +87,7 @@ change to `bucketAccounts`, the cron route, or the accounts compute is required.
 export async function getAccountsDaily(
   supabase: MinimalClient,
   year: number,
-): Promise<{ date: string; value: number }[]>
+): Promise<{ date: string; value: number }[]>;
 ```
 
 Queries `thamani_metrics` where `metric_key = ACCOUNTS_NEW`, `grain = 'day'`,
@@ -107,7 +107,11 @@ export function datesInRange(from: string, to: string): string[];
 export function sumDays(daily: Map<string, number>, dates: string[]): number;
 
 // sum daily values across an inclusive range (range mode).
-export function sumRange(daily: Map<string, number>, from: string, to: string): number;
+export function sumRange(
+  daily: Map<string, number>,
+  from: string,
+  to: string,
+): number;
 
 // the set of calendar days a selection occupies, for overlap detection.
 export function selectionDays(sel: Selection): string[];
@@ -162,10 +166,10 @@ New `components/thamani/accounts-compare.tsx` (**client component**). Local stat
 - **Mode toggle** — three buttons (Single dates · Multiple dates · Date ranges). Switching
   mode resets `selections` to two empty selections of that kind (kinds never mix).
 - **Selection editors**, one row each:
-  - *single*: one `<input type="date">`.
-  - *multiple*: a list of date inputs with add/remove ("＋ add date"); each selection is its
+  - _single_: one `<input type="date">`.
+  - _multiple_: a list of date inputs with add/remove ("＋ add date"); each selection is its
     own set of days.
-  - *range*: two date inputs (from, to); if `from > to` the row is invalid (shown, 0).
+  - _range_: two date inputs (from, to); if `from > to` the row is invalid (shown, 0).
   - All date inputs `min={year}-01-01`, `max={today}` (UTC). A helper line notes comparisons
     cover the current year only when a bound is hit.
 - **Add/remove selection** — up to a small cap (e.g. 4) selections; minimum 2.
@@ -208,19 +212,20 @@ home page (server)
 
 ## Components / units (each independently testable)
 
-| Unit | Kind | Responsibility | Depends on |
-| --- | --- | --- | --- |
-| `computeSet` (edited) | pure | period set incl. daily span | `periodStart` |
-| `getAccountsDaily` | I/O | read daily rows for a year | `thamani_metrics` |
-| `compare.ts` | pure | date enumeration, sums, overlap | `luxon` |
-| `AccountsCard` | presentational | small stat face | trend logic |
-| `AccountsChart` | presentational (existing) | month chart | — |
-| `AccountsCompare` | client | mode/selection state, bars, overlap UI | `compare.ts` |
-| `AccountsMetric` | client | card-as-trigger + dialog composition | `Dialog`, above |
+| Unit                  | Kind                      | Responsibility                         | Depends on        |
+| --------------------- | ------------------------- | -------------------------------------- | ----------------- |
+| `computeSet` (edited) | pure                      | period set incl. daily span            | `periodStart`     |
+| `getAccountsDaily`    | I/O                       | read daily rows for a year             | `thamani_metrics` |
+| `compare.ts`          | pure                      | date enumeration, sums, overlap        | `luxon`           |
+| `AccountsCard`        | presentational            | small stat face                        | trend logic       |
+| `AccountsChart`       | presentational (existing) | month chart                            | —                 |
+| `AccountsCompare`     | client                    | mode/selection state, bars, overlap UI | `compare.ts`      |
+| `AccountsMetric`      | client                    | card-as-trigger + dialog composition   | `Dialog`, above   |
 
 ## Testing
 
 **Unit (vitest, pure):**
+
 - `compare.test.ts`:
   - `datesInRange` inclusive, ascending, single-day range, month boundary, `from > to` → empty.
   - `sumDays` sums a set incl. missing days (0), duplicate dates counted once via caller set.
@@ -233,6 +238,7 @@ home page (server)
   last is today, and the count equals day-of-year, with months/quarters/year/week unchanged.
 
 **Manual E2E (browser, after cron repopulate):**
+
 - Small card shows five roll-ups + arrows; whole card opens the dialog on click/Enter.
 - Dialog shows roll-ups, the month chart, and the compare tool.
 - Single/multiple/range modes each compute correct counts (spot-check against known ~74 total).

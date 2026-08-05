@@ -7,7 +7,12 @@ import { submitTargetNumberAction } from "@/lib/actions/game";
 import type { TargetNumberOp } from "@/lib/games/types";
 import { TARGET_NUMBER_DURATION_MS } from "@/lib/games/target-number";
 
-type Chip = { key: string; value: number; consumed: boolean; fromStep: number | null };
+type Chip = {
+  key: string;
+  value: number;
+  consumed: boolean;
+  fromStep: number | null;
+};
 
 export function TargetNumberRound({
   roundId,
@@ -21,10 +26,17 @@ export function TargetNumberRound({
   endsAt: string;
 }) {
   const [chips, setChips] = useState<Chip[]>(() =>
-    bases.map((v, i) => ({ key: `b${i}`, value: v, consumed: false, fromStep: null })),
+    bases.map((v, i) => ({
+      key: `b${i}`,
+      value: v,
+      consumed: false,
+      fromStep: null,
+    })),
   );
   const [selectedLeft, setSelectedLeft] = useState<Chip | null>(null);
-  const [selectedOp, setSelectedOp] = useState<TargetNumberOp["op"] | null>(null);
+  const [selectedOp, setSelectedOp] = useState<TargetNumberOp["op"] | null>(
+    null,
+  );
   const [expression, setExpression] = useState<TargetNumberOp[]>([]);
   const [bestResult, setBestResult] = useState<number | null>(null);
   const [pending, startTx] = useTransition();
@@ -49,7 +61,9 @@ export function TargetNumberRound({
     const step: TargetNumberOp = { op: selectedOp, left: a, right: b, result };
     setChips((prev) => {
       const next = prev.map((c) =>
-        c.key === selectedLeft.key || c.key === chip.key ? { ...c, consumed: true } : c,
+        c.key === selectedLeft.key || c.key === chip.key
+          ? { ...c, consumed: true }
+          : c,
       );
       next.push({
         key: `s${expression.length}`,
@@ -69,9 +83,13 @@ export function TargetNumberRound({
     const last = expression[expression.length - 1];
     setExpression((prev) => prev.slice(0, -1));
     setChips((prev) => {
-      const withoutResult = prev.filter((c) => c.fromStep !== expression.length - 1);
+      const withoutResult = prev.filter(
+        (c) => c.fromStep !== expression.length - 1,
+      );
       return withoutResult.map((c) =>
-        c.value === last.left || c.value === last.right ? { ...c, consumed: false } : c,
+        c.value === last.left || c.value === last.right
+          ? { ...c, consumed: false }
+          : c,
       );
     });
     setSelectedLeft(null);
@@ -82,7 +100,10 @@ export function TargetNumberRound({
     if (expression.length === 0) return;
     const currentResult = expression[expression.length - 1].result;
     startTx(async () => {
-      const res = await submitTargetNumberAction({ round_id: roundId, expression });
+      const res = await submitTargetNumberAction({
+        round_id: roundId,
+        expression,
+      });
       if (!res.ok) {
         toast.error(res.error.message);
         return;
@@ -101,13 +122,19 @@ export function TargetNumberRound({
       <RoundCountdown endsAt={endsAt} totalMs={TARGET_NUMBER_DURATION_MS} />
       <div className="flex items-baseline justify-between">
         <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Target</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Target
+          </div>
           <div className="text-4xl font-bold tabular-nums">{target}</div>
         </div>
         {bestResult !== null && (
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Your best</div>
-            <div className="text-2xl font-semibold tabular-nums">{bestResult}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Your best
+            </div>
+            <div className="text-2xl font-semibold tabular-nums">
+              {bestResult}
+            </div>
           </div>
         )}
       </div>
@@ -119,7 +146,9 @@ export function TargetNumberRound({
             type="button"
             onClick={() => pickChip(c)}
             className={`rounded-md border px-3 py-2 font-mono text-lg ${
-              selectedLeft?.key === c.key ? "border-primary bg-primary/10" : "border-border"
+              selectedLeft?.key === c.key
+                ? "border-primary bg-primary/10"
+                : "border-border"
             }`}
           >
             {c.value}
@@ -139,10 +168,19 @@ export function TargetNumberRound({
             {op}
           </Button>
         ))}
-        <Button type="button" variant="ghost" onClick={undoLast} disabled={expression.length === 0}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={undoLast}
+          disabled={expression.length === 0}
+        >
           Undo
         </Button>
-        <Button type="button" onClick={submit} disabled={expression.length === 0 || pending}>
+        <Button
+          type="button"
+          onClick={submit}
+          disabled={expression.length === 0 || pending}
+        >
           Submit
         </Button>
       </div>
@@ -160,7 +198,11 @@ export function TargetNumberRound({
   );
 }
 
-function applyOp(op: TargetNumberOp["op"], a: number, b: number): number | null {
+function applyOp(
+  op: TargetNumberOp["op"],
+  a: number,
+  b: number,
+): number | null {
   switch (op) {
     case "+":
       return a + b;

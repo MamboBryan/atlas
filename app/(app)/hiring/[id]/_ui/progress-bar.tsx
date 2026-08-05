@@ -1,7 +1,9 @@
 import { cn } from "@/lib/utils";
 
 export function ProgressBar({
-  value, max, className,
+  value,
+  max,
+  className,
 }: {
   value: number;
   max: number;
@@ -14,7 +16,10 @@ export function ProgressBar({
       aria-valuenow={value}
       aria-valuemin={0}
       aria-valuemax={max}
-      className={cn("h-2 w-full overflow-hidden rounded-pill bg-ink/10", className)}
+      className={cn(
+        "h-2 w-full overflow-hidden rounded-pill bg-ink/10",
+        className,
+      )}
     >
       <div
         className="h-full rounded-pill bg-primary transition-[width] duration-med ease-soft"

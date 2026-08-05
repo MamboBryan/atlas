@@ -16,7 +16,10 @@ export function CreateEvaluation() {
         e.preventDefault();
         start(async () => {
           const res = await createEvaluationAction({ name });
-          if (res.ok) { setName(""); router.push(`/hiring/${res.data.id}` as Route); }
+          if (res.ok) {
+            setName("");
+            router.push(`/hiring/${res.data.id}` as Route);
+          }
         });
       }}
       className="flex gap-2"

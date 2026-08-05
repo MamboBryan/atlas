@@ -89,68 +89,68 @@ export default async function PastMeetingsPage() {
   return (
     <DetailWithRail>
       <div className="space-y-6 max-w-3xl">
-      {/* Back link */}
-      <div className="flex items-center gap-2 text-sm">
-        <Link
-          href={"/meetings" as never}
-          className="text-ink-soft hover:text-ink transition-colors"
-        >
-          ← Meetings
-        </Link>
-      </div>
-
-      {/* Page header */}
-      <h1 className="font-display text-3xl font-extrabold text-ink">
-        Past meetings
-      </h1>
-
-      {meetings.length === 0 ? (
-        <EmptyState
-          icon={MeetingRoomIcon}
-          headline="No past meetings yet"
-          body="Meetings that have ended or been postponed will appear here."
-        />
-      ) : (
-        <div className="space-y-3">
-          {meetings.map((m) => {
-            const host = m.host_user_id
-              ? (nameById.get(m.host_user_id) ?? "?")
-              : "?";
-            const pc = m.participants_override
-              ? m.participants_override.length
-              : activeCount;
-            return (
-              <Link
-                key={m.id}
-                href={`/meetings/${m.id}` as never}
-                className="block"
-              >
-                <Card interactive>
-                  <CardHeader>
-                    <CardTitle className="truncate">{m.title}</CardTitle>
-                    <CardDescription className="flex flex-wrap gap-x-3 gap-y-0.5">
-                      <span>
-                        {fmtWhen(
-                          m.started_at ?? m.scheduled_start,
-                          m.timezone,
-                          viewerTz,
-                        )}
-                      </span>
-                      <span>·</span>
-                      <span>host {host}</span>
-                      <span>·</span>
-                      <span>{pc} participants</span>
-                    </CardDescription>
-                    <CardAction>
-                      <StatusBadge status={m.status} />
-                    </CardAction>
-                  </CardHeader>
-                </Card>
-              </Link>
-            );
-          })}
+        {/* Back link */}
+        <div className="flex items-center gap-2 text-sm">
+          <Link
+            href={"/meetings" as never}
+            className="text-ink-soft hover:text-ink transition-colors"
+          >
+            ← Meetings
+          </Link>
         </div>
-      )}
+
+        {/* Page header */}
+        <h1 className="font-display text-3xl font-extrabold text-ink">
+          Past meetings
+        </h1>
+
+        {meetings.length === 0 ? (
+          <EmptyState
+            icon={MeetingRoomIcon}
+            headline="No past meetings yet"
+            body="Meetings that have ended or been postponed will appear here."
+          />
+        ) : (
+          <div className="space-y-3">
+            {meetings.map((m) => {
+              const host = m.host_user_id
+                ? (nameById.get(m.host_user_id) ?? "?")
+                : "?";
+              const pc = m.participants_override
+                ? m.participants_override.length
+                : activeCount;
+              return (
+                <Link
+                  key={m.id}
+                  href={`/meetings/${m.id}` as never}
+                  className="block"
+                >
+                  <Card interactive>
+                    <CardHeader>
+                      <CardTitle className="truncate">{m.title}</CardTitle>
+                      <CardDescription className="flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span>
+                          {fmtWhen(
+                            m.started_at ?? m.scheduled_start,
+                            m.timezone,
+                            viewerTz,
+                          )}
+                        </span>
+                        <span>·</span>
+                        <span>host {host}</span>
+                        <span>·</span>
+                        <span>{pc} participants</span>
+                      </CardDescription>
+                      <CardAction>
+                        <StatusBadge status={m.status} />
+                      </CardAction>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </DetailWithRail>
   );

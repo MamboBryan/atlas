@@ -10,13 +10,23 @@ import { cn } from "@/lib/utils";
 
 type Q = { id: string; prompt: string };
 type C = { id: string; display_name: string };
-type A = { candidate_id: string; question_id: string; answer_text: string | null };
+type A = {
+  candidate_id: string;
+  question_id: string;
+  answer_text: string | null;
+};
 type R = { candidateId: string; questionId: string; score: number };
 
 const cellKey = (cid: string, qid: string) => `${cid}:${qid}`;
 
 export function EvaluateShell({
-  evaluationId, evaluationName, candidates, questions, answers, myRatings, single,
+  evaluationId,
+  evaluationName,
+  candidates,
+  questions,
+  answers,
+  myRatings,
+  single,
 }: {
   evaluationId: string;
   evaluationName: string;
@@ -31,13 +41,15 @@ export function EvaluateShell({
 
   const [scores, setScores] = useState<Record<string, number>>(() => {
     const seed: Record<string, number> = {};
-    for (const r of myRatings) seed[cellKey(r.candidateId, r.questionId)] = r.score;
+    for (const r of myRatings)
+      seed[cellKey(r.candidateId, r.questionId)] = r.score;
     return seed;
   });
 
   const candidateDone = useCallback(
     (cid: string) =>
-      questions.length > 0 && questions.every((q) => scores[cellKey(cid, q.id)] !== undefined),
+      questions.length > 0 &&
+      questions.every((q) => scores[cellKey(cid, q.id)] !== undefined),
     [questions, scores],
   );
 
@@ -46,7 +58,10 @@ export function EvaluateShell({
     return first === -1 ? 0 : first;
   });
 
-  const close = useCallback(() => router.push(`/hiring/${evaluationId}`), [router, evaluationId]);
+  const close = useCallback(
+    () => router.push(`/hiring/${evaluationId}`),
+    [router, evaluationId],
+  );
 
   // Esc dismisses the fullscreen flow.
   useEffect(() => {
@@ -65,7 +80,9 @@ export function EvaluateShell({
           body="This evaluation has no candidates or questions to rate."
         />
         <div className="mt-6 flex justify-center">
-          <Button variant="outline" onClick={close}>Back to evaluation</Button>
+          <Button variant="outline" onClick={close}>
+            Back to evaluation
+          </Button>
         </div>
       </div>
     );
@@ -79,13 +96,17 @@ export function EvaluateShell({
   const isLast = idx >= candidates.length - 1;
 
   const answerFor = (cid: string, qid: string) =>
-    answers.find((a) => a.candidate_id === cid && a.question_id === qid)?.answer_text ?? "—";
+    answers.find((a) => a.candidate_id === cid && a.question_id === qid)
+      ?.answer_text ?? "—";
 
   const rate = (qid: string, score: number) => {
     setScores((prev) => ({ ...prev, [cellKey(current.id, qid)]: score }));
     start(() =>
       rateAnswerAction({
-        evaluationId, candidateId: current.id, questionId: qid, score,
+        evaluationId,
+        candidateId: current.id,
+        questionId: qid,
+        score,
       }).then(() => {}),
     );
   };
@@ -98,14 +119,22 @@ export function EvaluateShell({
       <div className="sticky top-0 z-10 flex items-center gap-6 border-b border-divider bg-surface px-8 py-4">
         {/* Left: name + minimal save status */}
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
-          <p className="truncate font-display text-base font-extrabold text-ink">{evaluationName}</p>
-          <span className="shrink-0 text-xs text-ink-soft">{isPending ? "Saving…" : "Saved"}</span>
+          <p className="truncate font-display text-base font-extrabold text-ink">
+            {evaluationName}
+          </p>
+          <span className="shrink-0 text-xs text-ink-soft">
+            {isPending ? "Saving…" : "Saved"}
+          </span>
         </div>
 
         {/* Middle: candidates-rated progress */}
         {!single && (
           <div className="flex flex-1 items-center gap-2.5">
-            <ProgressBar value={candidatesRated} max={candidates.length} className="h-1.5 flex-1" />
+            <ProgressBar
+              value={candidatesRated}
+              max={candidates.length}
+              className="h-1.5 flex-1"
+            />
             <span className="shrink-0 text-xs font-semibold tabular-nums text-ink-soft">
               {candidatesRated}/{candidates.length}
             </span>
@@ -119,7 +148,12 @@ export function EvaluateShell({
               {idx + 1}/{candidates.length}
             </span>
           )}
-          <Button variant="outline" size="icon" onClick={close} aria-label="Close evaluation">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={close}
+            aria-label="Close evaluation"
+          >
             <XIcon className="size-5" />
           </Button>
         </div>
@@ -128,12 +162,18 @@ export function EvaluateShell({
       {/* Candidate */}
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-8">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h1 className="font-display text-2xl font-extrabold text-ink">{current.display_name}</h1>
+          <h1 className="font-display text-2xl font-extrabold text-ink">
+            {current.display_name}
+          </h1>
           <span className="shrink-0 text-xs tabular-nums text-ink-soft">
             {currentAnswered}/{questions.length}
           </span>
         </div>
-        <ProgressBar value={currentAnswered} max={questions.length} className="mb-8 h-1.5" />
+        <ProgressBar
+          value={currentAnswered}
+          max={questions.length}
+          className="mb-8 h-1.5"
+        />
 
         <div className="space-y-8">
           {questions.map((q) => {
@@ -168,7 +208,9 @@ export function EvaluateShell({
       <footer className="sticky bottom-0 z-10 border-t border-divider bg-surface px-6 py-4">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between">
           {single ? (
-            <span className="text-sm text-ink-soft">Re-evaluating one candidate</span>
+            <span className="text-sm text-ink-soft">
+              Re-evaluating one candidate
+            </span>
           ) : (
             <Button
               variant="ghost"
@@ -179,11 +221,15 @@ export function EvaluateShell({
             </Button>
           )}
           {single || isLast ? (
-            <Button variant="default" onClick={close}>Finish</Button>
+            <Button variant="default" onClick={close}>
+              Finish
+            </Button>
           ) : (
             <Button
               variant="default"
-              onClick={() => setIdx((i) => Math.min(candidates.length - 1, i + 1))}
+              onClick={() =>
+                setIdx((i) => Math.min(candidates.length - 1, i + 1))
+              }
             >
               Next
             </Button>

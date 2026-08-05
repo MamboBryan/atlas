@@ -102,13 +102,19 @@ export function ShuffleStage({ sessionId }: { sessionId: string | null }) {
     }
   }, [router]);
 
-  const persistIndex = useCallback((id: string, idx: number, finished: boolean) => {
-    const s = createSupabaseBrowserClient();
-    void s
-      .from("shuffle_sessions")
-      .update({ current_index: idx, status: finished ? "finished" : "active" })
-      .eq("id", id);
-  }, []);
+  const persistIndex = useCallback(
+    (id: string, idx: number, finished: boolean) => {
+      const s = createSupabaseBrowserClient();
+      void s
+        .from("shuffle_sessions")
+        .update({
+          current_index: idx,
+          status: finished ? "finished" : "active",
+        })
+        .eq("id", id);
+    },
+    [],
+  );
 
   const doStart = useCallback(() => {
     if (!session) return;

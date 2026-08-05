@@ -80,7 +80,11 @@ export function computeSet(
     const day = new Date(ms);
     out.push({
       grain: "day",
-      period_start: iso(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate()),
+      period_start: iso(
+        day.getUTCFullYear(),
+        day.getUTCMonth() + 1,
+        day.getUTCDate(),
+      ),
     });
   }
   return out;

@@ -121,147 +121,149 @@ export default async function SeriesDetailPage({
   return (
     <DetailWithRail>
       <div className="space-y-8 max-w-3xl">
-      {/* Back link */}
-      <div className="flex items-center gap-2">
-        <Link
-          href={"/series" as never}
-          className="text-sm text-ink-soft hover:text-ink transition-colors"
-        >
-          ← All series
-        </Link>
-      </div>
-
-      {/* Header */}
-      <div className="space-y-4">
-        <h1 className="font-display text-3xl font-extrabold text-ink">
-          {series.name}
-        </h1>
-        {series.description && (
-          <p className="text-sm text-ink-soft">{series.description}</p>
-        )}
-
-        {/* Meta line */}
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="secondary">{cadenceLabel}</Badge>
-          <span className="text-sm text-ink-soft">
-            {series.rotation_order.length} members
-          </span>
-          {nextOccurrence && (
-            <span className="text-sm text-ink-soft">
-              Next: {fmtWhen(nextOccurrence.scheduled_start, series.timezone)}
-            </span>
-          )}
+        {/* Back link */}
+        <div className="flex items-center gap-2">
+          <Link
+            href={"/series" as never}
+            className="text-sm text-ink-soft hover:text-ink transition-colors"
+          >
+            ← All series
+          </Link>
         </div>
-      </div>
 
-      {/* Members grid */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
-          Rotation
-        </h2>
-        {series.rotation_order.length === 0 ? (
-          <EmptyState
-            icon={CalendarUserIcon}
-            headline="No members in rotation"
-            body="Add members via the edit panel below."
-          />
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {series.rotation_order.map((uid) => {
-              const isNext = uid === nextInRotation;
-              const name = nameById.get(uid) ?? uid.slice(0, 8);
-              return (
-                <Card key={uid} size="sm">
-                  <CardHeader>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-ink/10 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <CardTitle className="text-base truncate">
-                            {name}
-                          </CardTitle>
-                          {isNext && (
-                            <CardDescription className="text-xs">
-                              Next host
-                            </CardDescription>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              );
-            })}
+        {/* Header */}
+        <div className="space-y-4">
+          <h1 className="font-display text-3xl font-extrabold text-ink">
+            {series.name}
+          </h1>
+          {series.description && (
+            <p className="text-sm text-ink-soft">{series.description}</p>
+          )}
+
+          {/* Meta line */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant="secondary">{cadenceLabel}</Badge>
+            <span className="text-sm text-ink-soft">
+              {series.rotation_order.length} members
+            </span>
+            {nextOccurrence && (
+              <span className="text-sm text-ink-soft">
+                Next: {fmtWhen(nextOccurrence.scheduled_start, series.timezone)}
+              </span>
+            )}
           </div>
-        )}
-      </section>
+        </div>
 
-      {/* Upcoming meetings */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
-          Upcoming
-        </h2>
-        {upcoming.length === 0 ? (
-          <EmptyState
-            icon={MeetingRoomIcon}
-            headline="No upcoming meetings"
-            body="The cron generates the next 14 days each run."
-          />
-        ) : (
-          <div className="space-y-2">
-            {upcoming.map((m) => (
-              <Link
-                key={m.id}
-                href={`/meetings/${m.id}` as never}
-                className="block no-underline"
-              >
-                <Card interactive size="sm">
-                  <CardHeader>
-                    <CardTitle className="text-base">{m.title}</CardTitle>
-                    <CardDescription className="flex flex-wrap gap-2">
-                      <span>{fmtWhen(m.scheduled_start, series.timezone)}</span>
-                      <span>·</span>
-                      <span>
-                        {m.host_user_id
-                          ? `host ${nameById.get(m.host_user_id) ?? "?"}`
-                          : "no host"}
-                      </span>
-                      <span>·</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {m.status}
-                      </Badge>
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {canEdit && (
+        {/* Members grid */}
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
-            Edit
+            Rotation
           </h2>
-          <SeriesForm
-            roster={rosterList}
-            mode={{
-              kind: "edit",
-              id: series.id,
-              initial: {
-                name: series.name,
-                description: series.description,
-                rrule: series.rrule,
-                timezone: series.timezone,
-                rotation_order: series.rotation_order,
-                default_participant_ids: series.default_participant_ids,
-                agenda_template: series.agenda_template ?? [],
-              },
-            }}
-          />
+          {series.rotation_order.length === 0 ? (
+            <EmptyState
+              icon={CalendarUserIcon}
+              headline="No members in rotation"
+              body="Add members via the edit panel below."
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {series.rotation_order.map((uid) => {
+                const isNext = uid === nextInRotation;
+                const name = nameById.get(uid) ?? uid.slice(0, 8);
+                return (
+                  <Card key={uid} size="sm">
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-ink/10 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <CardTitle className="text-base truncate">
+                              {name}
+                            </CardTitle>
+                            {isNext && (
+                              <CardDescription className="text-xs">
+                                Next host
+                              </CardDescription>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </section>
-      )}
+
+        {/* Upcoming meetings */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
+            Upcoming
+          </h2>
+          {upcoming.length === 0 ? (
+            <EmptyState
+              icon={MeetingRoomIcon}
+              headline="No upcoming meetings"
+              body="The cron generates the next 14 days each run."
+            />
+          ) : (
+            <div className="space-y-2">
+              {upcoming.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/meetings/${m.id}` as never}
+                  className="block no-underline"
+                >
+                  <Card interactive size="sm">
+                    <CardHeader>
+                      <CardTitle className="text-base">{m.title}</CardTitle>
+                      <CardDescription className="flex flex-wrap gap-2">
+                        <span>
+                          {fmtWhen(m.scheduled_start, series.timezone)}
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {m.host_user_id
+                            ? `host ${nameById.get(m.host_user_id) ?? "?"}`
+                            : "no host"}
+                        </span>
+                        <span>·</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {m.status}
+                        </Badge>
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {canEdit && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-medium text-ink-soft uppercase tracking-wide">
+              Edit
+            </h2>
+            <SeriesForm
+              roster={rosterList}
+              mode={{
+                kind: "edit",
+                id: series.id,
+                initial: {
+                  name: series.name,
+                  description: series.description,
+                  rrule: series.rrule,
+                  timezone: series.timezone,
+                  rotation_order: series.rotation_order,
+                  default_participant_ids: series.default_participant_ids,
+                  agenda_template: series.agenda_template ?? [],
+                },
+              }}
+            />
+          </section>
+        )}
       </div>
     </DetailWithRail>
   );

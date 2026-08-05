@@ -1,8 +1,20 @@
-export type RatingRow = { candidateId: string; questionId: string; score: number };
-export type PersonalScore = { candidateId: string; average: number | null; ratedCount: number };
+export type RatingRow = {
+  candidateId: string;
+  questionId: string;
+  score: number;
+};
+export type PersonalScore = {
+  candidateId: string;
+  average: number | null;
+  ratedCount: number;
+};
 
 export type RaterRatingRow = RatingRow & { raterId: string };
-export type EvaluatorScore = { raterId: string; average: number; ratedCount: number };
+export type EvaluatorScore = {
+  raterId: string;
+  average: number;
+  ratedCount: number;
+};
 
 export function computePersonalScores(
   rows: RatingRow[],
@@ -20,7 +32,8 @@ export function computePersonalScores(
   const out: PersonalScore[] = activeCandidateIds.map((candidateId) => {
     const scores = byCandidate.get(candidateId)!;
     const average = scores.length
-      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100
+      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) /
+        100
       : null;
     return { candidateId, average, ratedCount: scores.length };
   });
@@ -57,8 +70,11 @@ export function computeEvaluatorBreakdown(
   for (const [key, scores] of groups) {
     const [candidateId, raterId] = key.split("|");
     const average =
-      Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100;
-    byCandidate.get(candidateId)!.push({ raterId, average, ratedCount: scores.length });
+      Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) /
+      100;
+    byCandidate
+      .get(candidateId)!
+      .push({ raterId, average, ratedCount: scores.length });
   }
   for (const list of byCandidate.values()) {
     list.sort((a, b) => b.average - a.average);

@@ -1,4 +1,9 @@
-import type { SheetGrid, DetectedMapping, NormalizedCandidate, ImportSummary } from "@/lib/sheets/types";
+import type {
+  SheetGrid,
+  DetectedMapping,
+  NormalizedCandidate,
+  ImportSummary,
+} from "@/lib/sheets/types";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -67,13 +72,18 @@ export function normalizeRows(
       email,
       displayName: nameVal || email.split("@")[0],
       submittedAt: tsI >= 0 ? (row[tsI] ?? "").trim() || null : null,
-      answers: qCols.map((q) => ({ columnKey: q.key, text: (row[q.i] ?? "").trim() })),
+      answers: qCols.map((q) => ({
+        columnKey: q.key,
+        text: (row[q.i] ?? "").trim(),
+      })),
     });
   }
 
   const summary: ImportSummary = {
     candidatesSeen: byEmail.size,
-    rowsSkipped: skipped ? [{ reason: "missing_or_invalid_email", count: skipped }] : [],
+    rowsSkipped: skipped
+      ? [{ reason: "missing_or_invalid_email", count: skipped }]
+      : [],
     duplicateEmails: [...dupes],
     questionColumns: mapping.questionColumns,
   };

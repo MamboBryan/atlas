@@ -37,14 +37,17 @@ Deno.test("handler: wrong x-sync-secret header → 401", async () => {
   assertEquals(await res.json(), { ok: false });
 });
 
-Deno.test("handler: SYNC_SECRET unset → 401 even with a matching-looking header", async () => {
-  Deno.env.delete("SYNC_SECRET");
-  const res = await handler(
-    new Request("http://x", {
-      method: "POST",
-      headers: { "x-sync-secret": "" },
-    }),
-  );
-  assertEquals(res.status, 401);
-  assertEquals(await res.json(), { ok: false });
-});
+Deno.test(
+  "handler: SYNC_SECRET unset → 401 even with a matching-looking header",
+  async () => {
+    Deno.env.delete("SYNC_SECRET");
+    const res = await handler(
+      new Request("http://x", {
+        method: "POST",
+        headers: { "x-sync-secret": "" },
+      }),
+    );
+    assertEquals(res.status, 401);
+    assertEquals(await res.json(), { ok: false });
+  },
+);

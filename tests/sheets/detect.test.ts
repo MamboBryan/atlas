@@ -3,7 +3,13 @@ import { detectMapping } from "@/lib/sheets/parse";
 
 test("detects email, timestamp, name; rest are questions", () => {
   const grid = {
-    headers: ["Timestamp", "Email Address", "Full Name", "Why this role?", "Strengths"],
+    headers: [
+      "Timestamp",
+      "Email Address",
+      "Full Name",
+      "Why this role?",
+      "Strengths",
+    ],
     rows: [["2026-01-01", "a@x.com", "Ann", "…", "…"]],
   };
   const m = detectMapping(grid);

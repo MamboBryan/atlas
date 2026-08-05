@@ -22,7 +22,7 @@ content into the tabbed panel.
 ### Motivation
 
 The right rail is currently a parallel route (`app/(app)/@right/**`) rendered by
-the app layout independently of the page. We want each destination to *own* its
+the app layout independently of the page. We want each destination to _own_ its
 rail so the two are one React subtree that changes together on navigation. This
 is a structural change only — no behavior change intended.
 
@@ -36,15 +36,15 @@ is a structural change only — no behavior change intended.
 - `components/app/right-slot.tsx` is a client component keyed by pathname,
   `hidden md:block md:h-screen md:overflow-y-auto px-6 pt-8 pb-10`.
 - Rails today:
-  | Route | Rail |
-  |---|---|
-  | `/` | Picker + Availability + next Meeting + awaiting Polls (inline in `@right/page.tsx`) |
-  | `/polls` | heading + `PastPollsList` |
-  | `/polls/past` | heading + `PastPollsList` |
-  | `/polls/[id]` | `PollDetailPanel` |
-  | `/meetings/[id]` | Add-agenda-item + `MeetingCommentBox` (inline in `@right/meetings/[id]/page.tsx`) |
-  | `/hiring/[id]` | `AdminControls` (owner-only) |
-  | all others | `default.tsx` → `null` |
+  | Route            | Rail                                                                                |
+  | ---------------- | ----------------------------------------------------------------------------------- |
+  | `/`              | Picker + Availability + next Meeting + awaiting Polls (inline in `@right/page.tsx`) |
+  | `/polls`         | heading + `PastPollsList`                                                           |
+  | `/polls/past`    | heading + `PastPollsList`                                                           |
+  | `/polls/[id]`    | `PollDetailPanel`                                                                   |
+  | `/meetings/[id]` | Add-agenda-item + `MeetingCommentBox` (inline in `@right/meetings/[id]/page.tsx`)   |
+  | `/hiring/[id]`   | `AdminControls` (owner-only)                                                        |
+  | all others       | `default.tsx` → `null`                                                              |
 - Override layouts `hiring/[id]/evaluate/layout.tsx` and
   `meetings/[id]/present/layout.tsx` use `fixed inset-0 z-50` — they escape the
   grid entirely and are unaffected by any grid change.
@@ -62,7 +62,7 @@ export function DetailWithRail({
 - Renders `md:grid md:grid-cols-[7fr_3fr]` when `rail` is present, else main
   spans full width.
 - **Main column** reproduces today's `<main>` exactly: `md:h-screen
-  md:overflow-y-auto`, horizontal padding, and the verbatim sticky-header
+md:overflow-y-auto`, horizontal padding, and the verbatim sticky-header
   `[&_header]` isolation rules (the recent leak fix).
 - **Rail column**: `hidden md:flex md:flex-col md:h-screen md:overflow-y-auto`
   with the current rail padding. `md:flex md:flex-col` is required so Part A's
@@ -130,7 +130,7 @@ unchanged.
 
 `evaluation_questions` has `is_active` (default `true`) and `is_hidden`
 (default `false`). Today both `is_active=false` and `is_hidden=true` exclude a
-question **everywhere** (rating screen *and* the `evaluation_results` RPC). This
+question **everywhere** (rating screen _and_ the `evaluation_results` RPC). This
 spec changes the meaning of `is_hidden` in results only (see below).
 
 ### Field semantics (decided)
@@ -159,6 +159,7 @@ setEvaluationFieldInput = z.object({
   isHidden: z.boolean().optional(),
 });
 ```
+
 - Owner-gated via `requireEvaluationOwner`.
 - Rejects with an error when the evaluation status is `closed`.
 - Updates `evaluation_questions` (`is_active` / `is_hidden`) for the given
@@ -191,8 +192,17 @@ payload to `ResultsView`:
 
 ```ts
 contextFields: {
-  questions: { question_id: string; prompt: string }[];
-  answers: { candidate_id: string; question_id: string; answer_text: string | null }[];
+  questions: {
+    question_id: string;
+    prompt: string;
+  }
+  [];
+  answers: {
+    candidate_id: string;
+    question_id: string;
+    answer_text: string | null;
+  }
+  [];
 }
 ```
 
@@ -215,8 +225,8 @@ today's visibility model.
   - **Fields tab**: list of every field (from `fields`), each row showing the
     prompt (truncated) and two toggle pills — **Enabled** (`is_active`) and
     **Hidden** (`is_hidden`). The Hidden pill is disabled when the field is not
-    Enabled (moot). One helper line: *"Hidden fields aren't scored during
-    evaluation but appear as context in results."* Each toggle calls
+    Enabled (moot). One helper line: _"Hidden fields aren't scored during
+    evaluation but appear as context in results."_ Each toggle calls
     `setEvaluationFieldAction` then `router.refresh()`, with a pending state.
     When `status === 'closed'`, toggles are read-only with a "Fields lock after
     closing" note. Empty state when no fields imported yet: prompt to connect a
@@ -253,4 +263,4 @@ of the DB round-trip; otherwise rely on the driven flow.
 - No new migration (columns already exist).
 - No change to the anonymized `evaluation_results` RPC (hidden fields are
   surfaced via a separate query path, not the aggregate).
-- No redesign of poll/meeting rail *content* — only where it is rendered.
+- No redesign of poll/meeting rail _content_ — only where it is rendered.

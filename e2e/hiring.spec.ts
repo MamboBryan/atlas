@@ -18,18 +18,26 @@ test.describe("hiring evaluations smoke", () => {
   test.beforeAll(async () => {
     await resetUsers();
     const c = admin();
-    const adminUser = await createUser("hiring-e2e-admin@atlas.com", "Admin E2E");
+    const adminUser = await createUser(
+      "hiring-e2e-admin@atlas.com",
+      "Admin E2E",
+    );
     await c.from("profiles").update({ role: "admin" }).eq("id", adminUser.id);
   });
 
-  test("create evaluation navigates to its detail route", async ({ browser, baseURL }) => {
+  test("create evaluation navigates to its detail route", async ({
+    browser,
+    baseURL,
+  }) => {
     if (!baseURL) throw new Error("baseURL not configured");
     const ctx = await browser.newContext();
     try {
       await signIn(ctx, "hiring-e2e-admin@atlas.com", baseURL);
       const page = await ctx.newPage();
       await page.goto("/hiring");
-      await page.getByPlaceholder("Evaluation name").fill("E2E Smoke Role — Aug 2026");
+      await page
+        .getByPlaceholder("Evaluation name")
+        .fill("E2E Smoke Role — Aug 2026");
       await page.getByRole("button", { name: "New evaluation" }).click();
       await expect(page).toHaveURL(/\/hiring\/[0-9a-f-]{36}/);
     } finally {

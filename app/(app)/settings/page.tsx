@@ -45,8 +45,8 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Choose which emails you want to receive. In-app notifications
-              are always shown.
+              Choose which emails you want to receive. In-app notifications are
+              always shown.
             </p>
             <EmailPrefsForm
               displayName={profile?.display_name ?? ""}

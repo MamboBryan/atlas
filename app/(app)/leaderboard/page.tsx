@@ -10,7 +10,9 @@ export default async function LeaderboardPage() {
       <DetailWithRail>
         <main className="mx-auto max-w-2xl p-6">
           <h1 className="text-2xl font-bold">Leaderboard</h1>
-          <p className="text-sm text-muted-foreground">Couldn&apos;t load: {res.error.message}</p>
+          <p className="text-sm text-muted-foreground">
+            Couldn&apos;t load: {res.error.message}
+          </p>
         </main>
       </DetailWithRail>
     );
@@ -32,13 +34,19 @@ export default async function LeaderboardPage() {
         ) : (
           <ol className="space-y-1">
             {rows.map((r, i) => (
-              <li key={r.player_id} className="flex items-center justify-between rounded-md border px-3 py-2">
+              <li
+                key={r.player_id}
+                className="flex items-center justify-between rounded-md border px-3 py-2"
+              >
                 <span>
-                  <span className="tabular-nums">{i + 1}.</span> {r.display_name}
+                  <span className="tabular-nums">{i + 1}.</span>{" "}
+                  {r.display_name}
                 </span>
                 <span className="tabular-nums">
                   <strong>{r.total_points}</strong>
-                  <span className="ml-2 text-xs text-muted-foreground">{r.rounds_played} rounds</span>
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {r.rounds_played} rounds
+                  </span>
                 </span>
               </li>
             ))}

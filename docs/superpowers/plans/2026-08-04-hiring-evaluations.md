@@ -26,34 +26,41 @@
 ## File Structure
 
 **Database**
+
 - `db/supabase/supabase/migrations/0028_hiring_evaluations.sql` — enum, 6 tables, indexes, `atlas_is_panelist`, `evaluation_min_raters`, RLS policies.
 - `db/supabase/supabase/migrations/0029_evaluation_rpcs.sql` — `evaluation_results`, `evaluation_panel_progress` RPCs + grants.
 - `db/supabase/supabase/tests/evaluations_rls.sql` — pgTAP structural + behavioral.
 
 **Sheets ingestion (pure, unit-tested)**
+
 - `lib/sheets/types.ts` — shared types.
 - `lib/sheets/parse.ts` — `detectMapping`, `normalizeRows`.
 - `lib/sheets/jwt.ts` — `mintServiceJwt`.
 - `lib/sheets/client.ts` — `getAccessToken`, `readSheet`.
 
 **Aggregation (pure)**
+
 - `lib/evaluation/aggregate.ts` — `computePersonalScores`.
 
 **Server layer**
+
 - `lib/zod/evaluation.ts` — input schemas.
 - `lib/actions/evaluation.ts` — all server actions.
 - `lib/evaluation/queries.ts` — page data fetchers.
 
 **UI**
+
 - `app/(app)/hiring/page.tsx` + `app/(app)/hiring/_ui/*` — list, create dialog, status badge.
 - `app/(app)/hiring/[id]/page.tsx` + `app/(app)/hiring/[id]/_ui/*` — detail router, admin controls, mapping dialog, rating panel, results view.
 - `components/app/nav.tsx` — add Hiring nav item (desktop sidebar only; mobile bottom bar is a fixed 5-slot bar, left untouched).
 
 **Config / docs**
+
 - `.env.example` — add `GOOGLE_SERVICE_ACCOUNT_JSON`.
 - `docs/hiring-sheets-setup.md` — service-account runbook.
 
 **Tests**
+
 - `tests/sheets/*.test.ts`, `tests/evaluation/*.test.ts`, `tests/actions/evaluation.integration.test.ts`.
 - `e2e/hiring.spec.ts` (optional).
 
@@ -62,10 +69,12 @@
 ## Task 1: Database schema + RLS (migration 0028)
 
 **Files:**
+
 - Create: `db/supabase/supabase/migrations/0028_hiring_evaluations.sql`
 - Create/Test: `db/supabase/supabase/tests/evaluations_rls.sql`
 
 **Interfaces:**
+
 - Produces (SQL objects later tasks rely on):
   - enum `public.evaluation_status` = `('draft','open','closed')`
   - tables `evaluations`, `evaluation_questions`, `evaluation_candidates`, `evaluation_answers`, `evaluation_panelists`, `evaluation_ratings` (columns exactly as in the spec's Data model section).
@@ -74,7 +83,7 @@
 
 - [ ] **Step 1: Write the failing RLS test**
 
-Create `db/supabase/supabase/tests/evaluations_rls.sql`. **Structural only** — matching every other RLS test in this repo (`has_table`, `pg_policies` counts, `relrowsecurity`). The *behavioral* privacy guarantee (rater-A-can't-read-rater-B, closed-reveal, suppression) is proven in the Vitest integration test in Task 10, which drives real authenticated PostgREST clients — a stronger and more maintainable check than role-switching inside pgTAP.
+Create `db/supabase/supabase/tests/evaluations_rls.sql`. **Structural only** — matching every other RLS test in this repo (`has_table`, `pg_policies` counts, `relrowsecurity`). The _behavioral_ privacy guarantee (rater-A-can't-read-rater-B, closed-reveal, suppression) is proven in the Vitest integration test in Task 10, which drives real authenticated PostgREST clients — a stronger and more maintainable check than role-switching inside pgTAP.
 
 ```sql
 BEGIN;
@@ -326,15 +335,17 @@ git commit -m "feat(db): hiring evaluations schema + RLS (per-evaluator rating p
 ## Task 2: Aggregation RPCs + suppression (migration 0029)
 
 **Files:**
+
 - Create: `db/supabase/supabase/migrations/0029_evaluation_rpcs.sql`
 - Modify/Test: `db/supabase/supabase/tests/evaluations_rls.sql` (add RPC behavioral cases)
 
 **Interfaces:**
+
 - Produces:
   - `public.evaluation_results(p_evaluation_id uuid) returns jsonb` — security definer. Shape:
     `{ "status": "...", "suppressed": bool, "rater_count": int|null, "rater_bucket": text,
-       "candidates": [ { "candidate_id": uuid, "display_name": text, "overall": numeric|null,
-         "rank": int, "cells": [ { "question_id": uuid, "prompt": text, "avg": numeric|null } ] } ] }`.
+ "candidates": [ { "candidate_id": uuid, "display_name": text, "overall": numeric|null,
+ "rank": int, "cells": [ { "question_id": uuid, "prompt": text, "avg": numeric|null } ] } ] }`.
     Returns `{"status":"open","suppressed":true,...,"candidates":[]}` unless status = `closed`.
   - `public.evaluation_panel_progress(p_evaluation_id uuid) returns jsonb` — security definer, admin-guarded; array of `{profile_id, display_name, rated, total}`.
 
@@ -355,7 +366,7 @@ SELECT has_function('public','evaluation_panel_progress',
 Run: `pnpm supabase db test`
 Expected: FAIL — `evaluation_results` does not exist.
 
-**Note:** the *behavioral* suppression contract (open → suppressed; closed < 3 raters → `suppressed:true, rater_bucket:"<3"`; closed ≥ 3 raters → averages; per-cell single-rater → `avg:null`) is asserted end-to-end in Task 10's integration test, which calls the RPC as a real authenticated user.
+**Note:** the _behavioral_ suppression contract (open → suppressed; closed < 3 raters → `suppressed:true, rater_bucket:"<3"`; closed ≥ 3 raters → averages; per-cell single-rater → `avg:null`) is asserted end-to-end in Task 10's integration test, which calls the RPC as a real authenticated user.
 
 - [ ] **Step 3: Write the RPC migration**
 
@@ -531,11 +542,13 @@ git commit -m "feat(db): evaluation_results + panel_progress RPCs with two-grain
 ## Task 3: Sheet types + column auto-detection
 
 **Files:**
+
 - Create: `lib/sheets/types.ts`
 - Create: `lib/sheets/parse.ts` (detectMapping only in this task)
 - Test: `tests/sheets/detect.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `type SheetGrid = { headers: string[]; rows: string[][] }`
   - `type DetectedMapping = { emailColumn: string; nameColumn: string | null; timestampColumn: string | null; questionColumns: string[] }`
@@ -551,7 +564,13 @@ import { detectMapping } from "@/lib/sheets/parse";
 
 test("detects email, timestamp, name; rest are questions", () => {
   const grid = {
-    headers: ["Timestamp", "Email Address", "Full Name", "Why this role?", "Strengths"],
+    headers: [
+      "Timestamp",
+      "Email Address",
+      "Full Name",
+      "Why this role?",
+      "Strengths",
+    ],
     rows: [["2026-01-01", "a@x.com", "Ann", "…", "…"]],
   };
   const m = detectMapping(grid);
@@ -671,10 +690,12 @@ git commit -m "feat(sheets): column auto-detection for evaluation import"
 ## Task 4: Row normalization (candidates, answers, skips, dups)
 
 **Files:**
+
 - Modify: `lib/sheets/parse.ts` (add `normalizeRows`)
 - Test: `tests/sheets/normalize.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SheetGrid`, `DetectedMapping` (Task 3).
 - Produces: `normalizeRows(grid: SheetGrid, mapping: { emailColumn: string; nameColumn: string | null; timestampColumn: string | null; questionColumns: string[] }): { candidates: NormalizedCandidate[]; summary: ImportSummary }`
   - Rows without a valid email are skipped and counted.
@@ -693,13 +714,15 @@ const grid = {
   headers: ["Timestamp", "Email", "Name", "Q1", "Q2"],
   rows: [
     ["2026-01-01T10:00:00Z", "a@x.com", "Ann", "a1", "a2"],
-    ["", "notanemail", "Bad", "x", "y"],       // skipped: bad email
+    ["", "notanemail", "Bad", "x", "y"], // skipped: bad email
     ["2026-01-02T10:00:00Z", "a@x.com", "Ann2", "a1b", "a2b"], // dup: last wins
-    ["2026-01-03T10:00:00Z", "b@x.com", "", "b1", "b2"],       // name from local-part
+    ["2026-01-03T10:00:00Z", "b@x.com", "", "b1", "b2"], // name from local-part
   ],
 };
 const mapping = {
-  emailColumn: "Email", nameColumn: "Name", timestampColumn: "Timestamp",
+  emailColumn: "Email",
+  nameColumn: "Name",
+  timestampColumn: "Timestamp",
   questionColumns: ["Q1", "Q2"],
 };
 
@@ -707,14 +730,16 @@ test("normalizes, skips bad email, dedups last-wins, derives name", () => {
   const { candidates, summary } = normalizeRows(grid, mapping);
   expect(candidates).toHaveLength(2);
   const a = candidates.find((c) => c.email === "a@x.com")!;
-  expect(a.displayName).toBe("Ann2");                    // last wins
+  expect(a.displayName).toBe("Ann2"); // last wins
   expect(a.answers).toEqual([
     { columnKey: "Q1", text: "a1b" },
     { columnKey: "Q2", text: "a2b" },
   ]);
   const b = candidates.find((c) => c.email === "b@x.com")!;
-  expect(b.displayName).toBe("b");                       // local-part
-  expect(summary.rowsSkipped).toEqual([{ reason: "missing_or_invalid_email", count: 1 }]);
+  expect(b.displayName).toBe("b"); // local-part
+  expect(summary.rowsSkipped).toEqual([
+    { reason: "missing_or_invalid_email", count: 1 },
+  ]);
   expect(summary.duplicateEmails).toEqual(["a@x.com"]);
 });
 ```
@@ -762,13 +787,18 @@ export function normalizeRows(
       email,
       displayName: nameVal || email.split("@")[0],
       submittedAt: tsI >= 0 ? (row[tsI] ?? "").trim() || null : null,
-      answers: qCols.map((q) => ({ columnKey: q.key, text: (row[q.i] ?? "").trim() })),
+      answers: qCols.map((q) => ({
+        columnKey: q.key,
+        text: (row[q.i] ?? "").trim(),
+      })),
     });
   }
 
   const summary: ImportSummary = {
     candidatesSeen: byEmail.size,
-    rowsSkipped: skipped ? [{ reason: "missing_or_invalid_email", count: skipped }] : [],
+    rowsSkipped: skipped
+      ? [{ reason: "missing_or_invalid_email", count: skipped }]
+      : [],
     duplicateEmails: [...dupes],
     questionColumns: mapping.questionColumns,
   };
@@ -793,10 +823,12 @@ git commit -m "feat(sheets): normalize rows into candidates + import summary"
 ## Task 5: Service-account JWT minting
 
 **Files:**
+
 - Create: `lib/sheets/jwt.ts`
 - Test: `tests/sheets/jwt.test.ts`
 
 **Interfaces:**
+
 - Produces: `mintServiceJwt(sa: { client_email: string; private_key: string }, nowSec?: number): string` — a signed RS256 JWT with `scope: https://www.googleapis.com/auth/spreadsheets.readonly`, `aud: https://oauth2.googleapis.com/token`, `iss/sub = client_email`, `iat/exp` (1h).
 
 - [ ] **Step 1: Write failing test**
@@ -813,16 +845,23 @@ function b64urlToJson(seg: string) {
 }
 
 test("mints a verifiable RS256 JWT with the right claims", () => {
-  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+  });
   const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
   const now = 1_700_000_000;
-  const jwt = mintServiceJwt({ client_email: "svc@proj.iam.gserviceaccount.com", private_key: pem }, now);
+  const jwt = mintServiceJwt(
+    { client_email: "svc@proj.iam.gserviceaccount.com", private_key: pem },
+    now,
+  );
 
   const [h, p, s] = jwt.split(".");
   expect(b64urlToJson(h)).toEqual({ alg: "RS256", typ: "JWT" });
   const claims = b64urlToJson(p);
   expect(claims.iss).toBe("svc@proj.iam.gserviceaccount.com");
-  expect(claims.scope).toBe("https://www.googleapis.com/auth/spreadsheets.readonly");
+  expect(claims.scope).toBe(
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
+  );
   expect(claims.aud).toBe("https://oauth2.googleapis.com/token");
   expect(claims.iat).toBe(now);
   expect(claims.exp).toBe(now + 3600);
@@ -845,8 +884,7 @@ Create `lib/sheets/jwt.ts`:
 ```ts
 import { createSign } from "node:crypto";
 
-const b64url = (buf: Buffer | string) =>
-  Buffer.from(buf).toString("base64url");
+const b64url = (buf: Buffer | string) => Buffer.from(buf).toString("base64url");
 
 export function mintServiceJwt(
   sa: { client_email: string; private_key: string },
@@ -891,10 +929,12 @@ git commit -m "feat(sheets): RS256 service-account JWT minting (no googleapis de
 ## Task 6: Sheets client — token exchange + read
 
 **Files:**
+
 - Create: `lib/sheets/client.ts`
 - Test: `tests/sheets/client.test.ts`
 
 **Interfaces:**
+
 - Consumes: `mintServiceJwt` (Task 5), `SheetGrid` (Task 3).
 - Produces:
   - `readSheet(spreadsheetId: string, tab?: string | null): Promise<SheetGrid>` — reads `GOOGLE_SERVICE_ACCOUNT_JSON` from env, gets an access token (cached in-module until ~60s before expiry), calls Sheets `values.get`, returns `{ headers, rows }` (first non-empty row is headers; ragged rows padded).
@@ -909,7 +949,8 @@ import { expect, test, vi, beforeEach } from "vitest";
 
 const SA = {
   client_email: "svc@proj.iam.gserviceaccount.com",
-  private_key: "-----BEGIN PRIVATE KEY-----\\nMIIB...\\n-----END PRIVATE KEY-----\\n",
+  private_key:
+    "-----BEGIN PRIVATE KEY-----\\nMIIB...\\n-----END PRIVATE KEY-----\\n",
 };
 
 beforeEach(() => {
@@ -918,14 +959,27 @@ beforeEach(() => {
 });
 
 test("exchanges JWT for token then returns headers+rows", async () => {
-  const fetchMock = vi.fn()
-    .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "tok", expires_in: 3600 }) })
-    .mockResolvedValueOnce({ ok: true, json: async () => ({
-      values: [["Timestamp", "Email", "Q1"], ["t", "a@x.com", "hi"], ["t2", "b@x.com"]],
-    }) });
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: "tok", expires_in: 3600 }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        values: [
+          ["Timestamp", "Email", "Q1"],
+          ["t", "a@x.com", "hi"],
+          ["t2", "b@x.com"],
+        ],
+      }),
+    });
   vi.stubGlobal("fetch", fetchMock);
   // Avoid real signing: stub the jwt module.
-  vi.doMock("@/lib/sheets/jwt", () => ({ mintServiceJwt: () => "fake.jwt.sig" }));
+  vi.doMock("@/lib/sheets/jwt", () => ({
+    mintServiceJwt: () => "fake.jwt.sig",
+  }));
   const { readSheet } = await import("@/lib/sheets/client");
 
   const grid = await readSheet("sheet123", "Form Responses 1");
@@ -936,8 +990,17 @@ test("exchanges JWT for token then returns headers+rows", async () => {
 });
 
 test("throws a clear error on HTTP failure", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: false, status: 403, text: async () => "denied" }));
-  vi.doMock("@/lib/sheets/jwt", () => ({ mintServiceJwt: () => "fake.jwt.sig" }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      text: async () => "denied",
+    }),
+  );
+  vi.doMock("@/lib/sheets/jwt", () => ({
+    mintServiceJwt: () => "fake.jwt.sig",
+  }));
   const { readSheet } = await import("@/lib/sheets/client");
   await expect(readSheet("sheet123")).rejects.toThrow(/token/i);
 });
@@ -965,7 +1028,9 @@ function readSA(): SA {
   if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not set");
   const sa = JSON.parse(raw) as SA;
   if (!sa.client_email || !sa.private_key)
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON missing client_email/private_key");
+    throw new Error(
+      "GOOGLE_SERVICE_ACCOUNT_JSON missing client_email/private_key",
+    );
   return sa;
 }
 
@@ -983,20 +1048,34 @@ async function getAccessToken(): Promise<string> {
       assertion,
     }),
   });
-  if (!res.ok) throw new Error(`Sheets token exchange failed: ${res.status} ${await res.text()}`);
-  const json = (await res.json()) as { access_token: string; expires_in: number };
+  if (!res.ok)
+    throw new Error(
+      `Sheets token exchange failed: ${res.status} ${await res.text()}`,
+    );
+  const json = (await res.json()) as {
+    access_token: string;
+    expires_in: number;
+  };
   cachedToken = { value: json.access_token, expiresAt: now + json.expires_in };
   return json.access_token;
 }
 
-export async function readSheet(spreadsheetId: string, tab?: string | null): Promise<SheetGrid> {
+export async function readSheet(
+  spreadsheetId: string,
+  tab?: string | null,
+): Promise<SheetGrid> {
   const token = await getAccessToken();
   const range = tab ? encodeURIComponent(tab) : "A1:ZZ";
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${range}?majorDimension=ROWS`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Sheets read failed: ${res.status} ${await res.text()}`);
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok)
+    throw new Error(`Sheets read failed: ${res.status} ${await res.text()}`);
   const json = (await res.json()) as { values?: string[][] };
-  const values = (json.values ?? []).filter((r) => r.some((c) => (c ?? "").trim() !== ""));
+  const values = (json.values ?? []).filter((r) =>
+    r.some((c) => (c ?? "").trim() !== ""),
+  );
   if (values.length === 0) return { headers: [], rows: [] };
   const headers = values[0].map((h) => (h ?? "").trim());
   const width = headers.length;
@@ -1026,10 +1105,12 @@ git commit -m "feat(sheets): access-token exchange + values read with caching"
 ## Task 7: Personal-view aggregation (pure)
 
 **Files:**
+
 - Create: `lib/evaluation/aggregate.ts`
 - Test: `tests/evaluation/aggregate.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `type RatingRow = { candidateId: string; questionId: string; score: number }`
   - `type PersonalScore = { candidateId: string; average: number | null; ratedCount: number }`
@@ -1077,8 +1158,16 @@ Expected: FAIL — module not found.
 Create `lib/evaluation/aggregate.ts`:
 
 ```ts
-export type RatingRow = { candidateId: string; questionId: string; score: number };
-export type PersonalScore = { candidateId: string; average: number | null; ratedCount: number };
+export type RatingRow = {
+  candidateId: string;
+  questionId: string;
+  score: number;
+};
+export type PersonalScore = {
+  candidateId: string;
+  average: number | null;
+  ratedCount: number;
+};
 
 export function computePersonalScores(
   rows: RatingRow[],
@@ -1096,7 +1185,8 @@ export function computePersonalScores(
   const out: PersonalScore[] = activeCandidateIds.map((candidateId) => {
     const scores = byCandidate.get(candidateId)!;
     const average = scores.length
-      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) / 100
+      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) /
+        100
       : null;
     return { candidateId, average, ratedCount: scores.length };
   });
@@ -1122,11 +1212,13 @@ git commit -m "feat(evaluation): personal-view mean-of-means aggregation"
 ## Task 8: Zod schemas + admin CRUD/status actions
 
 **Files:**
+
 - Create: `lib/zod/evaluation.ts`
 - Create: `lib/actions/evaluation.ts` (create/connectSheet/setPanel/open/close/reopen in this task)
 - Test: `tests/actions/evaluation.integration.test.ts`
 
 **Interfaces:**
+
 - Consumes: `requireAdmin` (`lib/auth/require.ts`), `atlasServiceClient` (`lib/supabase/service.ts`), `ok/err/ActionResult` (`lib/actions/_result.ts`).
 - Produces (server actions, all `(input: unknown) => Promise<ActionResult<…>>`):
   - `createEvaluationAction` → `{ id: string }`
@@ -1144,13 +1236,19 @@ Create `tests/actions/evaluation.integration.test.ts`:
 import { expect, test, beforeEach } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-const svc = process.env.SUPABASE_TEST_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+const url =
+  process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const svc =
+  process.env.SUPABASE_TEST_SERVICE_KEY ??
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 const canRun = !!url && !!svc;
 const admin = canRun ? createClient(url!, svc!) : null;
 
 async function makeUser(email: string, role: "admin" | "member") {
-  const { data } = await admin!.auth.admin.createUser({ email, email_confirm: true });
+  const { data } = await admin!.auth.admin.createUser({
+    email,
+    email_confirm: true,
+  });
   await admin!.from("profiles").update({ role }).eq("id", data.user!.id);
   return data.user!.id;
 }
@@ -1161,21 +1259,33 @@ beforeEach(async () => {
   for (const u of data.users ?? []) await admin.auth.admin.deleteUser(u.id);
 });
 
-test.runIf(canRun)("evaluation lifecycle: create draft, add panel, open", async () => {
-  const c = admin!;
-  const adminId = await makeUser("admin@atlas.com", "admin");
-  const panelId = await makeUser("panel@atlas.com", "member");
+test.runIf(canRun)(
+  "evaluation lifecycle: create draft, add panel, open",
+  async () => {
+    const c = admin!;
+    const adminId = await makeUser("admin@atlas.com", "admin");
+    const panelId = await makeUser("panel@atlas.com", "member");
 
-  const { data: ev } = await c.from("evaluations")
-    .insert({ name: "Backend – Aug", created_by: adminId }).select("id,status").single();
-  expect(ev!.status).toBe("draft");
+    const { data: ev } = await c
+      .from("evaluations")
+      .insert({ name: "Backend – Aug", created_by: adminId })
+      .select("id,status")
+      .single();
+    expect(ev!.status).toBe("draft");
 
-  await c.from("evaluation_panelists").insert({ evaluation_id: ev!.id, profile_id: panelId });
-  await c.from("evaluations").update({ status: "open" }).eq("id", ev!.id);
+    await c
+      .from("evaluation_panelists")
+      .insert({ evaluation_id: ev!.id, profile_id: panelId });
+    await c.from("evaluations").update({ status: "open" }).eq("id", ev!.id);
 
-  const { data: check } = await c.from("evaluations").select("status").eq("id", ev!.id).single();
-  expect(check!.status).toBe("open");
-});
+    const { data: check } = await c
+      .from("evaluations")
+      .select("status")
+      .eq("id", ev!.id)
+      .single();
+    expect(check!.status).toBe("open");
+  },
+);
 ```
 
 - [ ] **Step 2: Run, verify failure or skip**
@@ -1190,7 +1300,9 @@ Create `lib/zod/evaluation.ts`:
 ```ts
 import { z } from "zod";
 
-export const createEvaluationInput = z.object({ name: z.string().min(1).max(200) });
+export const createEvaluationInput = z.object({
+  name: z.string().min(1).max(200),
+});
 
 export const connectSheetInput = z.object({
   evaluationId: z.string().uuid(),
@@ -1232,35 +1344,51 @@ import { requireAdmin } from "@/lib/auth/require";
 import { atlasServiceClient } from "@/lib/supabase/service";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
-  createEvaluationInput, connectSheetInput, setPanelInput, evaluationIdInput,
+  createEvaluationInput,
+  connectSheetInput,
+  setPanelInput,
+  evaluationIdInput,
 } from "@/lib/zod/evaluation";
 
-export async function createEvaluationAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+export async function createEvaluationAction(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
   const parsed = createEvaluationInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { user } = await requireAdmin();
   const svc = atlasServiceClient();
-  const { data, error } = await svc.from("evaluations")
-    .insert({ name: parsed.data.name, created_by: user.id }).select("id").single();
+  const { data, error } = await svc
+    .from("evaluations")
+    .insert({ name: parsed.data.name, created_by: user.id })
+    .select("id")
+    .single();
   if (error) return err("db_error", error.message);
   revalidatePath("/hiring");
   return ok({ id: data.id });
 }
 
-export async function connectSheetAction(input: unknown): Promise<ActionResult<null>> {
+export async function connectSheetAction(
+  input: unknown,
+): Promise<ActionResult<null>> {
   const parsed = connectSheetInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireAdmin();
   const svc = atlasServiceClient();
-  const { error } = await svc.from("evaluations")
-    .update({ sheet_id: parsed.data.sheetId, sheet_tab: parsed.data.sheetTab ?? null })
+  const { error } = await svc
+    .from("evaluations")
+    .update({
+      sheet_id: parsed.data.sheetId,
+      sheet_tab: parsed.data.sheetTab ?? null,
+    })
     .eq("id", parsed.data.evaluationId);
   if (error) return err("db_error", error.message);
   revalidatePath(`/hiring/${parsed.data.evaluationId}`);
   return ok(null);
 }
 
-export async function setPanelAction(input: unknown): Promise<ActionResult<null>> {
+export async function setPanelAction(
+  input: unknown,
+): Promise<ActionResult<null>> {
   const parsed = setPanelInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireAdmin();
@@ -1269,29 +1397,41 @@ export async function setPanelAction(input: unknown): Promise<ActionResult<null>
   // Atomic + deduping: a plpgsql function body is one transaction, so a bad
   // profile_id can never leave the evaluation with zero panelists.
   const { error } = await svc.rpc("set_evaluation_panel", {
-    p_evaluation_id: evaluationId, p_profile_ids: profileIds,
+    p_evaluation_id: evaluationId,
+    p_profile_ids: profileIds,
   });
   if (error) return err("db_error", error.message);
   revalidatePath(`/hiring/${evaluationId}`);
   return ok(null);
 }
 
-async function setStatus(input: unknown, status: "open" | "closed"): Promise<ActionResult<null>> {
+async function setStatus(
+  input: unknown,
+  status: "open" | "closed",
+): Promise<ActionResult<null>> {
   const parsed = evaluationIdInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireAdmin();
   const svc = atlasServiceClient();
-  const { error } = await svc.from("evaluations")
-    .update({ status }).eq("id", parsed.data.evaluationId);
+  const { error } = await svc
+    .from("evaluations")
+    .update({ status })
+    .eq("id", parsed.data.evaluationId);
   if (error) return err("db_error", error.message);
   revalidatePath(`/hiring/${parsed.data.evaluationId}`);
   revalidatePath("/hiring");
   return ok(null);
 }
 
-export async function openEvaluationAction(input: unknown) { return setStatus(input, "open"); }
-export async function closeEvaluationAction(input: unknown) { return setStatus(input, "closed"); }
-export async function reopenEvaluationAction(input: unknown) { return setStatus(input, "open"); }
+export async function openEvaluationAction(input: unknown) {
+  return setStatus(input, "open");
+}
+export async function closeEvaluationAction(input: unknown) {
+  return setStatus(input, "closed");
+}
+export async function reopenEvaluationAction(input: unknown) {
+  return setStatus(input, "open");
+}
 ```
 
 - [ ] **Step 5: Run test + typecheck, verify pass**
@@ -1311,11 +1451,13 @@ git commit -m "feat(evaluation): zod schemas + admin CRUD/status server actions"
 ## Task 9: Import — preview mapping, confirm, refresh
 
 **Files:**
+
 - Modify: `lib/actions/evaluation.ts` (add `previewMappingAction`, `confirmMappingAction`, `refreshEvaluationAction`)
 - Create: `lib/evaluation/sync.ts` (pure-ish sync core, testable with an injected grid)
 - Test: `tests/evaluation/sync.test.ts`
 
 **Interfaces:**
+
 - Consumes: `readSheet` (Task 6), `detectMapping`/`normalizeRows` (Tasks 3–4), `atlasServiceClient`.
 - Produces:
   - `syncEvaluation(svc, evaluationId, grid, mapping): Promise<ImportSummary & { candidatesDeactivated: number; questionsDeactivated: number }>` in `lib/evaluation/sync.ts` — idempotent upserts; soft-deactivates rows/questions absent from `grid`; preserves ratings.
@@ -1332,8 +1474,11 @@ import { expect, test, beforeEach } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { syncEvaluation } from "@/lib/evaluation/sync";
 
-const url = process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-const svc = process.env.SUPABASE_TEST_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+const url =
+  process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const svc =
+  process.env.SUPABASE_TEST_SERVICE_KEY ??
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 const canRun = !!url && !!svc;
 const admin = canRun ? createClient(url!, svc!) : null;
 
@@ -1341,32 +1486,77 @@ beforeEach(async () => {
   if (!admin) return;
   const { data } = await admin.auth.admin.listUsers();
   for (const u of data.users ?? []) await admin.auth.admin.deleteUser(u.id);
-  await admin.from("evaluations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin
+    .from("evaluations")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
 });
 
-test.runIf(canRun)("first sync creates questions/candidates/answers; refresh deactivates removed", async () => {
-  const c = admin!;
-  const { data: u } = await c.auth.admin.createUser({ email: "admin@atlas.com", email_confirm: true });
-  const { data: ev } = await c.from("evaluations")
-    .insert({ name: "T", created_by: u!.user!.id }).select("id").single();
-  const id = ev!.id;
-  const mapping = { emailColumn: "Email", nameColumn: "Name", timestampColumn: null, questionColumns: ["Q1", "Q2"] };
+test.runIf(canRun)(
+  "first sync creates questions/candidates/answers; refresh deactivates removed",
+  async () => {
+    const c = admin!;
+    const { data: u } = await c.auth.admin.createUser({
+      email: "admin@atlas.com",
+      email_confirm: true,
+    });
+    const { data: ev } = await c
+      .from("evaluations")
+      .insert({ name: "T", created_by: u!.user!.id })
+      .select("id")
+      .single();
+    const id = ev!.id;
+    const mapping = {
+      emailColumn: "Email",
+      nameColumn: "Name",
+      timestampColumn: null,
+      questionColumns: ["Q1", "Q2"],
+    };
 
-  const g1 = { headers: ["Email","Name","Q1","Q2"], rows: [["a@x.com","Ann","a1","a2"],["b@x.com","Bob","b1","b2"]] };
-  const s1 = await syncEvaluation(c, id, g1, mapping);
-  expect(s1.candidatesSeen).toBe(2);
-  expect((await c.from("evaluation_candidates").select("id").eq("evaluation_id", id).eq("is_active", true)).data).toHaveLength(2);
+    const g1 = {
+      headers: ["Email", "Name", "Q1", "Q2"],
+      rows: [
+        ["a@x.com", "Ann", "a1", "a2"],
+        ["b@x.com", "Bob", "b1", "b2"],
+      ],
+    };
+    const s1 = await syncEvaluation(c, id, g1, mapping);
+    expect(s1.candidatesSeen).toBe(2);
+    expect(
+      (
+        await c
+          .from("evaluation_candidates")
+          .select("id")
+          .eq("evaluation_id", id)
+          .eq("is_active", true)
+      ).data,
+    ).toHaveLength(2);
 
-  // Refresh with b@x.com removed => b deactivated, a still active, ratings preserved.
-  const g2 = { headers: ["Email","Name","Q1","Q2"], rows: [["a@x.com","Ann","a1-upd","a2"]] };
-  const s2 = await syncEvaluation(c, id, g2, mapping);
-  expect(s2.candidatesDeactivated).toBe(1);
-  const active = (await c.from("evaluation_candidates").select("email").eq("evaluation_id", id).eq("is_active", true)).data;
-  expect(active).toEqual([{ email: "a@x.com" }]);
-  const ans = (await c.from("evaluation_answers").select("answer_text")
-    .eq("evaluation_id", id).order("answer_text")).data;
-  expect(ans!.some((a) => a.answer_text === "a1-upd")).toBe(true); // upsert updated
-});
+    // Refresh with b@x.com removed => b deactivated, a still active, ratings preserved.
+    const g2 = {
+      headers: ["Email", "Name", "Q1", "Q2"],
+      rows: [["a@x.com", "Ann", "a1-upd", "a2"]],
+    };
+    const s2 = await syncEvaluation(c, id, g2, mapping);
+    expect(s2.candidatesDeactivated).toBe(1);
+    const active = (
+      await c
+        .from("evaluation_candidates")
+        .select("email")
+        .eq("evaluation_id", id)
+        .eq("is_active", true)
+    ).data;
+    expect(active).toEqual([{ email: "a@x.com" }]);
+    const ans = (
+      await c
+        .from("evaluation_answers")
+        .select("answer_text")
+        .eq("evaluation_id", id)
+        .order("answer_text")
+    ).data;
+    expect(ans!.some((a) => a.answer_text === "a1-upd")).toBe(true); // upsert updated
+  },
+);
 ```
 
 - [ ] **Step 2: Run, verify failure**
@@ -1384,69 +1574,130 @@ import { normalizeRows } from "@/lib/sheets/parse";
 import type { SheetGrid, ImportSummary } from "@/lib/sheets/types";
 
 type Mapping = {
-  emailColumn: string; nameColumn: string | null;
-  timestampColumn: string | null; questionColumns: string[];
+  emailColumn: string;
+  nameColumn: string | null;
+  timestampColumn: string | null;
+  questionColumns: string[];
 };
 
 export async function syncEvaluation(
-  svc: SupabaseClient, evaluationId: string, grid: SheetGrid, mapping: Mapping,
-): Promise<ImportSummary & { candidatesDeactivated: number; questionsDeactivated: number }> {
+  svc: SupabaseClient,
+  evaluationId: string,
+  grid: SheetGrid,
+  mapping: Mapping,
+): Promise<
+  ImportSummary & {
+    candidatesDeactivated: number;
+    questionsDeactivated: number;
+  }
+> {
   const { candidates, summary } = normalizeRows(grid, mapping);
 
   // 1. Questions: upsert active set, then deactivate any not in the mapping
   //    (fetch-then-deactivate-by-id — same shape as candidates below; no
   //    string-interpolated `.in()` filters).
   const qRows = mapping.questionColumns.map((column_key, position) => ({
-    evaluation_id: evaluationId, column_key, prompt: column_key, position, is_active: true,
+    evaluation_id: evaluationId,
+    column_key,
+    prompt: column_key,
+    position,
+    is_active: true,
   }));
   if (qRows.length)
-    await svc.from("evaluation_questions").upsert(qRows, { onConflict: "evaluation_id,column_key" });
-  const { data: allQs } = await svc.from("evaluation_questions")
-    .select("id,column_key,is_active").eq("evaluation_id", evaluationId);
+    await svc
+      .from("evaluation_questions")
+      .upsert(qRows, { onConflict: "evaluation_id,column_key" });
+  const { data: allQs } = await svc
+    .from("evaluation_questions")
+    .select("id,column_key,is_active")
+    .eq("evaluation_id", evaluationId);
   const keepKeys = new Set(mapping.questionColumns);
-  const qToDeactivate = (allQs ?? []).filter((q) => !keepKeys.has(q.column_key) && q.is_active);
+  const qToDeactivate = (allQs ?? []).filter(
+    (q) => !keepKeys.has(q.column_key) && q.is_active,
+  );
   if (qToDeactivate.length)
-    await svc.from("evaluation_questions").update({ is_active: false })
-      .in("id", qToDeactivate.map((q) => q.id));
+    await svc
+      .from("evaluation_questions")
+      .update({ is_active: false })
+      .in(
+        "id",
+        qToDeactivate.map((q) => q.id),
+      );
   const qByKey = new Map((allQs ?? []).map((q) => [q.column_key, q.id]));
   const questionsDeactivated = qToDeactivate.length;
 
   // 2. Candidates: upsert active set, deactivate absent.
   const emails = candidates.map((c) => c.email);
   const candRows = candidates.map((c) => ({
-    evaluation_id: evaluationId, email: c.email, display_name: c.displayName,
-    submitted_at: c.submittedAt, is_active: true,
+    evaluation_id: evaluationId,
+    email: c.email,
+    display_name: c.displayName,
+    submitted_at: c.submittedAt,
+    is_active: true,
   }));
   if (candRows.length)
-    await svc.from("evaluation_candidates").upsert(candRows, { onConflict: "evaluation_id,email" });
-  const { data: beforeActive } = await svc.from("evaluation_candidates")
-    .select("id,email").eq("evaluation_id", evaluationId).eq("is_active", true);
-  const toDeactivate = (beforeActive ?? []).filter((c) => !emails.includes(c.email));
+    await svc
+      .from("evaluation_candidates")
+      .upsert(candRows, { onConflict: "evaluation_id,email" });
+  const { data: beforeActive } = await svc
+    .from("evaluation_candidates")
+    .select("id,email")
+    .eq("evaluation_id", evaluationId)
+    .eq("is_active", true);
+  const toDeactivate = (beforeActive ?? []).filter(
+    (c) => !emails.includes(c.email),
+  );
   if (toDeactivate.length)
-    await svc.from("evaluation_candidates").update({ is_active: false })
-      .in("id", toDeactivate.map((c) => c.id));
+    await svc
+      .from("evaluation_candidates")
+      .update({ is_active: false })
+      .in(
+        "id",
+        toDeactivate.map((c) => c.id),
+      );
 
-  const { data: cands } = await svc.from("evaluation_candidates")
-    .select("id,email").eq("evaluation_id", evaluationId);
+  const { data: cands } = await svc
+    .from("evaluation_candidates")
+    .select("id,email")
+    .eq("evaluation_id", evaluationId);
   const cByEmail = new Map((cands ?? []).map((c) => [c.email, c.id]));
 
   // 3. Answers: upsert (candidate,question).
-  const answerRows: { evaluation_id: string; candidate_id: string; question_id: string; answer_text: string }[] = [];
+  const answerRows: {
+    evaluation_id: string;
+    candidate_id: string;
+    question_id: string;
+    answer_text: string;
+  }[] = [];
   for (const c of candidates) {
     const candidateId = cByEmail.get(c.email);
     if (!candidateId) continue;
     for (const a of c.answers) {
       const questionId = qByKey.get(a.columnKey);
       if (!questionId) continue;
-      answerRows.push({ evaluation_id: evaluationId, candidate_id: candidateId, question_id: questionId, answer_text: a.text });
+      answerRows.push({
+        evaluation_id: evaluationId,
+        candidate_id: candidateId,
+        question_id: questionId,
+        answer_text: a.text,
+      });
     }
   }
   if (answerRows.length)
-    await svc.from("evaluation_answers").upsert(answerRows, { onConflict: "candidate_id,question_id" });
+    await svc
+      .from("evaluation_answers")
+      .upsert(answerRows, { onConflict: "candidate_id,question_id" });
 
-  await svc.from("evaluations").update({ last_synced_at: new Date().toISOString() }).eq("id", evaluationId);
+  await svc
+    .from("evaluations")
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq("id", evaluationId);
 
-  return { ...summary, candidatesDeactivated: toDeactivate.length, questionsDeactivated: Math.max(0, questionsDeactivated) };
+  return {
+    ...summary,
+    candidatesDeactivated: toDeactivate.length,
+    questionsDeactivated: Math.max(0, questionsDeactivated),
+  };
 }
 ```
 
@@ -1467,8 +1718,11 @@ export async function previewMappingAction(input: unknown) {
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireAdmin();
   const svc = atlasServiceClient();
-  const { data: ev } = await svc.from("evaluations")
-    .select("sheet_id,sheet_tab").eq("id", parsed.data.evaluationId).single();
+  const { data: ev } = await svc
+    .from("evaluations")
+    .select("sheet_id,sheet_tab")
+    .eq("id", parsed.data.evaluationId)
+    .single();
   if (!ev?.sheet_id) return err("no_sheet", "connect a sheet first");
   try {
     const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
@@ -1483,20 +1737,38 @@ export async function confirmMappingAction(input: unknown) {
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireAdmin();
   const svc = atlasServiceClient();
-  const { evaluationId, emailColumn, nameColumn, timestampColumn, questionColumns } = parsed.data;
-  const { data: ev } = await svc.from("evaluations")
-    .select("sheet_id,sheet_tab").eq("id", evaluationId).single();
+  const {
+    evaluationId,
+    emailColumn,
+    nameColumn,
+    timestampColumn,
+    questionColumns,
+  } = parsed.data;
+  const { data: ev } = await svc
+    .from("evaluations")
+    .select("sheet_id,sheet_tab")
+    .eq("id", evaluationId)
+    .single();
   if (!ev?.sheet_id) return err("no_sheet", "connect a sheet first");
   try {
     // Sync FIRST; only persist mapping_confirmed after a successful import, so a
     // failed first fetch leaves the evaluation un-confirmed and retryable.
     const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
-    const summary = await syncEvaluation(svc, evaluationId, grid,
-      { emailColumn, nameColumn, timestampColumn, questionColumns });
-    await svc.from("evaluations").update({
-      email_column: emailColumn, name_column: nameColumn,
-      timestamp_column: timestampColumn, mapping_confirmed: true,
-    }).eq("id", evaluationId);
+    const summary = await syncEvaluation(svc, evaluationId, grid, {
+      emailColumn,
+      nameColumn,
+      timestampColumn,
+      questionColumns,
+    });
+    await svc
+      .from("evaluations")
+      .update({
+        email_column: emailColumn,
+        name_column: nameColumn,
+        timestamp_column: timestampColumn,
+        mapping_confirmed: true,
+      })
+      .eq("id", evaluationId);
     revalidatePath(`/hiring/${evaluationId}`);
     return ok(summary);
   } catch (e) {
@@ -1509,19 +1781,29 @@ export async function refreshEvaluationAction(input: unknown) {
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   await requireAdmin();
   const svc = atlasServiceClient();
-  const { data: ev } = await svc.from("evaluations")
-    .select("sheet_id,sheet_tab,email_column,name_column,timestamp_column,mapping_confirmed")
-    .eq("id", parsed.data.evaluationId).single();
+  const { data: ev } = await svc
+    .from("evaluations")
+    .select(
+      "sheet_id,sheet_tab,email_column,name_column,timestamp_column,mapping_confirmed",
+    )
+    .eq("id", parsed.data.evaluationId)
+    .single();
   if (!ev?.sheet_id || !ev.mapping_confirmed || !ev.email_column)
     return err("not_ready", "connect a sheet and confirm mapping first");
   try {
     const grid = await readSheet(ev.sheet_id, ev.sheet_tab);
     // Question columns = all headers minus identity columns (stable).
-    const identity = new Set([ev.email_column, ev.name_column, ev.timestamp_column].filter(Boolean) as string[]);
+    const identity = new Set(
+      [ev.email_column, ev.name_column, ev.timestamp_column].filter(
+        Boolean,
+      ) as string[],
+    );
     const questionColumns = grid.headers.filter((h) => !identity.has(h));
     const summary = await syncEvaluation(svc, parsed.data.evaluationId, grid, {
-      emailColumn: ev.email_column, nameColumn: ev.name_column,
-      timestampColumn: ev.timestamp_column, questionColumns,
+      emailColumn: ev.email_column,
+      nameColumn: ev.name_column,
+      timestampColumn: ev.timestamp_column,
+      questionColumns,
     });
     revalidatePath(`/hiring/${parsed.data.evaluationId}`);
     return ok(summary);
@@ -1548,11 +1830,13 @@ git commit -m "feat(evaluation): sheet import — preview, confirm mapping, idem
 ## Task 10: Rate answer + page data queries
 
 **Files:**
+
 - Modify: `lib/actions/evaluation.ts` (add `rateAnswerAction`)
 - Create: `lib/evaluation/queries.ts`
 - Test: `tests/actions/evaluation.rating.integration.test.ts`
 
 **Interfaces:**
+
 - Consumes: `rateAnswerInput` (Task 8), `computePersonalScores` (Task 7), RPCs (Task 2).
 - Produces:
   - `rateAnswerAction(input)` → `null` — upserts the caller's own rating via the **user** (RLS) client; RLS enforces panelist + open.
@@ -1568,14 +1852,21 @@ Create `tests/actions/evaluation.rating.integration.test.ts`:
 import { expect, test, beforeEach } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-const svc = process.env.SUPABASE_TEST_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+const url =
+  process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const svc =
+  process.env.SUPABASE_TEST_SERVICE_KEY ??
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const canRun = !!url && !!svc && !!anon;
 const admin = canRun ? createClient(url!, svc!) : null;
 
 async function userClient(email: string, role: "admin" | "member" = "member") {
-  const { data } = await admin!.auth.admin.createUser({ email, password: "passw0rd!", email_confirm: true });
+  const { data } = await admin!.auth.admin.createUser({
+    email,
+    password: "passw0rd!",
+    email_confirm: true,
+  });
   await admin!.from("profiles").update({ role }).eq("id", data.user!.id); // pin role (first user would else be admin)
   const c = createClient(url!, anon!);
   await c.auth.signInWithPassword({ email, password: "passw0rd!" });
@@ -1588,71 +1879,153 @@ beforeEach(async () => {
   for (const u of data.users ?? []) await admin.auth.admin.deleteUser(u.id);
 });
 
-test.runIf(canRun)("panelist rates; other panelist cannot read it; closed reveals aggregate", async () => {
-  const c = admin!;
-  const A = await userClient("a@atlas.com");
-  const B = await userClient("b@atlas.com");
-  const aId = (await A.auth.getUser()).data.user!.id;
-  const bId = (await B.auth.getUser()).data.user!.id;
+test.runIf(canRun)(
+  "panelist rates; other panelist cannot read it; closed reveals aggregate",
+  async () => {
+    const c = admin!;
+    const A = await userClient("a@atlas.com");
+    const B = await userClient("b@atlas.com");
+    const aId = (await A.auth.getUser()).data.user!.id;
+    const bId = (await B.auth.getUser()).data.user!.id;
 
-  const { data: ev } = await c.from("evaluations").insert({ name: "T", status: "open", created_by: aId }).select("id").single();
-  const { data: q } = await c.from("evaluation_questions").insert({ evaluation_id: ev!.id, column_key: "Q1", prompt: "Q1", position: 0 }).select("id").single();
-  const { data: cand } = await c.from("evaluation_candidates").insert({ evaluation_id: ev!.id, email: "cand@x.com", display_name: "Cand" }).select("id").single();
-  await c.from("evaluation_panelists").insert([
-    { evaluation_id: ev!.id, profile_id: aId }, { evaluation_id: ev!.id, profile_id: bId },
-  ]);
+    const { data: ev } = await c
+      .from("evaluations")
+      .insert({ name: "T", status: "open", created_by: aId })
+      .select("id")
+      .single();
+    const { data: q } = await c
+      .from("evaluation_questions")
+      .insert({
+        evaluation_id: ev!.id,
+        column_key: "Q1",
+        prompt: "Q1",
+        position: 0,
+      })
+      .select("id")
+      .single();
+    const { data: cand } = await c
+      .from("evaluation_candidates")
+      .insert({
+        evaluation_id: ev!.id,
+        email: "cand@x.com",
+        display_name: "Cand",
+      })
+      .select("id")
+      .single();
+    await c.from("evaluation_panelists").insert([
+      { evaluation_id: ev!.id, profile_id: aId },
+      { evaluation_id: ev!.id, profile_id: bId },
+    ]);
 
-  // A rates 4 (own client, RLS).
-  const insA = await A.from("evaluation_ratings").insert({ evaluation_id: ev!.id, candidate_id: cand!.id, question_id: q!.id, rater_id: aId, score: 4 });
-  expect(insA.error).toBeNull();
-
-  // B cannot see A's rating.
-  const bSees = await B.from("evaluation_ratings").select("*").eq("evaluation_id", ev!.id);
-  expect(bSees.data).toEqual([]);
-
-  // Below-floor results are suppressed even after close.
-  await c.from("evaluations").update({ status: "closed" }).eq("id", ev!.id);
-  const { data: res } = await A.rpc("evaluation_results", { p_evaluation_id: ev!.id });
-  expect(res.suppressed).toBe(true);
-  expect(res.rater_bucket).toBe("<3");
-});
-
-test.runIf(canRun)("closed with >=3 raters reveals; single-rater cell suppressed to null", async () => {
-  const c = admin!;
-  const A = await userClient("a@atlas.com");
-  const B = await userClient("b@atlas.com");
-  const D = await userClient("d@atlas.com");
-  const ids = await Promise.all([A, B, D].map(async (x) => (await x.auth.getUser()).data.user!.id));
-  const [aId] = ids;
-
-  const { data: ev } = await c.from("evaluations").insert({ name: "T", status: "open", created_by: aId }).select("id").single();
-  const { data: q1 } = await c.from("evaluation_questions").insert({ evaluation_id: ev!.id, column_key: "Q1", prompt: "Q1", position: 0 }).select("id").single();
-  const { data: q2 } = await c.from("evaluation_questions").insert({ evaluation_id: ev!.id, column_key: "Q2", prompt: "Q2", position: 1 }).select("id").single();
-  const { data: cand } = await c.from("evaluation_candidates").insert({ evaluation_id: ev!.id, email: "cand@x.com", display_name: "Cand" }).select("id").single();
-  await c.from("evaluation_panelists").insert(ids.map((id) => ({ evaluation_id: ev!.id, profile_id: id })));
-
-  // All 3 rate Q1 (cell qualifies); only A rates Q2 (cell must be suppressed).
-  const clients = [A, B, D];
-  for (let i = 0; i < 3; i++) {
-    await clients[i].from("evaluation_ratings").insert({
-      evaluation_id: ev!.id, candidate_id: cand!.id, question_id: q1!.id, rater_id: ids[i], score: i + 3, // 3,4,5 => avg 4
+    // A rates 4 (own client, RLS).
+    const insA = await A.from("evaluation_ratings").insert({
+      evaluation_id: ev!.id,
+      candidate_id: cand!.id,
+      question_id: q!.id,
+      rater_id: aId,
+      score: 4,
     });
-  }
-  await A.from("evaluation_ratings").insert({
-    evaluation_id: ev!.id, candidate_id: cand!.id, question_id: q2!.id, rater_id: aId, score: 1,
-  });
+    expect(insA.error).toBeNull();
 
-  await c.from("evaluations").update({ status: "closed" }).eq("id", ev!.id);
-  const { data: res } = await A.rpc("evaluation_results", { p_evaluation_id: ev!.id });
-  expect(res.suppressed).toBe(false);
-  expect(res.rater_count).toBe(3);
-  const candOut = res.candidates[0];
-  const q1cell = candOut.cells.find((x: any) => x.question_id === q1!.id);
-  const q2cell = candOut.cells.find((x: any) => x.question_id === q2!.id);
-  expect(Number(q1cell.avg)).toBe(4);      // 3 raters => revealed
-  expect(q2cell.avg).toBeNull();           // single-rater cell => suppressed
-  expect(Number(candOut.overall)).toBe(4); // mean-of-means over qualifying cells only
-});
+    // B cannot see A's rating.
+    const bSees = await B.from("evaluation_ratings")
+      .select("*")
+      .eq("evaluation_id", ev!.id);
+    expect(bSees.data).toEqual([]);
+
+    // Below-floor results are suppressed even after close.
+    await c.from("evaluations").update({ status: "closed" }).eq("id", ev!.id);
+    const { data: res } = await A.rpc("evaluation_results", {
+      p_evaluation_id: ev!.id,
+    });
+    expect(res.suppressed).toBe(true);
+    expect(res.rater_bucket).toBe("<3");
+  },
+);
+
+test.runIf(canRun)(
+  "closed with >=3 raters reveals; single-rater cell suppressed to null",
+  async () => {
+    const c = admin!;
+    const A = await userClient("a@atlas.com");
+    const B = await userClient("b@atlas.com");
+    const D = await userClient("d@atlas.com");
+    const ids = await Promise.all(
+      [A, B, D].map(async (x) => (await x.auth.getUser()).data.user!.id),
+    );
+    const [aId] = ids;
+
+    const { data: ev } = await c
+      .from("evaluations")
+      .insert({ name: "T", status: "open", created_by: aId })
+      .select("id")
+      .single();
+    const { data: q1 } = await c
+      .from("evaluation_questions")
+      .insert({
+        evaluation_id: ev!.id,
+        column_key: "Q1",
+        prompt: "Q1",
+        position: 0,
+      })
+      .select("id")
+      .single();
+    const { data: q2 } = await c
+      .from("evaluation_questions")
+      .insert({
+        evaluation_id: ev!.id,
+        column_key: "Q2",
+        prompt: "Q2",
+        position: 1,
+      })
+      .select("id")
+      .single();
+    const { data: cand } = await c
+      .from("evaluation_candidates")
+      .insert({
+        evaluation_id: ev!.id,
+        email: "cand@x.com",
+        display_name: "Cand",
+      })
+      .select("id")
+      .single();
+    await c
+      .from("evaluation_panelists")
+      .insert(ids.map((id) => ({ evaluation_id: ev!.id, profile_id: id })));
+
+    // All 3 rate Q1 (cell qualifies); only A rates Q2 (cell must be suppressed).
+    const clients = [A, B, D];
+    for (let i = 0; i < 3; i++) {
+      await clients[i].from("evaluation_ratings").insert({
+        evaluation_id: ev!.id,
+        candidate_id: cand!.id,
+        question_id: q1!.id,
+        rater_id: ids[i],
+        score: i + 3, // 3,4,5 => avg 4
+      });
+    }
+    await A.from("evaluation_ratings").insert({
+      evaluation_id: ev!.id,
+      candidate_id: cand!.id,
+      question_id: q2!.id,
+      rater_id: aId,
+      score: 1,
+    });
+
+    await c.from("evaluations").update({ status: "closed" }).eq("id", ev!.id);
+    const { data: res } = await A.rpc("evaluation_results", {
+      p_evaluation_id: ev!.id,
+    });
+    expect(res.suppressed).toBe(false);
+    expect(res.rater_count).toBe(3);
+    const candOut = res.candidates[0];
+    const q1cell = candOut.cells.find((x: any) => x.question_id === q1!.id);
+    const q2cell = candOut.cells.find((x: any) => x.question_id === q2!.id);
+    expect(Number(q1cell.avg)).toBe(4); // 3 raters => revealed
+    expect(q2cell.avg).toBeNull(); // single-rater cell => suppressed
+    expect(Number(candOut.overall)).toBe(4); // mean-of-means over qualifying cells only
+  },
+);
 ```
 
 - [ ] **Step 2: Run, verify failure/behavior**
@@ -1670,13 +2043,21 @@ import { rateAnswerInput } from "@/lib/zod/evaluation";
 ```
 
 ```ts
-export async function rateAnswerAction(input: unknown): Promise<ActionResult<null>> {
+export async function rateAnswerAction(
+  input: unknown,
+): Promise<ActionResult<null>> {
   const parsed = rateAnswerInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
   const { user, supabase } = await requireUser(); // user (RLS) client, not service
   const { evaluationId, candidateId, questionId, score } = parsed.data;
   const { error } = await supabase.from("evaluation_ratings").upsert(
-    { evaluation_id: evaluationId, candidate_id: candidateId, question_id: questionId, rater_id: user.id, score },
+    {
+      evaluation_id: evaluationId,
+      candidate_id: candidateId,
+      question_id: questionId,
+      rater_id: user.id,
+      score,
+    },
     { onConflict: "evaluation_id,rater_id,candidate_id,question_id" },
   );
   if (error) return err("forbidden_or_closed", error.message); // RLS rejects non-panelist/closed
@@ -1695,43 +2076,87 @@ import { computePersonalScores } from "@/lib/evaluation/aggregate";
 
 export async function listEvaluations() {
   const { supabase } = await requireUser();
-  const { data } = await supabase.from("evaluations")
-    .select("id,name,status,last_synced_at").order("created_at", { ascending: false });
+  const { data } = await supabase
+    .from("evaluations")
+    .select("id,name,status,last_synced_at")
+    .order("created_at", { ascending: false });
   return data ?? [];
 }
 
 export async function getEvaluationForViewer(id: string) {
   const { user, supabase } = await requireUser();
-  const { data: ev } = await supabase.from("evaluations")
-    .select("id,name,status,sheet_id,mapping_confirmed,last_synced_at").eq("id", id).single();
+  const { data: ev } = await supabase
+    .from("evaluations")
+    .select("id,name,status,sheet_id,mapping_confirmed,last_synced_at")
+    .eq("id", id)
+    .single();
   if (!ev) return null;
 
-  const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
   const isAdmin = prof?.role === "admin";
-  const { data: panelRow } = await supabase.from("evaluation_panelists")
-    .select("profile_id").eq("evaluation_id", id).eq("profile_id", user.id).maybeSingle();
+  const { data: panelRow } = await supabase
+    .from("evaluation_panelists")
+    .select("profile_id")
+    .eq("evaluation_id", id)
+    .eq("profile_id", user.id)
+    .maybeSingle();
   const isPanelist = !!panelRow;
 
   // Panelists/admins can read raw rows (RLS permits).
   let questions: { id: string; prompt: string; position: number }[] = [];
   let candidates: { id: string; display_name: string }[] = [];
-  let answers: { candidate_id: string; question_id: string; answer_text: string | null }[] = [];
+  let answers: {
+    candidate_id: string;
+    question_id: string;
+    answer_text: string | null;
+  }[] = [];
   let personal: ReturnType<typeof computePersonalScores> = [];
   if (isPanelist || isAdmin) {
-    questions = (await supabase.from("evaluation_questions")
-      .select("id,prompt,position").eq("evaluation_id", id).eq("is_active", true)
-      .order("position")).data ?? [];
-    candidates = (await supabase.from("evaluation_candidates")
-      .select("id,display_name").eq("evaluation_id", id).eq("is_active", true)
-      .order("display_name")).data ?? [];
-    answers = (await supabase.from("evaluation_answers")
-      .select("candidate_id,question_id,answer_text").eq("evaluation_id", id)).data ?? [];
+    questions =
+      (
+        await supabase
+          .from("evaluation_questions")
+          .select("id,prompt,position")
+          .eq("evaluation_id", id)
+          .eq("is_active", true)
+          .order("position")
+      ).data ?? [];
+    candidates =
+      (
+        await supabase
+          .from("evaluation_candidates")
+          .select("id,display_name")
+          .eq("evaluation_id", id)
+          .eq("is_active", true)
+          .order("display_name")
+      ).data ?? [];
+    answers =
+      (
+        await supabase
+          .from("evaluation_answers")
+          .select("candidate_id,question_id,answer_text")
+          .eq("evaluation_id", id)
+      ).data ?? [];
     if (isPanelist && ev.status === "open") {
-      const my = (await supabase.from("evaluation_ratings")
-        .select("candidate_id,question_id,score").eq("evaluation_id", id)).data ?? [];
+      const my =
+        (
+          await supabase
+            .from("evaluation_ratings")
+            .select("candidate_id,question_id,score")
+            .eq("evaluation_id", id)
+        ).data ?? [];
       personal = computePersonalScores(
-        my.map((r) => ({ candidateId: r.candidate_id, questionId: r.question_id, score: r.score })),
-        candidates.map((c) => c.id), questions.map((q) => q.id),
+        my.map((r) => ({
+          candidateId: r.candidate_id,
+          questionId: r.question_id,
+          score: r.score,
+        })),
+        candidates.map((c) => c.id),
+        questions.map((q) => q.id),
       );
     }
   }
@@ -1739,20 +2164,45 @@ export async function getEvaluationForViewer(id: string) {
   // Closed aggregate (everyone) via RPC.
   let results: unknown = null;
   if (ev.status === "closed") {
-    results = (await supabase.rpc("evaluation_results", { p_evaluation_id: id })).data;
+    results = (
+      await supabase.rpc("evaluation_results", { p_evaluation_id: id })
+    ).data;
   }
 
   // Admin-only: roster for the panel selector + current panel membership.
   let roster: { id: string; display_name: string }[] = [];
   let panel: string[] = [];
   if (isAdmin) {
-    roster = (await supabase.from("profiles")
-      .select("id,display_name").eq("is_active", true).order("display_name")).data ?? [];
-    panel = ((await supabase.from("evaluation_panelists")
-      .select("profile_id").eq("evaluation_id", id)).data ?? []).map((p) => p.profile_id);
+    roster =
+      (
+        await supabase
+          .from("profiles")
+          .select("id,display_name")
+          .eq("is_active", true)
+          .order("display_name")
+      ).data ?? [];
+    panel = (
+      (
+        await supabase
+          .from("evaluation_panelists")
+          .select("profile_id")
+          .eq("evaluation_id", id)
+      ).data ?? []
+    ).map((p) => p.profile_id);
   }
 
-  return { ev, isAdmin, isPanelist, questions, candidates, answers, personal, results, roster, panel };
+  return {
+    ev,
+    isAdmin,
+    isPanelist,
+    questions,
+    candidates,
+    answers,
+    personal,
+    results,
+    roster,
+    panel,
+  };
 }
 ```
 
@@ -1773,11 +2223,13 @@ git commit -m "feat(evaluation): rateAnswer action (RLS-scoped) + viewer data qu
 ## Task 11: Nav entry + Hiring list page + create dialog
 
 **Files:**
+
 - Modify: `components/app/nav.tsx` (desktop sidebar only)
 - Create: `app/(app)/hiring/page.tsx`
 - Create: `app/(app)/hiring/_ui/create-evaluation.tsx`, `app/(app)/hiring/_ui/status-badge.tsx`
 
 **Interfaces:**
+
 - Consumes: `listEvaluations` (Task 10), `createEvaluationAction` (Task 8), `isCurrentUserAdmin` (`lib/auth/is-admin.ts`).
 
 **Nav decision:** add Hiring to the **desktop sidebar only** (`components/app/nav.tsx`). Do **not** touch `components/app/mobile-nav.tsx` — it is a fixed 5-slot bottom bar (`Home / Meetings / Polls / Roster / More`); a 6th tab would cramp it. Hiring is admin-heavy and lower-frequency, reachable on mobile via direct link / the desktop nav. Revisit later if it needs a mobile slot.
@@ -1795,7 +2247,11 @@ In `components/app/nav.tsx`, import a Hugeicon that exists in `@hugeicons/core-f
 Create `app/(app)/hiring/_ui/status-badge.tsx`:
 
 ```tsx
-export function StatusBadge({ status }: { status: "draft" | "open" | "closed" }) {
+export function StatusBadge({
+  status,
+}: {
+  status: "draft" | "open" | "closed";
+}) {
   // Uses theme tokens (ink / primary / success), not raw Tailwind palette colors.
   const map = {
     draft: "bg-ink/10 text-ink/70",
@@ -1803,7 +2259,9 @@ export function StatusBadge({ status }: { status: "draft" | "open" | "closed" })
     closed: "bg-success/15 text-success-ink",
   } as const;
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}>
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${map[status]}`}
+    >
       {status}
     </span>
   );
@@ -1830,16 +2288,26 @@ export function CreateEvaluation() {
         e.preventDefault();
         start(async () => {
           const res = await createEvaluationAction({ name });
-          if (res.ok) { setName(""); router.push(`/hiring/${res.data.id}`); }
+          if (res.ok) {
+            setName("");
+            router.push(`/hiring/${res.data.id}`);
+          }
         });
       }}
       className="flex gap-2"
     >
-      <input value={name} onChange={(e) => setName(e.target.value)}
-        placeholder="Evaluation name" required
-        className="rounded-md border border-ink/15 px-3 py-2 text-sm" />
-      <button disabled={pending || !name} type="submit"
-        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Evaluation name"
+        required
+        className="rounded-md border border-ink/15 px-3 py-2 text-sm"
+      />
+      <button
+        disabled={pending || !name}
+        type="submit"
+        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+      >
         {pending ? "Creating…" : "New evaluation"}
       </button>
     </form>
@@ -1859,7 +2327,10 @@ import { CreateEvaluation } from "@/app/(app)/hiring/_ui/create-evaluation";
 import { StatusBadge } from "@/app/(app)/hiring/_ui/status-badge";
 
 export default async function HiringPage() {
-  const [evals, admin] = await Promise.all([listEvaluations(), isCurrentUserAdmin()]);
+  const [evals, admin] = await Promise.all([
+    listEvaluations(),
+    isCurrentUserAdmin(),
+  ]);
   return (
     <div className="space-y-8">
       <header className="flex items-center justify-between">
@@ -1869,14 +2340,18 @@ export default async function HiringPage() {
       <ul className="space-y-2">
         {evals.map((e) => (
           <li key={e.id}>
-            <Link href={`/hiring/${e.id}`}
-              className="flex items-center justify-between rounded-lg border border-ink/10 p-4 hover:bg-surface">
+            <Link
+              href={`/hiring/${e.id}`}
+              className="flex items-center justify-between rounded-lg border border-ink/10 p-4 hover:bg-surface"
+            >
               <span className="font-medium">{e.name}</span>
               <StatusBadge status={e.status} />
             </Link>
           </li>
         ))}
-        {evals.length === 0 && <li className="text-ink/60">No evaluations yet.</li>}
+        {evals.length === 0 && (
+          <li className="text-ink/60">No evaluations yet.</li>
+        )}
       </ul>
     </div>
   );
@@ -1902,6 +2377,7 @@ git commit -m "feat(hiring): nav entry, evaluations list, create dialog"
 ## Task 12: Detail route — admin setup + rating + results
 
 **Files:**
+
 - Create: `app/(app)/hiring/[id]/page.tsx`
 - Create: `app/(app)/hiring/[id]/_ui/admin-controls.tsx`
 - Create: `app/(app)/hiring/[id]/_ui/mapping-dialog.tsx`
@@ -1909,6 +2385,7 @@ git commit -m "feat(hiring): nav entry, evaluations list, create dialog"
 - Create: `app/(app)/hiring/[id]/_ui/results-view.tsx`
 
 **Interfaces:**
+
 - Consumes: `getEvaluationForViewer` (Task 10) and all actions.
 
 - [ ] **Step 1: Rating panel (client, autosave)**
@@ -1922,17 +2399,33 @@ import { rateAnswerAction } from "@/lib/actions/evaluation";
 
 type Q = { id: string; prompt: string };
 type C = { id: string; display_name: string };
-type A = { candidate_id: string; question_id: string; answer_text: string | null };
+type A = {
+  candidate_id: string;
+  question_id: string;
+  answer_text: string | null;
+};
 
 export function RatingPanel({
-  evaluationId, candidates, questions, answers, myScores,
+  evaluationId,
+  candidates,
+  questions,
+  answers,
+  myScores,
 }: {
-  evaluationId: string; candidates: C[]; questions: Q[]; answers: A[];
-  myScores: { candidateId: string; average: number | null; ratedCount: number }[];
+  evaluationId: string;
+  candidates: C[];
+  questions: Q[];
+  answers: A[];
+  myScores: {
+    candidateId: string;
+    average: number | null;
+    ratedCount: number;
+  }[];
 }) {
   const [, start] = useTransition();
   const answerFor = (cid: string, qid: string) =>
-    answers.find((a) => a.candidate_id === cid && a.question_id === qid)?.answer_text ?? "—";
+    answers.find((a) => a.candidate_id === cid && a.question_id === qid)
+      ?.answer_text ?? "—";
 
   return (
     <div className="space-y-8">
@@ -1942,14 +2435,25 @@ export function RatingPanel({
           {questions.map((q) => (
             <div key={q.id} className="mt-3">
               <p className="text-sm font-medium text-ink/80">{q.prompt}</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-ink/70">{answerFor(c.id, q.id)}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-ink/70">
+                {answerFor(c.id, q.id)}
+              </p>
               <div className="mt-2 flex gap-1">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <button key={s}
-                    onClick={() => start(() => rateAnswerAction({
-                      evaluationId, candidateId: c.id, questionId: q.id, score: s,
-                    }).then(() => {}))}
-                    className="h-8 w-8 rounded border border-ink/15 text-sm hover:bg-primary/10">
+                  <button
+                    key={s}
+                    onClick={() =>
+                      start(() =>
+                        rateAnswerAction({
+                          evaluationId,
+                          candidateId: c.id,
+                          questionId: q.id,
+                          score: s,
+                        }).then(() => {}),
+                      )
+                    }
+                    className="h-8 w-8 rounded border border-ink/15 text-sm hover:bg-primary/10"
+                  >
                     {s}
                   </button>
                 ))}
@@ -1971,21 +2475,42 @@ Create `app/(app)/hiring/[id]/_ui/results-view.tsx`:
 
 ```tsx
 type Cell = { question_id: string; prompt: string; avg: number | null };
-type Cand = { candidate_id: string; display_name: string; overall: number | null; rank: number; cells: Cell[] };
-type Results = { suppressed: boolean; rater_bucket: string; rater_count: number | null; candidates: Cand[] };
+type Cand = {
+  candidate_id: string;
+  display_name: string;
+  overall: number | null;
+  rank: number;
+  cells: Cell[];
+};
+type Results = {
+  suppressed: boolean;
+  rater_bucket: string;
+  rater_count: number | null;
+  candidates: Cand[];
+};
 
 export function ResultsView({ results }: { results: Results }) {
   if (results.suppressed) {
-    return <p className="text-ink/60">Not enough evaluators to show results yet ({results.rater_bucket} raters).</p>;
+    return (
+      <p className="text-ink/60">
+        Not enough evaluators to show results yet ({results.rater_bucket}{" "}
+        raters).
+      </p>
+    );
   }
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink/60">{results.rater_count} evaluators</p>
       <ol className="space-y-2">
         {results.candidates.map((c) => (
-          <li key={c.candidate_id} className="rounded-lg border border-ink/10 p-4">
+          <li
+            key={c.candidate_id}
+            className="rounded-lg border border-ink/10 p-4"
+          >
             <div className="flex justify-between">
-              <span className="font-medium">#{c.rank} {c.display_name}</span>
+              <span className="font-medium">
+                #{c.rank} {c.display_name}
+              </span>
               <span className="font-semibold">{c.overall ?? "—"}</span>
             </div>
             <ul className="mt-2 space-y-1 text-sm text-ink/70">
@@ -2015,65 +2540,114 @@ import { useRouter } from "next/navigation";
 import { confirmMappingAction } from "@/lib/actions/evaluation";
 
 type Detected = {
-  emailColumn: string; nameColumn: string | null;
-  timestampColumn: string | null; questionColumns: string[];
+  emailColumn: string;
+  nameColumn: string | null;
+  timestampColumn: string | null;
+  questionColumns: string[];
 };
 
 export function MappingDialog({
-  evaluationId, detected, headers, onClose,
+  evaluationId,
+  detected,
+  headers,
+  onClose,
 }: {
-  evaluationId: string; detected: Detected; headers: string[]; onClose: () => void;
+  evaluationId: string;
+  detected: Detected;
+  headers: string[];
+  onClose: () => void;
 }) {
   const [emailColumn, setEmail] = useState(detected.emailColumn);
   const [nameColumn, setName] = useState<string>(detected.nameColumn ?? "");
-  const [timestampColumn, setTs] = useState<string>(detected.timestampColumn ?? "");
+  const [timestampColumn, setTs] = useState<string>(
+    detected.timestampColumn ?? "",
+  );
   const [pending, start] = useTransition();
   const router = useRouter();
 
-  const identity = new Set([emailColumn, nameColumn, timestampColumn].filter(Boolean));
+  const identity = new Set(
+    [emailColumn, nameColumn, timestampColumn].filter(Boolean),
+  );
   const questionColumns = headers.filter((h) => !identity.has(h));
 
   return (
     <div className="rounded-lg border border-ink/15 p-4 space-y-3">
       <h3 className="font-medium">Confirm column mapping</h3>
-      <label className="block text-sm">Email column
-        <select value={emailColumn} onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full rounded border border-ink/15 px-2 py-1">
-          {headers.map((h) => <option key={h} value={h}>{h}</option>)}
+      <label className="block text-sm">
+        Email column
+        <select
+          value={emailColumn}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 block w-full rounded border border-ink/15 px-2 py-1"
+        >
+          {headers.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
         </select>
       </label>
-      <label className="block text-sm">Name column (optional)
-        <select value={nameColumn} onChange={(e) => setName(e.target.value)}
-          className="mt-1 block w-full rounded border border-ink/15 px-2 py-1">
+      <label className="block text-sm">
+        Name column (optional)
+        <select
+          value={nameColumn}
+          onChange={(e) => setName(e.target.value)}
+          className="mt-1 block w-full rounded border border-ink/15 px-2 py-1"
+        >
           <option value="">— none —</option>
-          {headers.map((h) => <option key={h} value={h}>{h}</option>)}
+          {headers.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
         </select>
       </label>
-      <label className="block text-sm">Timestamp column (optional)
-        <select value={timestampColumn} onChange={(e) => setTs(e.target.value)}
-          className="mt-1 block w-full rounded border border-ink/15 px-2 py-1">
+      <label className="block text-sm">
+        Timestamp column (optional)
+        <select
+          value={timestampColumn}
+          onChange={(e) => setTs(e.target.value)}
+          className="mt-1 block w-full rounded border border-ink/15 px-2 py-1"
+        >
           <option value="">— none —</option>
-          {headers.map((h) => <option key={h} value={h}>{h}</option>)}
+          {headers.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
         </select>
       </label>
       <div className="text-sm text-ink/70">
         Questions to be rated: {questionColumns.join(", ") || "(none)"}
       </div>
       <div className="flex gap-2">
-        <button disabled={pending || !emailColumn || questionColumns.length === 0}
-          onClick={() => start(async () => {
-            const res = await confirmMappingAction({
-              evaluationId, emailColumn,
-              nameColumn: nameColumn || null,
-              timestampColumn: timestampColumn || null,
-              questionColumns,
-            });
-            if (res.ok) { onClose(); router.refresh(); }
-          })}
-          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50">
+        <button
+          disabled={pending || !emailColumn || questionColumns.length === 0}
+          onClick={() =>
+            start(async () => {
+              const res = await confirmMappingAction({
+                evaluationId,
+                emailColumn,
+                nameColumn: nameColumn || null,
+                timestampColumn: timestampColumn || null,
+                questionColumns,
+              });
+              if (res.ok) {
+                onClose();
+                router.refresh();
+              }
+            })
+          }
+          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+        >
           {pending ? "Importing…" : "Confirm & import"}
         </button>
-        <button onClick={onClose} className="rounded border border-ink/15 px-3 py-1.5 text-sm">Cancel</button>
+        <button
+          onClick={onClose}
+          className="rounded border border-ink/15 px-3 py-1.5 text-sm"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );
@@ -2091,62 +2665,121 @@ Create `app/(app)/hiring/[id]/_ui/admin-controls.tsx`:
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  connectSheetAction, previewMappingAction, refreshEvaluationAction,
-  setPanelAction, openEvaluationAction, closeEvaluationAction, reopenEvaluationAction,
+  connectSheetAction,
+  previewMappingAction,
+  refreshEvaluationAction,
+  setPanelAction,
+  openEvaluationAction,
+  closeEvaluationAction,
+  reopenEvaluationAction,
 } from "@/lib/actions/evaluation";
 import { MappingDialog } from "@/app/(app)/hiring/[id]/_ui/mapping-dialog";
 
 type Ev = {
-  id: string; status: "draft" | "open" | "closed";
-  sheet_id: string | null; mapping_confirmed: boolean; last_synced_at: string | null;
+  id: string;
+  status: "draft" | "open" | "closed";
+  sheet_id: string | null;
+  mapping_confirmed: boolean;
+  last_synced_at: string | null;
 };
-type Detected = { emailColumn: string; nameColumn: string | null; timestampColumn: string | null; questionColumns: string[] };
+type Detected = {
+  emailColumn: string;
+  nameColumn: string | null;
+  timestampColumn: string | null;
+  questionColumns: string[];
+};
 
 export function AdminControls({
-  evaluation, roster = [], panel = [],
+  evaluation,
+  roster = [],
+  panel = [],
 }: {
-  evaluation: Ev; roster?: { id: string; display_name: string }[]; panel?: string[];
+  evaluation: Ev;
+  roster?: { id: string; display_name: string }[];
+  panel?: string[];
 }) {
   const [sheetId, setSheetId] = useState(evaluation.sheet_id ?? "");
   const [tab, setTab] = useState("");
-  const [detected, setDetected] = useState<{ d: Detected; headers: string[] } | null>(null);
+  const [detected, setDetected] = useState<{
+    d: Detected;
+    headers: string[];
+  } | null>(null);
   const [msg, setMsg] = useState("");
   const [selected, setSelected] = useState<string[]>(panel);
   const [pending, start] = useTransition();
   const router = useRouter();
-  const run = (fn: () => Promise<{ ok: boolean; error?: { message: string } }>) =>
-    start(async () => { const r = await fn(); setMsg(r.ok ? "Done." : `Error: ${r.error?.message}`); router.refresh(); });
+  const run = (
+    fn: () => Promise<{ ok: boolean; error?: { message: string } }>,
+  ) =>
+    start(async () => {
+      const r = await fn();
+      setMsg(r.ok ? "Done." : `Error: ${r.error?.message}`);
+      router.refresh();
+    });
 
   return (
     <section className="rounded-lg border border-ink/15 p-4 space-y-4">
       <h2 className="font-medium">Admin</h2>
 
       <div className="flex flex-wrap items-end gap-2">
-        <label className="text-sm">Spreadsheet ID
-          <input value={sheetId} onChange={(e) => setSheetId(e.target.value)}
-            className="mt-1 block rounded border border-ink/15 px-2 py-1" />
+        <label className="text-sm">
+          Spreadsheet ID
+          <input
+            value={sheetId}
+            onChange={(e) => setSheetId(e.target.value)}
+            className="mt-1 block rounded border border-ink/15 px-2 py-1"
+          />
         </label>
-        <label className="text-sm">Tab (optional)
-          <input value={tab} onChange={(e) => setTab(e.target.value)}
-            className="mt-1 block rounded border border-ink/15 px-2 py-1" />
+        <label className="text-sm">
+          Tab (optional)
+          <input
+            value={tab}
+            onChange={(e) => setTab(e.target.value)}
+            className="mt-1 block rounded border border-ink/15 px-2 py-1"
+          />
         </label>
-        <button className="rounded border border-ink/15 px-3 py-1.5 text-sm"
-          onClick={() => run(() => connectSheetAction({ evaluationId: evaluation.id, sheetId, sheetTab: tab || null }))}>
+        <button
+          className="rounded border border-ink/15 px-3 py-1.5 text-sm"
+          onClick={() =>
+            run(() =>
+              connectSheetAction({
+                evaluationId: evaluation.id,
+                sheetId,
+                sheetTab: tab || null,
+              }),
+            )
+          }
+        >
           Connect sheet
         </button>
-        <button className="rounded border border-ink/15 px-3 py-1.5 text-sm" disabled={!evaluation.sheet_id}
-          onClick={() => start(async () => {
-            const r = await previewMappingAction({ evaluationId: evaluation.id });
-            if (r.ok) setDetected({ d: r.data.detected, headers: r.data.sampleHeaders });
-            else setMsg(`Error: ${r.error.message}`);
-          })}>
+        <button
+          className="rounded border border-ink/15 px-3 py-1.5 text-sm"
+          disabled={!evaluation.sheet_id}
+          onClick={() =>
+            start(async () => {
+              const r = await previewMappingAction({
+                evaluationId: evaluation.id,
+              });
+              if (r.ok)
+                setDetected({
+                  d: r.data.detected,
+                  headers: r.data.sampleHeaders,
+                });
+              else setMsg(`Error: ${r.error.message}`);
+            })
+          }
+        >
           Detect columns
         </button>
       </div>
 
       {detected && (
-        <MappingDialog evaluationId={evaluation.id} detected={detected.d}
-          headers={detected.headers} onClose={() => setDetected(null)} />
+        <MappingDialog
+          evaluationId={evaluation.id}
+          detected={detected.d}
+          headers={detected.headers}
+          onClose={() => setDetected(null)}
+        />
       )}
 
       <fieldset className="text-sm">
@@ -2154,34 +2787,78 @@ export function AdminControls({
         <div className="mt-1 flex flex-wrap gap-3">
           {roster.map((p) => (
             <label key={p.id} className="flex items-center gap-1">
-              <input type="checkbox" checked={selected.includes(p.id)}
-                onChange={(e) => setSelected((s) => e.target.checked ? [...s, p.id] : s.filter((x) => x !== p.id))} />
+              <input
+                type="checkbox"
+                checked={selected.includes(p.id)}
+                onChange={(e) =>
+                  setSelected((s) =>
+                    e.target.checked
+                      ? [...s, p.id]
+                      : s.filter((x) => x !== p.id),
+                  )
+                }
+              />
               {p.display_name}
             </label>
           ))}
         </div>
-        <button className="mt-2 rounded border border-ink/15 px-3 py-1.5"
-          onClick={() => run(() => setPanelAction({ evaluationId: evaluation.id, profileIds: selected }))}>
+        <button
+          className="mt-2 rounded border border-ink/15 px-3 py-1.5"
+          onClick={() =>
+            run(() =>
+              setPanelAction({
+                evaluationId: evaluation.id,
+                profileIds: selected,
+              }),
+            )
+          }
+        >
           Save panel
         </button>
       </fieldset>
 
       <div className="flex flex-wrap gap-2">
-        <button className="rounded border border-ink/15 px-3 py-1.5 text-sm" disabled={!evaluation.mapping_confirmed}
-          onClick={() => run(() => refreshEvaluationAction({ evaluationId: evaluation.id }))}>
-          Refresh {evaluation.last_synced_at ? `(synced ${new Date(evaluation.last_synced_at).toLocaleString()})` : ""}
+        <button
+          className="rounded border border-ink/15 px-3 py-1.5 text-sm"
+          disabled={!evaluation.mapping_confirmed}
+          onClick={() =>
+            run(() => refreshEvaluationAction({ evaluationId: evaluation.id }))
+          }
+        >
+          Refresh{" "}
+          {evaluation.last_synced_at
+            ? `(synced ${new Date(evaluation.last_synced_at).toLocaleString()})`
+            : ""}
         </button>
         {evaluation.status === "draft" && (
-          <button className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
-            onClick={() => run(() => openEvaluationAction({ evaluationId: evaluation.id }))}>Open</button>
+          <button
+            className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
+            onClick={() =>
+              run(() => openEvaluationAction({ evaluationId: evaluation.id }))
+            }
+          >
+            Open
+          </button>
         )}
         {evaluation.status === "open" && (
-          <button className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
-            onClick={() => run(() => closeEvaluationAction({ evaluationId: evaluation.id }))}>Close</button>
+          <button
+            className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground"
+            onClick={() =>
+              run(() => closeEvaluationAction({ evaluationId: evaluation.id }))
+            }
+          >
+            Close
+          </button>
         )}
         {evaluation.status === "closed" && (
-          <button className="rounded border border-ink/15 px-3 py-1.5 text-sm"
-            onClick={() => run(() => reopenEvaluationAction({ evaluationId: evaluation.id }))}>Reopen</button>
+          <button
+            className="rounded border border-ink/15 px-3 py-1.5 text-sm"
+            onClick={() =>
+              run(() => reopenEvaluationAction({ evaluationId: evaluation.id }))
+            }
+          >
+            Reopen
+          </button>
         )}
       </div>
       {msg && <p className="text-sm text-ink/60">{msg}</p>}
@@ -2204,11 +2881,26 @@ import { ResultsView } from "@/app/(app)/hiring/[id]/_ui/results-view";
 import { AdminControls } from "@/app/(app)/hiring/[id]/_ui/admin-controls";
 import { StatusBadge } from "@/app/(app)/hiring/_ui/status-badge";
 
-export default async function EvaluationDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function EvaluationDetail({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const data = await getEvaluationForViewer(id);
   if (!data) notFound();
-  const { ev, isAdmin, isPanelist, candidates, questions, answers, personal, results, roster, panel } = data;
+  const {
+    ev,
+    isAdmin,
+    isPanelist,
+    candidates,
+    questions,
+    answers,
+    personal,
+    results,
+    roster,
+    panel,
+  } = data;
 
   return (
     <div className="space-y-8">
@@ -2217,19 +2909,30 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
         <StatusBadge status={ev.status} />
       </header>
 
-      {isAdmin && <AdminControls evaluation={ev} roster={roster} panel={panel} />}
+      {isAdmin && (
+        <AdminControls evaluation={ev} roster={roster} panel={panel} />
+      )}
 
-      {ev.status === "closed" && results && <ResultsView results={results as any} />}
+      {ev.status === "closed" && results && (
+        <ResultsView results={results as any} />
+      )}
 
       {ev.status === "open" && isPanelist && (
-        <RatingPanel evaluationId={ev.id} candidates={candidates} questions={questions}
-          answers={answers} myScores={personal} />
+        <RatingPanel
+          evaluationId={ev.id}
+          candidates={candidates}
+          questions={questions}
+          answers={answers}
+          myScores={personal}
+        />
       )}
 
       {ev.status === "open" && !isPanelist && !isAdmin && (
         <p className="text-ink/60">You’re not on this evaluation’s panel.</p>
       )}
-      {ev.status === "draft" && !isAdmin && <p className="text-ink/60">This evaluation isn’t open yet.</p>}
+      {ev.status === "draft" && !isAdmin && (
+        <p className="text-ink/60">This evaluation isn’t open yet.</p>
+      )}
     </div>
   );
 }
@@ -2251,6 +2954,7 @@ git commit -m "feat(hiring): evaluation detail — admin setup, rating panel, re
 ## Task 13: Env, docs, and Supabase setup runbook
 
 **Files:**
+
 - Modify: `.env.example`
 - Create: `docs/hiring-sheets-setup.md`
 - Modify: `README.md` (add Hiring to the Layout section)
@@ -2290,6 +2994,7 @@ git commit -m "docs(hiring): service-account setup runbook + env + README"
 ## Task 14 (optional): Playwright e2e
 
 **Files:**
+
 - Create: `e2e/hiring.spec.ts`
 
 - [ ] **Step 1:** Write an e2e that signs in via the existing test-signin route as an admin, creates an evaluation, and asserts it appears in `/hiring`. Extend to the full rate→close→aggregate flow if a fixture sheet or a seam to inject a grid (bypassing live Sheets) is available. Follow patterns in existing `e2e/*.spec.ts`.

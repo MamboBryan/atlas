@@ -21,7 +21,11 @@ export type TargetNumberPayload = {
 };
 
 export type ZeroInFeedback = "higher" | "lower" | "exact";
-export type ZeroInGuess = { value: number; at: string; feedback: ZeroInFeedback };
+export type ZeroInGuess = {
+  value: number;
+  at: string;
+  feedback: ZeroInFeedback;
+};
 export type ZeroInPayload = { guesses: ZeroInGuess[]; best_guess: number };
 
 export type PlayerResult = {

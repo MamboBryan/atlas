@@ -34,14 +34,14 @@ under the presenter's control during the meeting.
 
 ## Confirmed decisions
 
-| Question | Decision |
-| --- | --- |
-| Old pre-meeting lobby | Keep it, but as a passive waiting room (no round created on open) |
-| Scope | Host opt-in toggle at meeting/series creation |
-| Backfill | New meetings only |
-| Round-start trigger | Presenter advancing to the game item (live); lobby never starts it |
-| Play & finish | Participants play on own devices; presenter advances manually |
-| Locking mechanism | Identify/lock by `kind='game'`, no new column |
+| Question              | Decision                                                           |
+| --------------------- | ------------------------------------------------------------------ |
+| Old pre-meeting lobby | Keep it, but as a passive waiting room (no round created on open)  |
+| Scope                 | Host opt-in toggle at meeting/series creation                      |
+| Backfill              | New meetings only                                                  |
+| Round-start trigger   | Presenter advancing to the game item (live); lobby never starts it |
+| Play & finish         | Participants play on own devices; presenter advances manually      |
+| Locking mechanism     | Identify/lock by `kind='game'`, no new column                      |
 
 ## Data model
 
@@ -91,8 +91,8 @@ migration file appropriately).
   waiting-room message, shown only when the meeting opted in (has a game item)
   and is `scheduled`:
   > "🎮 The game starts when the host begins the meeting."
-- `ensureRoundAction` guards change from *scheduled + 10-minute lobby window* to
-  *meeting is `live` + caller is host + a game item exists*. It is now called
+- `ensureRoundAction` guards change from _scheduled + 10-minute lobby window_ to
+  _meeting is `live` + caller is host + a game item exists_. It is now called
   exclusively from the present flow.
 
 ## Round start on presenter advance

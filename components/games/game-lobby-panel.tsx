@@ -75,15 +75,21 @@ export async function GameLobbyPanel({
     }));
     // For Zero In, the round result reveals the secret number.
     const revealedSecret =
-      round.kind === "zero_in" && round.puzzle.kind === "zero_in" && "secret" in round.puzzle
+      round.kind === "zero_in" &&
+      round.puzzle.kind === "zero_in" &&
+      "secret" in round.puzzle
         ? round.puzzle.secret
         : undefined;
     return (
       <section className="space-y-4 rounded-lg border p-4">
         {revealedSecret !== undefined && (
           <div className="rounded-md bg-muted px-4 py-3 text-center">
-            <span className="text-sm text-muted-foreground uppercase tracking-wide">The secret was</span>
-            <div className="text-4xl font-bold tabular-nums">{revealedSecret}</div>
+            <span className="text-sm text-muted-foreground uppercase tracking-wide">
+              The secret was
+            </span>
+            <div className="text-4xl font-bold tabular-nums">
+              {revealedSecret}
+            </div>
           </div>
         )}
         <RoundScoreboard
@@ -106,9 +112,13 @@ export async function GameLobbyPanel({
               : "Guess the secret number. Three tries."}
           </p>
         </div>
-        <SubmissionCounter roundId={round.round_id} eligibleCount={eligibleCount} />
+        <SubmissionCounter
+          roundId={round.round_id}
+          eligibleCount={eligibleCount}
+        />
       </header>
-      {round.kind === "target_number" && round.puzzle.kind === "target_number" ? (
+      {round.kind === "target_number" &&
+      round.puzzle.kind === "target_number" ? (
         <TargetNumberRound
           roundId={round.round_id}
           target={round.puzzle.target}

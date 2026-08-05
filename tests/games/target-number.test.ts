@@ -32,34 +32,26 @@ test("evaluate: valid expression using two originals returns result", () => {
 
 test("evaluate: reusing a base twice fails", () => {
   const bases = [2, 4, 7, 25, 50, 75];
-  const expr: TargetNumberOp[] = [
-    { op: "+", left: 2, right: 2, result: 4 },
-  ];
+  const expr: TargetNumberOp[] = [{ op: "+", left: 2, right: 2, result: 4 }];
   const r = evaluateExpression(bases, expr);
   expect(r.ok).toBe(false);
 });
 
 test("evaluate: non-integer intermediate fails", () => {
   const bases = [2, 4, 7, 25, 50, 75];
-  const expr: TargetNumberOp[] = [
-    { op: "/", left: 7, right: 2, result: 3.5 },
-  ];
+  const expr: TargetNumberOp[] = [{ op: "/", left: 7, right: 2, result: 3.5 }];
   expect(evaluateExpression(bases, expr).ok).toBe(false);
 });
 
 test("evaluate: negative intermediate fails", () => {
   const bases = [2, 4, 7, 25, 50, 75];
-  const expr: TargetNumberOp[] = [
-    { op: "-", left: 2, right: 4, result: -2 },
-  ];
+  const expr: TargetNumberOp[] = [{ op: "-", left: 2, right: 4, result: -2 }];
   expect(evaluateExpression(bases, expr).ok).toBe(false);
 });
 
 test("evaluate: claimed result inconsistent with operands fails", () => {
   const bases = [2, 4, 7, 25, 50, 75];
-  const expr: TargetNumberOp[] = [
-    { op: "+", left: 2, right: 4, result: 999 },
-  ];
+  const expr: TargetNumberOp[] = [{ op: "+", left: 2, right: 4, result: 999 }];
   expect(evaluateExpression(bases, expr).ok).toBe(false);
 });
 

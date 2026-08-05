@@ -30,7 +30,7 @@ one ever sees another evaluator's individual scores.
 - Per-rating comments / notes.
 - Candidate-facing accounts or dashboards.
 - Email notifications when an evaluation opens/closes.
-- Rating the raw Google Form ratings (the form collects candidate *answers*, not
+- Rating the raw Google Form ratings (the form collects candidate _answers_, not
   scores; scoring happens natively in Atlas).
 
 These are intentionally deferred; the schema leaves room to add them later.
@@ -85,84 +85,84 @@ existing `atlas_touch_updated_at()` trigger.
 
 ### `evaluations`
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid pk | `gen_random_uuid()` |
-| `name` | text not null | e.g. "Backend Engineer – Aug 2026" |
-| `status` | `evaluation_status` not null default `'draft'` | |
-| `sheet_id` | text | Google spreadsheet ID |
-| `sheet_tab` | text | tab/worksheet name (default first tab) |
-| `email_column` | text | header key of the identity email column |
-| `name_column` | text null | header key of the name column, if any |
-| `timestamp_column` | text null | header key of the timestamp column, if any |
-| `mapping_confirmed` | boolean not null default false | true after admin confirms |
-| `created_by` | uuid not null → profiles(id) | |
-| `last_synced_at` | timestamptz null | |
-| `created_at` / `updated_at` | timestamptz | |
+| column                      | type                                           | notes                                      |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------ |
+| `id`                        | uuid pk                                        | `gen_random_uuid()`                        |
+| `name`                      | text not null                                  | e.g. "Backend Engineer – Aug 2026"         |
+| `status`                    | `evaluation_status` not null default `'draft'` |                                            |
+| `sheet_id`                  | text                                           | Google spreadsheet ID                      |
+| `sheet_tab`                 | text                                           | tab/worksheet name (default first tab)     |
+| `email_column`              | text                                           | header key of the identity email column    |
+| `name_column`               | text null                                      | header key of the name column, if any      |
+| `timestamp_column`          | text null                                      | header key of the timestamp column, if any |
+| `mapping_confirmed`         | boolean not null default false                 | true after admin confirms                  |
+| `created_by`                | uuid not null → profiles(id)                   |                                            |
+| `last_synced_at`            | timestamptz null                               |                                            |
+| `created_at` / `updated_at` | timestamptz                                    |                                            |
 
 ### `evaluation_questions`
 
 One row per rated column.
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid pk | |
-| `evaluation_id` | uuid not null → evaluations(id) on delete cascade | |
-| `column_key` | text not null | sheet header text = stable upsert key |
-| `prompt` | text not null | question text shown to raters |
-| `position` | int not null | column order |
-| `is_active` | boolean not null default true | soft-deactivated if column removed |
-| unique | `(evaluation_id, column_key)` | |
+| column          | type                                              | notes                                 |
+| --------------- | ------------------------------------------------- | ------------------------------------- |
+| `id`            | uuid pk                                           |                                       |
+| `evaluation_id` | uuid not null → evaluations(id) on delete cascade |                                       |
+| `column_key`    | text not null                                     | sheet header text = stable upsert key |
+| `prompt`        | text not null                                     | question text shown to raters         |
+| `position`      | int not null                                      | column order                          |
+| `is_active`     | boolean not null default true                     | soft-deactivated if column removed    |
+| unique          | `(evaluation_id, column_key)`                     |                                       |
 
 ### `evaluation_candidates`
 
 One row per candidate (sheet row).
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid pk | |
-| `evaluation_id` | uuid not null → evaluations(id) on delete cascade | |
-| `email` | citext not null | identity key |
-| `display_name` | text not null | from name column, else email local-part |
-| `submitted_at` | timestamptz null | from timestamp column, if mapped |
-| `is_active` | boolean not null default true | soft-deactivated if row removed |
-| unique | `(evaluation_id, email)` | |
+| column          | type                                              | notes                                   |
+| --------------- | ------------------------------------------------- | --------------------------------------- |
+| `id`            | uuid pk                                           |                                         |
+| `evaluation_id` | uuid not null → evaluations(id) on delete cascade |                                         |
+| `email`         | citext not null                                   | identity key                            |
+| `display_name`  | text not null                                     | from name column, else email local-part |
+| `submitted_at`  | timestamptz null                                  | from timestamp column, if mapped        |
+| `is_active`     | boolean not null default true                     | soft-deactivated if row removed         |
+| unique          | `(evaluation_id, email)`                          |                                         |
 
 ### `evaluation_answers`
 
 A candidate's response text to one question.
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid pk | |
-| `evaluation_id` | uuid not null → evaluations(id) on delete cascade | denormalized for RLS |
-| `candidate_id` | uuid not null → evaluation_candidates(id) on delete cascade | |
-| `question_id` | uuid not null → evaluation_questions(id) on delete cascade | |
-| `answer_text` | text | may be empty |
-| unique | `(candidate_id, question_id)` | |
+| column          | type                                                        | notes                |
+| --------------- | ----------------------------------------------------------- | -------------------- |
+| `id`            | uuid pk                                                     |                      |
+| `evaluation_id` | uuid not null → evaluations(id) on delete cascade           | denormalized for RLS |
+| `candidate_id`  | uuid not null → evaluation_candidates(id) on delete cascade |                      |
+| `question_id`   | uuid not null → evaluation_questions(id) on delete cascade  |                      |
+| `answer_text`   | text                                                        | may be empty         |
+| unique          | `(candidate_id, question_id)`                               |                      |
 
 ### `evaluation_panelists`
 
-| column | type | notes |
-|---|---|---|
-| `evaluation_id` | uuid not null → evaluations(id) on delete cascade | |
-| `profile_id` | uuid not null → profiles(id) on delete cascade | |
-| pk | `(evaluation_id, profile_id)` | |
+| column          | type                                              | notes |
+| --------------- | ------------------------------------------------- | ----- |
+| `evaluation_id` | uuid not null → evaluations(id) on delete cascade |       |
+| `profile_id`    | uuid not null → profiles(id) on delete cascade    |       |
+| pk              | `(evaluation_id, profile_id)`                     |       |
 
 ### `evaluation_ratings`
 
 One panelist's score for one candidate's answer to one question.
 
-| column | type | notes |
-|---|---|---|
-| `id` | uuid pk | |
-| `evaluation_id` | uuid not null → evaluations(id) on delete cascade | denormalized for RLS |
-| `candidate_id` | uuid not null → evaluation_candidates(id) on delete cascade | |
-| `question_id` | uuid not null → evaluation_questions(id) on delete cascade | |
-| `rater_id` | uuid not null → profiles(id) on delete cascade | |
-| `score` | smallint not null | check `score between 1 and 5` |
-| `created_at` / `updated_at` | timestamptz | |
-| unique | `(evaluation_id, rater_id, candidate_id, question_id)` | |
+| column                      | type                                                        | notes                         |
+| --------------------------- | ----------------------------------------------------------- | ----------------------------- |
+| `id`                        | uuid pk                                                     |                               |
+| `evaluation_id`             | uuid not null → evaluations(id) on delete cascade           | denormalized for RLS          |
+| `candidate_id`              | uuid not null → evaluation_candidates(id) on delete cascade |                               |
+| `question_id`               | uuid not null → evaluation_questions(id) on delete cascade  |                               |
+| `rater_id`                  | uuid not null → profiles(id) on delete cascade              |                               |
+| `score`                     | smallint not null                                           | check `score between 1 and 5` |
+| `created_at` / `updated_at` | timestamptz                                                 |                               |
+| unique                      | `(evaluation_id, rater_id, candidate_id, question_id)`      |                               |
 
 **Ratings survive refresh:** ratings reference `candidate_id`/`question_id`,
 which are preserved across re-syncs (soft-deactivation, not deletion), so
@@ -209,6 +209,7 @@ re-importing the sheet never discards scores already given.
 5. Refresh preserves all existing ratings.
 
 **Edge cases**
+
 - Row without a valid email → skipped, surfaced in an import summary
   ("N rows skipped: missing email").
 - Duplicate email in the sheet → last row wins; note in summary.
@@ -225,8 +226,8 @@ re-importing the sheet never discards scores already given.
 RLS policies, tested in `db/supabase/supabase/tests/evaluations_rls.sql`.
 
 **Design principle:** raw candidate data (identities, answers, questions) is
-readable *directly* only by that evaluation's **panelists + admins**. Everyone
-else — including for the post-close aggregate — receives data *only* through the
+readable _directly_ only by that evaluation's **panelists + admins**. Everyone
+else — including for the post-close aggregate — receives data _only_ through the
 `security definer` results RPC, which emits display names, prompts, and averages
 but never raw rows. This makes the child-table policies simple and closes the
 "query the table directly" leak (a non-panelist can never `select` a candidate,
@@ -238,7 +239,7 @@ Helper (mirrors `atlas_is_admin`): `atlas_is_panelist(uid, evaluation_id)` —
 `is_active` on the panelist row itself; activeness comes from `profiles`). Used by
 policies to avoid recursive RLS on `evaluation_panelists`. Note this is
 self-consistent with "departed panelists' ratings still count": a deactivated
-profile loses *read* access via this helper, while its already-cast rating rows
+profile loses _read_ access via this helper, while its already-cast rating rows
 remain and are still aggregated by the definer RPC (which does not call the
 helper).
 
@@ -246,7 +247,7 @@ helper).
   `status <> 'draft'` (they may see that an open/closed evaluation exists — its
   name and status — but not its raw child rows). INSERT/UPDATE/DELETE: admins only.
 - **`evaluation_panelists`** — SELECT: admins, or the row's own `profile_id`
-  (a user may see that *they* are on a panel). Writes: admins only.
+  (a user may see that _they_ are on a panel). Writes: admins only.
 - **`evaluation_questions`** — SELECT: **panelists + admins only**. Writes: admins
   only (via sync). Non-panelists get prompts for the closed dashboard via the RPC.
 - **`evaluation_candidates`** — SELECT: **panelists + admins only** (covers both
@@ -294,10 +295,10 @@ emits only display names, prompts, per-candidate/per-question **averages**, and 
   `open`, so the RPC returns empty again and the dashboard re-hides. Reopen must
   **invalidate the cached results** (revalidate the `/hiring/[id]` path / refetch)
   so a stale aggregate does not remain visible client-side.
-- **Small-panel suppression:** the absolute guarantee is *"no evaluator can read
-  another evaluator's individual rating rows."* Averages, however, can leak an
+- **Small-panel suppression:** the absolute guarantee is _"no evaluator can read
+  another evaluator's individual rating rows."_ Averages, however, can leak an
   individual score by inference on a thin sample (2 raters → `other = 2·avg −
-  own`; **one rater on a single cell → the cell average *is* that rater's exact
+own`; **one rater on a single cell → the cell average _is_ that rater's exact
   score**). Suppression therefore applies at **two grains**, both keyed on the
   same `MIN_RATERS_FOR_AGGREGATE` constant (default **3**):
   - **Evaluation floor (coarse gate):** the RPC returns no results at all unless
@@ -321,7 +322,7 @@ emits only display names, prompts, per-candidate/per-question **averages**, and 
 
 Computed directly from the caller's own `evaluation_ratings` rows (RLS-visible),
 joined to active candidates/questions: their per-candidate average (mean-of-means
-over questions *they* rated) and their personal candidate ranking. No RPC needed —
+over questions _they_ rated) and their personal candidate ranking. No RPC needed —
 RLS already scopes it to the caller. This path reads `evaluation_candidates` /
 `evaluation_questions` directly, which is why those tables grant panelist SELECT —
 the "RPC-only" principle applies to **non-panelists**, not to panelists rating a

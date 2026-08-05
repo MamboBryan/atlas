@@ -1,8 +1,4 @@
-import type {
-  ZeroInFeedback,
-  ZeroInGuess,
-  ZeroInPuzzle,
-} from "./types";
+import type { ZeroInFeedback, ZeroInGuess, ZeroInPuzzle } from "./types";
 
 export const ZERO_IN_DURATION_MS = 45_000;
 export const ZERO_IN_MAX_GUESSES = 3;
@@ -71,7 +67,12 @@ export function scoreZeroInRound(
 
   return enriched.map((e) => {
     if (e.bestGuess === null) {
-      return { player_id: e.player_id, points: 0, best_guess: null, distance: Infinity };
+      return {
+        player_id: e.player_id,
+        points: 0,
+        best_guess: null,
+        distance: Infinity,
+      };
     }
     let pts = 1; // participation
     if (e.distance <= 50) pts += 3; // within 5%

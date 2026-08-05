@@ -25,7 +25,11 @@ export function generateTargetNumberPuzzle(
   return { target, bases: [...smalls, ...chosenLarges].sort((a, b) => a - b) };
 }
 
-function applyOp(op: TargetNumberOp["op"], a: number, b: number): number | null {
+function applyOp(
+  op: TargetNumberOp["op"],
+  a: number,
+  b: number,
+): number | null {
   switch (op) {
     case "+":
       return a + b;
@@ -61,7 +65,8 @@ export function evaluateExpression(
   let lastResult = 0;
   for (const step of expression) {
     if (!consume(step.left)) return { ok: false, reason: "left not available" };
-    if (!consume(step.right)) return { ok: false, reason: "right not available" };
+    if (!consume(step.right))
+      return { ok: false, reason: "right not available" };
     const computed = applyOp(step.op, step.left, step.right);
     if (computed === null || !Number.isInteger(computed) || computed <= 0) {
       return { ok: false, reason: "invalid intermediate" };
@@ -94,10 +99,7 @@ export function scoreTargetNumber(
   else return 0;
 
   const elapsed = Math.max(0, submittedAtMs - startedAtMs);
-  const bonusFraction = Math.max(
-    0,
-    1 - elapsed / TARGET_NUMBER_DURATION_MS,
-  );
+  const bonusFraction = Math.max(0, 1 - elapsed / TARGET_NUMBER_DURATION_MS);
   const bonus = Math.round(15 * bonusFraction);
   return base + bonus;
 }

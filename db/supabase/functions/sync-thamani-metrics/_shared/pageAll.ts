@@ -16,7 +16,10 @@ export async function pageAll(
       .from(table)
       .select(column)
       .range(from, from + pageSize - 1);
-    if (error) throw new Error(`Thamani ${table}.${column} read failed: ${error.message}`);
+    if (error)
+      throw new Error(
+        `Thamani ${table}.${column} read failed: ${error.message}`,
+      );
     const rows = (data ?? []) as unknown as Record<string, string | null>[];
     for (const r of rows) {
       const v = r[column];

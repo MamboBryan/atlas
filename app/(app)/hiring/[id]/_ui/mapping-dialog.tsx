@@ -1,9 +1,18 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { confirmMappingAction, importCsvAction } from "@/lib/actions/evaluation";
+import {
+  confirmMappingAction,
+  importCsvAction,
+} from "@/lib/actions/evaluation";
 import type { DetectedMapping } from "@/lib/sheets/types";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -18,7 +27,10 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "hidden", label: "Hidden" },
 ];
 
-function initialRoles(detected: DetectedMapping, headers: string[]): Record<string, Role> {
+function initialRoles(
+  detected: DetectedMapping,
+  headers: string[],
+): Record<string, Role> {
   const roles: Record<string, Role> = {};
   for (const h of headers) roles[h] = "question";
   if (detected.emailColumn) roles[detected.emailColumn] = "email";
@@ -29,7 +41,11 @@ function initialRoles(detected: DetectedMapping, headers: string[]): Record<stri
 }
 
 export function MappingDialog({
-  evaluationId, detected, headers, csvText, onClose,
+  evaluationId,
+  detected,
+  headers,
+  csvText,
+  onClose,
 }: {
   evaluationId: string;
   detected: DetectedMapping;
@@ -37,7 +53,9 @@ export function MappingDialog({
   csvText?: string;
   onClose: () => void;
 }) {
-  const [roles, setRoles] = useState<Record<string, Role>>(() => initialRoles(detected, headers));
+  const [roles, setRoles] = useState<Record<string, Role>>(() =>
+    initialRoles(detected, headers),
+  );
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
   const router = useRouter();
@@ -64,9 +82,14 @@ export function MappingDialog({
           {headers.map((h) => (
             <div key={h} className="flex flex-col gap-1">
               <Label className="text-sm font-medium text-ink">{h}</Label>
-              <Select value={roles[h]} onChange={(e) => setRole(h, e.target.value as Role)}>
+              <Select
+                value={roles[h]}
+                onChange={(e) => setRole(h, e.target.value as Role)}
+              >
                 {ROLE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </Select>
             </div>
@@ -74,10 +97,14 @@ export function MappingDialog({
         </div>
 
         {!emailColumn && (
-          <p className="text-sm text-danger-text">Pick which column is the email.</p>
+          <p className="text-sm text-danger-text">
+            Pick which column is the email.
+          </p>
         )}
         {questionColumns.length === 0 && (
-          <p className="text-sm text-danger-text">Pick at least one question column.</p>
+          <p className="text-sm text-danger-text">
+            Pick at least one question column.
+          </p>
         )}
         {hideNames && (
           <p className="text-sm text-ink-soft">
@@ -89,27 +116,33 @@ export function MappingDialog({
       <CardFooter className="flex gap-2">
         <Button
           disabled={pending || !canConfirm}
-          onClick={() => start(async () => {
-            setError("");
-            const mapping = {
-              evaluationId,
-              emailColumn: emailColumn as string,
-              nameColumn,
-              timestampColumn,
-              questionColumns,
-              hiddenColumns,
-              hideNames,
-            };
-            const res = csvText
-              ? await importCsvAction({ ...mapping, csvText })
-              : await confirmMappingAction(mapping);
-            if (res.ok) { onClose(); router.refresh(); }
-            else setError(res.error.message);
-          })}
+          onClick={() =>
+            start(async () => {
+              setError("");
+              const mapping = {
+                evaluationId,
+                emailColumn: emailColumn as string,
+                nameColumn,
+                timestampColumn,
+                questionColumns,
+                hiddenColumns,
+                hideNames,
+              };
+              const res = csvText
+                ? await importCsvAction({ ...mapping, csvText })
+                : await confirmMappingAction(mapping);
+              if (res.ok) {
+                onClose();
+                router.refresh();
+              } else setError(res.error.message);
+            })
+          }
         >
           {pending ? "Importing…" : "Confirm & import"}
         </Button>
-        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
       </CardFooter>
     </Card>
   );

@@ -9,12 +9,31 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
 type Cell = { question_id: string; prompt: string; avg: number | null };
-type Cand = { candidate_id: string; display_name: string; overall: number | null; rank: number; cells: Cell[] };
-type Results = { suppressed: boolean; rater_bucket: string; rater_count: number | null; candidates: Cand[] };
-type Answer = { candidate_id: string; question_id: string; answer_text: string | null };
+type Cand = {
+  candidate_id: string;
+  display_name: string;
+  overall: number | null;
+  rank: number;
+  cells: Cell[];
+};
+type Results = {
+  suppressed: boolean;
+  rater_bucket: string;
+  rater_count: number | null;
+  candidates: Cand[];
+};
+type Answer = {
+  candidate_id: string;
+  question_id: string;
+  answer_text: string | null;
+};
 type EvaluatorScore = { name: string; overall: number };
 type ContextQuestion = { question_id: string; prompt: string };
-type ContextAnswer = { candidate_id: string; question_id: string; answer_text: string | null };
+type ContextAnswer = {
+  candidate_id: string;
+  question_id: string;
+  answer_text: string | null;
+};
 type ContextFields = { questions: ContextQuestion[]; answers: ContextAnswer[] };
 
 const PAGE_SIZE = 10;
@@ -22,7 +41,13 @@ const PAGE_SIZE = 10;
 // Evaluator score → quality color, by nearest whole point on a red→green scale:
 // 1 red · 2 light red · 3 orange · 4 light green · 5 green. Dark ink text reads
 // on every band.
-const SCORE_BAND_COLORS = ["#ff4b4b", "#ff9a9a", "#ffa733", "#b0e57c", "#58cc02"];
+const SCORE_BAND_COLORS = [
+  "#ff4b4b",
+  "#ff9a9a",
+  "#ffa733",
+  "#b0e57c",
+  "#58cc02",
+];
 function scoreBandColor(score: number): string {
   const band = Math.min(5, Math.max(1, Math.round(score)));
   return SCORE_BAND_COLORS[band - 1];
@@ -101,7 +126,10 @@ export function ResultsView({
         {shown.map((c) => {
           const isOpen = openCand.has(c.candidate_id);
           return (
-            <div key={c.candidate_id} className="border-b border-divider last:border-b-0">
+            <div
+              key={c.candidate_id}
+              className="border-b border-divider last:border-b-0"
+            >
               <button
                 type="button"
                 onClick={() => toggleCand(c.candidate_id)}
@@ -154,90 +182,114 @@ export function ResultsView({
                   isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
                 )}
               >
-                <div className="overflow-hidden" inert={!isOpen} aria-hidden={!isOpen}>
+                <div
+                  className="overflow-hidden"
+                  inert={!isOpen}
+                  aria-hidden={!isOpen}
+                >
                   <div className="border-t border-divider bg-surface">
-                  {c.cells.map((cell) => {
-                    const key = `${c.candidate_id}|${cell.question_id}`;
-                    const answer = answerFor.get(key);
-                    const qOpen = openQ.has(key);
-                    return (
-                      <div key={cell.question_id} className="border-b border-divider last:border-b-0">
-                        {answer ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleQ(key)}
-                            aria-expanded={qOpen}
-                            className="flex w-full items-center justify-between gap-4 py-2 pl-10 pr-4 text-left text-sm transition-colors duration-fast ease-soft hover:bg-ink/5"
-                          >
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              <ChevronDownIcon
-                                className={cn(
-                                  "size-3 shrink-0 text-ink-soft transition-transform duration-fast ease-soft",
-                                  qOpen && "rotate-180",
-                                )}
-                              />
-                              <span className="truncate text-ink-soft">{cell.prompt}</span>
-                            </span>
-                            <span className="shrink-0 text-ink">{cell.avg ?? "—"}</span>
-                          </button>
-                        ) : (
-                          <div className="flex items-center justify-between gap-4 py-2 pl-10 pr-4 text-sm">
-                            <span className="truncate text-ink-soft">{cell.prompt}</span>
-                            <span className="shrink-0 text-ink">{cell.avg ?? "—"}</span>
-                          </div>
-                        )}
-
-                        {answer && qOpen && (
-                          <p className="whitespace-pre-wrap py-2 pl-[3.75rem] pr-4 text-sm leading-relaxed text-ink">
-                            {answer}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {contextFields.questions.length > 0 && (
-                    <div className="border-t border-divider">
-                      <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
-                        Context (not scored)
-                      </p>
-                      {contextFields.questions.map((q) => {
-                        const key = `ctx|${c.candidate_id}|${q.question_id}`;
-                        const answer = contextAnswerFor.get(`${c.candidate_id}|${q.question_id}`);
-                        const qOpen = openQ.has(key);
-                        return (
-                          <div key={q.question_id} className="border-b border-divider last:border-b-0">
-                            {answer ? (
-                              <button
-                                type="button"
-                                onClick={() => toggleQ(key)}
-                                aria-expanded={qOpen}
-                                className="flex w-full items-center justify-between gap-4 py-2 pl-10 pr-4 text-left text-sm transition-colors duration-fast ease-soft hover:bg-ink/5"
-                              >
-                                <span className="flex min-w-0 items-center gap-1.5">
-                                  <ChevronDownIcon
-                                    className={cn(
-                                      "size-3 shrink-0 text-ink-soft transition-transform duration-fast ease-soft",
-                                      qOpen && "rotate-180",
-                                    )}
-                                  />
-                                  <span className="truncate text-ink-soft">{q.prompt}</span>
+                    {c.cells.map((cell) => {
+                      const key = `${c.candidate_id}|${cell.question_id}`;
+                      const answer = answerFor.get(key);
+                      const qOpen = openQ.has(key);
+                      return (
+                        <div
+                          key={cell.question_id}
+                          className="border-b border-divider last:border-b-0"
+                        >
+                          {answer ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleQ(key)}
+                              aria-expanded={qOpen}
+                              className="flex w-full items-center justify-between gap-4 py-2 pl-10 pr-4 text-left text-sm transition-colors duration-fast ease-soft hover:bg-ink/5"
+                            >
+                              <span className="flex min-w-0 items-center gap-1.5">
+                                <ChevronDownIcon
+                                  className={cn(
+                                    "size-3 shrink-0 text-ink-soft transition-transform duration-fast ease-soft",
+                                    qOpen && "rotate-180",
+                                  )}
+                                />
+                                <span className="truncate text-ink-soft">
+                                  {cell.prompt}
                                 </span>
-                              </button>
-                            ) : (
-                              <div className="py-2 pl-10 pr-4 text-sm">
-                                <span className="truncate text-ink-soft">{q.prompt}</span>
-                              </div>
-                            )}
-                            {answer && qOpen && (
-                              <p className="whitespace-pre-wrap py-2 pl-[3.75rem] pr-4 text-sm leading-relaxed text-ink">
-                                {answer}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                              </span>
+                              <span className="shrink-0 text-ink">
+                                {cell.avg ?? "—"}
+                              </span>
+                            </button>
+                          ) : (
+                            <div className="flex items-center justify-between gap-4 py-2 pl-10 pr-4 text-sm">
+                              <span className="truncate text-ink-soft">
+                                {cell.prompt}
+                              </span>
+                              <span className="shrink-0 text-ink">
+                                {cell.avg ?? "—"}
+                              </span>
+                            </div>
+                          )}
+
+                          {answer && qOpen && (
+                            <p className="whitespace-pre-wrap py-2 pl-[3.75rem] pr-4 text-sm leading-relaxed text-ink">
+                              {answer}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {contextFields.questions.length > 0 && (
+                      <div className="border-t border-divider">
+                        <p className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+                          Context (not scored)
+                        </p>
+                        {contextFields.questions.map((q) => {
+                          const key = `ctx|${c.candidate_id}|${q.question_id}`;
+                          const answer = contextAnswerFor.get(
+                            `${c.candidate_id}|${q.question_id}`,
+                          );
+                          const qOpen = openQ.has(key);
+                          return (
+                            <div
+                              key={q.question_id}
+                              className="border-b border-divider last:border-b-0"
+                            >
+                              {answer ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleQ(key)}
+                                  aria-expanded={qOpen}
+                                  className="flex w-full items-center justify-between gap-4 py-2 pl-10 pr-4 text-left text-sm transition-colors duration-fast ease-soft hover:bg-ink/5"
+                                >
+                                  <span className="flex min-w-0 items-center gap-1.5">
+                                    <ChevronDownIcon
+                                      className={cn(
+                                        "size-3 shrink-0 text-ink-soft transition-transform duration-fast ease-soft",
+                                        qOpen && "rotate-180",
+                                      )}
+                                    />
+                                    <span className="truncate text-ink-soft">
+                                      {q.prompt}
+                                    </span>
+                                  </span>
+                                </button>
+                              ) : (
+                                <div className="py-2 pl-10 pr-4 text-sm">
+                                  <span className="truncate text-ink-soft">
+                                    {q.prompt}
+                                  </span>
+                                </div>
+                              )}
+                              {answer && qOpen && (
+                                <p className="whitespace-pre-wrap py-2 pl-[3.75rem] pr-4 text-sm leading-relaxed text-ink">
+                                  {answer}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

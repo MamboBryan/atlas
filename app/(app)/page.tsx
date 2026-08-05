@@ -28,9 +28,7 @@ export default async function HomePage() {
             <h1 className="font-display text-3xl font-extrabold text-ink">
               Thamani
             </h1>
-            <p className="text-sm text-ink-soft">
-              Product growth at a glance.
-            </p>
+            <p className="text-sm text-ink-soft">Product growth at a glance.</p>
           </div>
         </header>
 

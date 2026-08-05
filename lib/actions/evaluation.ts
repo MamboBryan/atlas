@@ -6,6 +6,7 @@ import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   createEvaluationInput, connectSheetInput, setPanelInput, evaluationIdInput,
   confirmMappingInput, rateAnswerInput, csvImportInput, evaluationOwnerInput,
+  setEvaluationFieldInput,
 } from "@/lib/zod/evaluation";
 import { readSheet } from "@/lib/sheets/client";
 import { detectMapping } from "@/lib/sheets/parse";
@@ -183,6 +184,27 @@ export async function rateAnswerAction(input: unknown): Promise<ActionResult<nul
   );
   if (error) return err("forbidden_or_closed", error.message); // RLS rejects non-panelist/closed
   revalidatePath(`/hiring/${evaluationId}`);
+  return ok(null);
+}
+
+export async function setEvaluationFieldAction(input: unknown): Promise<ActionResult<null>> {
+  const parsed = setEvaluationFieldInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  await requireEvaluationOwner(parsed.data.evaluationId);
+  const svc = atlasServiceClient();
+  const { data: ev } = await svc.from("evaluations")
+    .select("status").eq("id", parsed.data.evaluationId).single();
+  if (ev?.status === "closed")
+    return err("locked", "fields are locked after the evaluation is closed");
+  const patch: { is_active?: boolean; is_hidden?: boolean } = {};
+  if (parsed.data.isActive !== undefined) patch.is_active = parsed.data.isActive;
+  if (parsed.data.isHidden !== undefined) patch.is_hidden = parsed.data.isHidden;
+  if (Object.keys(patch).length === 0) return ok(null);
+  const { error } = await svc.from("evaluation_questions")
+    .update(patch).eq("id", parsed.data.questionId)
+    .eq("evaluation_id", parsed.data.evaluationId);
+  if (error) return err("db_error", error.message);
+  revalidatePath(`/hiring/${parsed.data.evaluationId}`);
   return ok(null);
 }
 

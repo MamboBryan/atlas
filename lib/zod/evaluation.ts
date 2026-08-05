@@ -40,3 +40,10 @@ export const rateAnswerInput = z.object({
   questionId: z.string().uuid(),
   score: z.number().int().min(1).max(5),
 });
+
+export const setEvaluationFieldInput = z.object({
+  evaluationId: z.string().uuid(),
+  questionId: z.string().uuid(),
+  isActive: z.boolean().optional(),
+  isHidden: z.boolean().optional(),
+});

@@ -41,6 +41,7 @@ test.describe("hiring evaluations screenshots", () => {
       .single();
     if (draftErr || !draft) throw draftErr ?? new Error("draft insert failed");
     draftId = draft.id;
+    await makeOwner(c, draftId, adminUser.id);
 
     // --- OPEN: questions + candidates + answers + panel, no ratings. -----
     const { data: open, error: openErr } = await c
@@ -50,6 +51,7 @@ test.describe("hiring evaluations screenshots", () => {
       .single();
     if (openErr || !open) throw openErr ?? new Error("open insert failed");
     openId = open.id;
+    await makeOwner(c, openId, adminUser.id);
 
     const openQuestions = await insertQuestions(c, open.id, [
       ["q_why", "Why do you want this role?"],
@@ -86,6 +88,7 @@ test.describe("hiring evaluations screenshots", () => {
       .single();
     if (closedErr || !closed) throw closedErr ?? new Error("closed insert failed");
     closedId = closed.id;
+    await makeOwner(c, closedId, adminUser.id);
 
     const closedQuestions = await insertQuestions(c, closed.id, [
       ["q_why", "Why do you want this role?"],
@@ -347,6 +350,18 @@ async function insertAnswers(
     })),
   );
   const { error } = await c.from("evaluation_answers").insert(rows);
+  if (error) throw error;
+}
+
+// The creator→owner link is only auto-created by createEvaluationAction; when
+// seeding evaluations directly we must add the owner row ourselves, otherwise
+// the owner-only management UI (sheet import, panel, lifecycle) never renders.
+async function makeOwner(c: SupabaseAdmin, evaluationId: string, profileId: string) {
+  const { error } = await c
+    .from("evaluation_owners")
+    .upsert({ evaluation_id: evaluationId, profile_id: profileId }, {
+      onConflict: "evaluation_id,profile_id",
+    });
   if (error) throw error;
 }
 

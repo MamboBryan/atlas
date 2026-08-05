@@ -102,7 +102,7 @@ test.describe("authenticated axe scans", () => {
       const page = await ctx.newPage();
       await page.goto("/");
       await page
-        .getByRole("heading", { name: "Home" })
+        .getByRole("heading", { name: "Thamani" })
         .waitFor({ timeout: 10_000 });
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa"])

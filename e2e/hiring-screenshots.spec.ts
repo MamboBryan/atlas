@@ -114,6 +114,34 @@ test.describe("hiring evaluations screenshots", () => {
         "Cut our largest bundle by 40% through route-level code splitting.",
       "omar@example.com|q_stack": "React, Next.js, and a lot of time in the Chrome performance panel.",
     });
+
+    // A hidden context field: imported + answered but never rated. It must not
+    // appear in the scored results table, and must surface under
+    // "Context (not scored)" in closed results for owners/admins.
+    const { data: hiddenQ, error: hiddenErr } = await c
+      .from("evaluation_questions")
+      .insert({
+        evaluation_id: closed.id,
+        column_key: "q_salary",
+        prompt: "Expected salary range?",
+        position: 3,
+        is_active: true,
+        is_hidden: true,
+      })
+      .select()
+      .single();
+    if (hiddenErr || !hiddenQ) throw hiddenErr ?? new Error("hidden question insert failed");
+    await insertAnswers(
+      c,
+      closed.id,
+      closedCandidates,
+      [{ id: hiddenQ.id, column_key: "q_salary" }],
+      {
+        "noah@example.com|q_salary": "Around $140k, flexible for the right team.",
+        "sara@example.com|q_salary": "$150k base; I value equity too.",
+        "omar@example.com|q_salary": "Open — most interested in the problem space.",
+      },
+    );
     await setPanel(c, closed.id, [p1.id, p2.id, p3.id]);
 
     // Scores chosen so overalls clearly differ: Sara > Noah > Omar.
@@ -196,9 +224,22 @@ test.describe("hiring evaluations screenshots", () => {
       await signIn(ctx, "hiring-shot-admin@atlas.com", baseURL);
       const page = await ctx.newPage();
       await page.goto(`/hiring/${draftId}`);
-      await expect(page.getByRole("heading", { name: "Admin" })).toBeVisible();
+      // Owner rail is the full-height Manage | Fields tabbed panel.
+      const manageTab = page.getByRole("button", { name: /^manage$/i });
+      const fieldsTab = page.getByRole("button", { name: /^fields$/i });
+      await expect(manageTab).toBeVisible();
+      await expect(fieldsTab).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/03-detail-draft-admin.png",
+        fullPage: true,
+      });
+      // Fields tab on a draft with no imported sheet shows the empty state.
+      await fieldsTab.click();
+      await expect(
+        page.getByText("No fields yet. Connect a sheet or upload a CSV to import fields."),
+      ).toBeVisible();
+      await page.screenshot({
+        path: "qa-screenshots/hiring/03b-detail-draft-fields-empty.png",
         fullPage: true,
       });
     } finally {
@@ -269,8 +310,8 @@ test.describe("hiring evaluations screenshots", () => {
       await signIn(ctx, "hiring-shot-admin@atlas.com", baseURL);
       const page = await ctx.newPage();
       await page.goto(`/hiring/${closedId}`);
-      await expect(page.getByText(/evaluators/)).toBeVisible();
-      await expect(page.getByText(/#1/)).toBeVisible();
+      // Top-ranked candidate row is present (revealed ranking).
+      await expect(page.getByRole("button", { name: /#1/ })).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/05-detail-closed-results.png",
         fullPage: true,
@@ -285,6 +326,59 @@ test.describe("hiring evaluations screenshots", () => {
       ).toBeVisible();
       await page.screenshot({
         path: "qa-screenshots/hiring/05b-detail-closed-results-expanded.png",
+        fullPage: true,
+      });
+
+      // The hidden field surfaces as read-only "Context (not scored)" for
+      // owners/admins — with its answer text, but no score.
+      await expect(page.getByText("Context (not scored)")).toBeVisible();
+      await page.getByRole("button", { name: /Expected salary range\?/ }).click();
+      await expect(page.getByText("$150k base; I value equity too.")).toBeVisible();
+      await page.screenshot({
+        path: "qa-screenshots/hiring/05c-detail-closed-context.png",
+        fullPage: true,
+      });
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test("open detail — Manage/Fields panel + toggles (owner)", async ({ browser, baseURL }) => {
+    if (!baseURL) throw new Error("baseURL not configured");
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    try {
+      // The admin is an owner (not a panelist) of the open eval, so the main
+      // column shows the manage hint and the rail shows the full panel.
+      await signIn(ctx, "hiring-shot-admin@atlas.com", baseURL);
+      const page = await ctx.newPage();
+      await page.goto(`/hiring/${openId}`);
+
+      const manageTab = page.getByRole("button", { name: /^manage$/i });
+      const fieldsTab = page.getByRole("button", { name: /^fields$/i });
+      await expect(manageTab).toBeVisible();
+      await page.screenshot({
+        path: "qa-screenshots/hiring/06-open-manage-tab.png",
+        fullPage: true,
+      });
+
+      // Fields tab lists every imported question with Enabled + Hidden pills.
+      await fieldsTab.click();
+      await expect(page.getByText("Why do you want this role?")).toBeVisible();
+      const enabledPills = page.getByRole("button", { name: "Enabled", exact: true });
+      const hiddenPills = page.getByRole("button", { name: "Hidden", exact: true });
+      await expect(enabledPills.first()).toBeVisible();
+      await expect(hiddenPills.first()).toBeVisible();
+      await page.screenshot({
+        path: "qa-screenshots/hiring/06b-open-fields-tab.png",
+        fullPage: true,
+      });
+
+      // Toggling Hidden on the first field persists (aria-pressed flips true).
+      await expect(hiddenPills.first()).toHaveAttribute("aria-pressed", "false");
+      await hiddenPills.first().click();
+      await expect(hiddenPills.first()).toHaveAttribute("aria-pressed", "true");
+      await page.screenshot({
+        path: "qa-screenshots/hiring/06c-open-fields-hidden-toggled.png",
         fullPage: true,
       });
     } finally {

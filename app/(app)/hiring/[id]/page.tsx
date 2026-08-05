@@ -6,6 +6,7 @@ import { StatusBadge } from "@/app/(app)/hiring/_ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DetailWithRail } from "@/components/app/detail-with-rail";
 import { AdminControls } from "@/app/(app)/hiring/[id]/_ui/admin-controls";
+import { DataPreview } from "@/app/(app)/hiring/[id]/_ui/data-preview";
 
 export default async function EvaluationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -62,12 +63,19 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
             body="This evaluation isn’t open yet."
           />
         )}
-        {ownerManageOnly && (
-          <EmptyState
-            headline="Manage from the side panel"
-            body="Use the controls on the right to connect a sheet, set the evaluator panel, and open or close this evaluation."
-          />
-        )}
+        {ownerManageOnly &&
+          (data.preview ? (
+            <DataPreview
+              candidates={data.preview.candidates}
+              questions={data.preview.questions}
+              answers={data.preview.answers}
+            />
+          ) : (
+            <EmptyState
+              headline="Manage from the side panel"
+              body="Use the controls on the right to connect a sheet, set the evaluator panel, and open or close this evaluation."
+            />
+          ))}
       </div>
     </DetailWithRail>
   );

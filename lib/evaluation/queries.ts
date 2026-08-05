@@ -132,9 +132,14 @@ export async function getEvaluationForViewer(id: string) {
   let panel: string[] = [];
   let owners: { id: string; display_name: string }[] = [];
   let createdBy: string | null = null;
-  let fields: { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean }[] = [];
+  let fields: { id: string; column_key: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean }[] = [];
   let identityFields: { role: "email" | "name" | "timestamp"; column: string }[] = [];
   let hideNames = false;
+  let preview: {
+    candidates: { id: string; display_name: string }[];
+    questions: { id: string; prompt: string; is_hidden: boolean }[];
+    answers: { candidate_id: string; question_id: string; answer_text: string | null }[];
+  } | null = null;
   if (isOwner) {
     roster = (await svc.from("profiles")
       .select("id,display_name").eq("is_active", true).order("display_name")).data ?? [];
@@ -156,14 +161,40 @@ export async function getEvaluationForViewer(id: string) {
       evMeta?.name_column && { role: "name" as const, column: evMeta.name_column },
       evMeta?.timestamp_column && { role: "timestamp" as const, column: evMeta.timestamp_column },
     ].filter(Boolean) as { role: "email" | "name" | "timestamp"; column: string }[];
-    fields = (await svc.from("evaluation_questions")
-      .select("id,prompt,position,is_active,is_hidden")
-      .eq("evaluation_id", id).order("position")).data ?? [];
+    const identityCols = new Set(identityFields.map((f) => f.column));
+    // Dedup: a header that's also an identity column (email/name/timestamp)
+    // must not double as a question row.
+    fields = ((await svc.from("evaluation_questions")
+      .select("id,column_key,prompt,position,is_active,is_hidden")
+      .eq("evaluation_id", id).order("position")).data ?? [])
+      .filter((q) => !identityCols.has(q.column_key));
+
+    // Owner preview of imported data before opening: candidate list + answers,
+    // no scores. Skipped once closed (the results view takes over).
+    if (ev.status !== "closed") {
+      const pCands = (await svc.from("evaluation_candidates")
+        .select("id,display_name").eq("evaluation_id", id).eq("is_active", true)
+        .order("display_name")).data ?? [];
+      const pQs = (await svc.from("evaluation_questions")
+        .select("id,prompt,position,is_hidden").eq("evaluation_id", id)
+        .eq("is_active", true).order("position")).data ?? [];
+      if (pCands.length && pQs.length) {
+        const pqIds = pQs.map((q) => q.id);
+        const pAns = (await svc.from("evaluation_answers")
+          .select("candidate_id,question_id,answer_text")
+          .eq("evaluation_id", id).in("question_id", pqIds)).data ?? [];
+        preview = {
+          candidates: pCands,
+          questions: pQs.map((q) => ({ id: q.id, prompt: q.prompt, is_hidden: q.is_hidden })),
+          answers: pAns,
+        };
+      }
+    }
   }
 
   return {
     ev, isAdmin, isPanelist, isOwner, questions, candidates, answers,
     personal, myRatings, results, evaluatorBreakdown, roster, panel, owners, createdBy,
-    fields, identityFields, hideNames, contextFields,
+    fields, identityFields, hideNames, preview, contextFields,
   };
 }

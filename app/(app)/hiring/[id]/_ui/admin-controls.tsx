@@ -77,8 +77,11 @@ export function AdminControls({
         ))}
       </div>
 
-      {/* Active tab body (scrolls) */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* Active tab body (scrolls). The negative-margin + padding gives the
+          chunky left drop-shadows room so overflow-y's implied overflow-x
+          clip doesn't slice them, while keeping content aligned with the
+          pinned tabs and footer. */}
+      <div className="-mx-1.5 min-h-0 flex-1 overflow-y-auto px-1.5 pb-1">
       {activeTab === "manage" ? (
       <div className="space-y-5">
         <div className="space-y-3">

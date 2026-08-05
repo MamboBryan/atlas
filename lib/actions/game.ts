@@ -2,7 +2,12 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/require";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
-import { ensureRoundInput, submitTargetNumberInput, submitZeroInInput, finalizeRoundInput } from "@/lib/zod/game";
+import {
+  ensureRoundInput,
+  submitTargetNumberInput,
+  submitZeroInInput,
+  finalizeRoundInput,
+} from "@/lib/zod/game";
 import { pickGame } from "@/lib/games/select";
 import {
   generateTargetNumberPuzzle,
@@ -27,11 +32,12 @@ import type {
   PlayerResult,
 } from "@/lib/games/types";
 
-export const LOBBY_OPEN_WINDOW_MS = 10 * 60_000;
+// Not exported: a "use server" file may only export async functions.
+const LOBBY_OPEN_WINDOW_MS = 10 * 60_000;
 
 type PublicPuzzle =
   | { kind: "target_number"; target: number; bases: number[] }
-  | { kind: "zero_in" }            // active: secret hidden
+  | { kind: "zero_in" } // active: secret hidden
   | { kind: "zero_in"; secret: number }; // finished: secret revealed
 
 export type EnsureRoundResult = {
@@ -109,7 +115,10 @@ export async function ensureRoundAction(
     return err("db_error", insert.error.message);
   }
 
-  revalidatePath(`/meetings/${parsed.data.meeting_id}`);
+  // No revalidatePath here: the freshly-created round is returned and rendered
+  // directly by GameLobbyPanel, and live updates arrive via realtime channels.
+  // ensureRoundAction runs during that server render, where revalidatePath is
+  // both unsupported and unnecessary.
   return ok(publicize(insert.data));
 }
 
@@ -170,14 +179,19 @@ export async function submitTargetNumberAction(
     .eq("id", parsed.data.round_id)
     .single();
   if (!round) return err("not_found", "round");
-  if (round.kind !== "target_number") return err("wrong_kind", "not target_number");
-  if (round.status !== "active") return err("round_closed", "round is finished");
+  if (round.kind !== "target_number")
+    return err("wrong_kind", "not target_number");
+  if (round.status !== "active")
+    return err("round_closed", "round is finished");
   if (new Date(round.ends_at).getTime() <= Date.now()) {
     return err("round_closed", "past ends_at");
   }
 
   const puzzle = round.puzzle as { target: number; bases: number[] };
-  const evalResult = evaluateExpression(puzzle.bases, parsed.data.expression as TargetNumberOp[]);
+  const evalResult = evaluateExpression(
+    puzzle.bases,
+    parsed.data.expression as TargetNumberOp[],
+  );
   if (!evalResult.ok) return err("invalid_expression", evalResult.reason);
 
   const nowIso = new Date().toISOString();
@@ -188,7 +202,8 @@ export async function submitTargetNumberAction(
     .eq("player_id", user.id)
     .maybeSingle();
 
-  const priorPayload = (prior?.payload as TargetNumberPayload | undefined) ?? null;
+  const priorPayload =
+    (prior?.payload as TargetNumberPayload | undefined) ?? null;
   const priorDistance = priorPayload
     ? Math.abs(puzzle.target - priorPayload.best_result)
     : Infinity;
@@ -220,9 +235,7 @@ export async function submitTargetNumberAction(
   return ok({ result: evalResult.result, better: true });
 }
 
-export async function submitZeroInGuessAction(
-  input: unknown,
-): Promise<
+export async function submitZeroInGuessAction(input: unknown): Promise<
   ActionResult<{
     feedback: ZeroInFeedback;
     guesses_left: number;
@@ -241,7 +254,8 @@ export async function submitZeroInGuessAction(
     .single();
   if (!round) return err("not_found", "round");
   if (round.kind !== "zero_in") return err("wrong_kind", "not zero_in");
-  if (round.status !== "active") return err("round_closed", "round is finished");
+  if (round.status !== "active")
+    return err("round_closed", "round is finished");
   if (new Date(round.ends_at).getTime() <= Date.now()) {
     return err("round_closed", "past ends_at");
   }
@@ -271,10 +285,11 @@ export async function submitZeroInGuessAction(
     feedback,
   };
   const nextGuesses = [...priorPayload.guesses, newGuess];
-  const bestGuess = nextGuesses.reduce((best, g) =>
-    Math.abs(puzzle.secret - g.value) < Math.abs(puzzle.secret - best)
-      ? g.value
-      : best,
+  const bestGuess = nextGuesses.reduce(
+    (best, g) =>
+      Math.abs(puzzle.secret - g.value) < Math.abs(puzzle.secret - best)
+        ? g.value
+        : best,
     nextGuesses[0].value,
   );
   const newPayload: ZeroInPayload = {
@@ -327,7 +342,8 @@ export async function finalizeRoundAction(
   const submissions = subs ?? [];
   const startedAtMs = new Date(round.started_at).getTime();
 
-  const results: Array<{ player_id: string; points: number; display: string }> = [];
+  const results: Array<{ player_id: string; points: number; display: string }> =
+    [];
 
   if (round.kind === "target_number") {
     const puzzle = round.puzzle as { target: number; bases: number[] };
@@ -354,10 +370,25 @@ export async function finalizeRoundAction(
     const scored = scoreZeroInRound(
       puzzle.secret,
       submissions.map((s) => {
-        const payload = s.payload as { guesses: Array<{ value: number; at: string; feedback: "higher" | "lower" | "exact" }>; best_guess: number };
-        const closest = payload.guesses.reduce((best, g) =>
-          Math.abs(puzzle.secret - g.value) < Math.abs(puzzle.secret - best.value) ? g : best,
-          payload.guesses[0] ?? { value: 0, at: s.submitted_at, feedback: "exact" as const },
+        const payload = s.payload as {
+          guesses: Array<{
+            value: number;
+            at: string;
+            feedback: "higher" | "lower" | "exact";
+          }>;
+          best_guess: number;
+        };
+        const closest = payload.guesses.reduce(
+          (best, g) =>
+            Math.abs(puzzle.secret - g.value) <
+            Math.abs(puzzle.secret - best.value)
+              ? g
+              : best,
+          payload.guesses[0] ?? {
+            value: 0,
+            at: s.submitted_at,
+            feedback: "exact" as const,
+          },
         );
         return {
           player_id: s.player_id,
@@ -390,13 +421,15 @@ export async function finalizeRoundAction(
 }
 
 export async function getLeaderboardAction(): Promise<
-  ActionResult<Array<{
-    player_id: string;
-    display_name: string;
-    total_points: number;
-    rounds_played: number;
-    last_played_at: string;
-  }>>
+  ActionResult<
+    Array<{
+      player_id: string;
+      display_name: string;
+      total_points: number;
+      rounds_played: number;
+      last_played_at: string;
+    }>
+  >
 > {
   const { supabase } = await requireUser();
 
@@ -428,7 +461,10 @@ export async function getLeaderboardAction(): Promise<
   if (roundsErr) return err("db_error", roundsErr.message);
 
   const roundMap = new Map(
-    (roundsData ?? []).map((r) => [r.id, r as { id: string; finalized_at: string | null; status: string }]),
+    (roundsData ?? []).map((r) => [
+      r.id,
+      r as { id: string; finalized_at: string | null; status: string },
+    ]),
   );
 
   // Step 3: fetch display names for all referenced players.
@@ -446,7 +482,12 @@ export async function getLeaderboardAction(): Promise<
   // Aggregate per player, only counting submissions from finished rounds.
   const agg = new Map<
     string,
-    { display_name: string; total_points: number; rounds_played: number; last_played_at: string }
+    {
+      display_name: string;
+      total_points: number;
+      rounds_played: number;
+      last_played_at: string;
+    }
   >();
 
   for (const s of submissions) {

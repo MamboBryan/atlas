@@ -11,6 +11,7 @@ import { readSheet } from "@/lib/sheets/client";
 import { detectMapping } from "@/lib/sheets/parse";
 import { parseCsv } from "@/lib/sheets/csv";
 import { syncEvaluation } from "@/lib/evaluation/sync";
+import { partitionRefreshColumns } from "@/lib/evaluation/refresh";
 
 export async function createEvaluationAction(input: unknown): Promise<ActionResult<{ id: string }>> {
   const parsed = createEvaluationInput.safeParse(input);
@@ -202,12 +203,11 @@ export async function refreshEvaluationAction(input: unknown) {
     // Question columns = all headers minus identity columns (stable).
     const identity = new Set([ev.email_column, ev.name_column, ev.timestamp_column].filter(Boolean) as string[]);
     const nonIdentityHeaders = grid.headers.filter((h) => !identity.has(h));
-    // Hidden state lives per-question; carry it forward from the existing rows.
+    // Hidden/disabled state lives per-question; carry it forward from the existing rows.
     const { data: existingQs } = await svc.from("evaluation_questions")
-      .select("column_key,is_hidden").eq("evaluation_id", parsed.data.evaluationId);
-    const hiddenKeys = new Set((existingQs ?? []).filter((q) => q.is_hidden).map((q) => q.column_key));
-    const questionColumns = nonIdentityHeaders.filter((h) => !hiddenKeys.has(h));
-    const hiddenColumns = nonIdentityHeaders.filter((h) => hiddenKeys.has(h));
+      .select("column_key,is_active,is_hidden").eq("evaluation_id", parsed.data.evaluationId);
+    const { questionColumns, hiddenColumns } =
+      partitionRefreshColumns(existingQs ?? [], nonIdentityHeaders);
     const summary = await syncEvaluation(svc, parsed.data.evaluationId, grid, {
       emailColumn: ev.email_column, nameColumn: ev.name_column,
       timestampColumn: ev.timestamp_column, questionColumns, hiddenColumns,

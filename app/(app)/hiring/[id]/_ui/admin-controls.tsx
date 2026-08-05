@@ -9,6 +9,7 @@ import {
 import { parseCsv } from "@/lib/sheets/csv";
 import { detectMapping } from "@/lib/sheets/parse";
 import { MappingDialog } from "@/app/(app)/hiring/[id]/_ui/mapping-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -19,13 +20,15 @@ type Ev = {
 };
 type Detected = { emailColumn: string; nameColumn: string | null; timestampColumn: string | null; questionColumns: string[] };
 type Field = { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean };
+type IdentityField = { role: "email" | "name" | "timestamp"; column: string };
 
 export function AdminControls({
   evaluation, roster = [], panel = [], owners = [], createdBy = null, fields = [],
+  identityFields = [], hideNames = false,
 }: {
   evaluation: Ev; roster?: { id: string; display_name: string }[]; panel?: string[];
   owners?: { id: string; display_name: string }[]; createdBy?: string | null;
-  fields?: Field[];
+  fields?: Field[]; identityFields?: IdentityField[]; hideNames?: boolean;
 }) {
   const ownerIds = new Set(owners.map((o) => o.id));
   const [sheetId, setSheetId] = useState(evaluation.sheet_id ?? "");
@@ -215,6 +218,8 @@ export function AdminControls({
         <FieldsTab
           evaluationId={evaluation.id}
           fields={fields}
+          identityFields={identityFields}
+          hideNames={hideNames}
           locked={evaluation.status === "closed"}
           pending={pending}
           run={run}
@@ -258,16 +263,24 @@ export function AdminControls({
   );
 }
 
+const IDENTITY_META: Record<IdentityField["role"], { label: string; hint: string }> = {
+  email: { label: "Email", hint: "Matches candidates" },
+  name: { label: "Name", hint: "Candidate name" },
+  timestamp: { label: "Submitted", hint: "Submission time" },
+};
+
 function FieldsTab({
-  evaluationId, fields, locked, pending, run,
+  evaluationId, fields, identityFields, hideNames, locked, pending, run,
 }: {
   evaluationId: string;
   fields: Field[];
+  identityFields: IdentityField[];
+  hideNames: boolean;
   locked: boolean;
   pending: boolean;
   run: (fn: () => Promise<{ ok: boolean; error?: { message: string } }>) => void;
 }) {
-  if (fields.length === 0) {
+  if (fields.length === 0 && identityFields.length === 0) {
     return (
       <p className="text-sm text-ink-soft">
         No fields yet. Connect a sheet or upload a CSV to import fields.
@@ -277,18 +290,54 @@ function FieldsTab({
   return (
     <div className="space-y-3">
       <p className="text-xs text-ink-soft">
-        Hidden fields aren&apos;t scored during evaluation but appear as context in results.
+        Every imported column and how it maps to the evaluation. Hidden fields
+        aren&apos;t scored during evaluation but appear as context in results.
       </p>
       {locked && (
         <p className="text-xs font-semibold text-ink-soft">Fields lock after closing.</p>
       )}
       <ul className="space-y-2">
+        {/* Identity / meta columns — structural, not scored. */}
+        {identityFields.map((f) => {
+          const meta = IDENTITY_META[f.role];
+          return (
+            <li
+              key={f.role}
+              className="flex items-center justify-between gap-3 rounded-md border-chunk border-ink/40 bg-surface px-3 py-2"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-ink">{f.column}</span>
+                <span className="text-[11px] text-ink-soft">{meta.hint}</span>
+              </span>
+              <Badge size="sm" variant="outline" className="shrink-0 border-ink/40">
+                {meta.label}
+              </Badge>
+            </li>
+          );
+        })}
+        {hideNames && (
+          <li className="rounded-md border-chunk border-ink/40 bg-surface px-3 py-2">
+            <span className="block text-sm font-medium text-ink">Candidate names</span>
+            <span className="text-[11px] text-ink-soft">Anonymized during evaluation</span>
+          </li>
+        )}
+
+        {/* Question columns — enable/disable and hide/reveal. */}
         {fields.map((f) => (
           <li
             key={f.id}
             className="flex items-center justify-between gap-3 rounded-md border-chunk border-ink bg-surface-raised px-3 py-2"
           >
-            <span className="min-w-0 truncate text-sm font-medium text-ink">{f.prompt}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium text-ink">{f.prompt}</span>
+              <span className="text-[11px] text-ink-soft">
+                {!f.is_active
+                  ? "Disabled"
+                  : f.is_hidden
+                    ? "Context · not scored"
+                    : "Scored question"}
+              </span>
+            </span>
             <span className="flex shrink-0 gap-1.5">
               <TogglePill
                 label="Enabled"

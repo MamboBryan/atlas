@@ -29,6 +29,8 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
             owners={data.owners}
             createdBy={data.createdBy}
             fields={data.fields}
+            identityFields={data.identityFields}
+            hideNames={data.hideNames}
           />
         ) : null
       }

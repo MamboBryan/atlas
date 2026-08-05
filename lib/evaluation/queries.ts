@@ -133,6 +133,8 @@ export async function getEvaluationForViewer(id: string) {
   let owners: { id: string; display_name: string }[] = [];
   let createdBy: string | null = null;
   let fields: { id: string; prompt: string; position: number; is_active: boolean; is_hidden: boolean }[] = [];
+  let identityFields: { role: "email" | "name" | "timestamp"; column: string }[] = [];
+  let hideNames = false;
   if (isOwner) {
     roster = (await svc.from("profiles")
       .select("id,display_name").eq("is_active", true).order("display_name")).data ?? [];
@@ -142,8 +144,18 @@ export async function getEvaluationForViewer(id: string) {
       .select("profile_id").eq("evaluation_id", id)).data ?? []).map((o) => o.profile_id);
     const nameById = new Map(roster.map((r) => [r.id, r.display_name]));
     owners = ownerIds.map((oid) => ({ id: oid, display_name: nameById.get(oid) ?? "Unknown" }));
-    createdBy = (await svc.from("evaluations")
-      .select("created_by").eq("id", id).single()).data?.created_by ?? null;
+    const evMeta = (await svc.from("evaluations")
+      .select("created_by,email_column,name_column,timestamp_column,hide_names")
+      .eq("id", id).single()).data;
+    createdBy = evMeta?.created_by ?? null;
+    hideNames = evMeta?.hide_names ?? false;
+    // Identity columns from the sheet/CSV mapping, shown alongside questions so
+    // the Fields tab reflects every imported column and its role.
+    identityFields = [
+      evMeta?.email_column && { role: "email" as const, column: evMeta.email_column },
+      evMeta?.name_column && { role: "name" as const, column: evMeta.name_column },
+      evMeta?.timestamp_column && { role: "timestamp" as const, column: evMeta.timestamp_column },
+    ].filter(Boolean) as { role: "email" | "name" | "timestamp"; column: string }[];
     fields = (await svc.from("evaluation_questions")
       .select("id,prompt,position,is_active,is_hidden")
       .eq("evaluation_id", id).order("position")).data ?? [];
@@ -152,6 +164,6 @@ export async function getEvaluationForViewer(id: string) {
   return {
     ev, isAdmin, isPanelist, isOwner, questions, candidates, answers,
     personal, myRatings, results, evaluatorBreakdown, roster, panel, owners, createdBy,
-    fields, contextFields,
+    fields, identityFields, hideNames, contextFields,
   };
 }

@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth/require";
 import { RosterGrid } from "@/components/app/roster-grid";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
 
 export default async function RosterPage() {
   const { user, supabase } = await requireUser();
@@ -13,13 +14,15 @@ export default async function RosterPage() {
     .eq("id", user.id)
     .single();
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Roster</h1>
-      <RosterGrid
-        rows={data ?? []}
-        isAdmin={mine?.role === "admin"}
-        currentUserId={user.id}
-      />
-    </div>
+    <DetailWithRail>
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Roster</h1>
+        <RosterGrid
+          rows={data ?? []}
+          isAdmin={mine?.role === "admin"}
+          currentUserId={user.id}
+        />
+      </div>
+    </DetailWithRail>
   );
 }

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sticker } from "@/components/ui/sticker";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
 
 export default async function MemberPage({
   params,
@@ -37,7 +38,8 @@ export default async function MemberPage({
   const joinedYear = new Date(data.created_at).getFullYear();
 
   return (
-    <div className="space-y-6">
+    <DetailWithRail>
+      <div className="space-y-6">
       {/* Profile card */}
       <Card>
         <CardContent className="pt-5">
@@ -122,6 +124,7 @@ export default async function MemberPage({
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </DetailWithRail>
   );
 }

@@ -13,6 +13,8 @@ import {
   type PromptOption,
 } from "@/components/meetings/agenda-editor";
 import { GameLobbyPanel } from "@/components/games/game-lobby-panel";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
+import { MeetingRail } from "@/components/meetings/meeting-rail";
 
 type Meeting = {
   id: string;
@@ -155,9 +157,10 @@ export default async function MeetingDetailPage({
     : null;
 
   return (
-    <div className="space-y-8">
-      <header className="space-y-3">
-        {/* Breadcrumbs */}
+    <DetailWithRail rail={<MeetingRail id={id} />}>
+      <div className="space-y-8">
+        <header className="space-y-3">
+          {/* Breadcrumbs */}
         <nav
           aria-label="Breadcrumb"
           className="flex items-center gap-1.5 text-sm text-ink-soft"
@@ -280,6 +283,7 @@ export default async function MeetingDetailPage({
           <AgendaEditor meetingId={m.id} items={agendaItems} readOnly />
         </section>
       )}
-    </div>
+      </div>
+    </DetailWithRail>
   );
 }

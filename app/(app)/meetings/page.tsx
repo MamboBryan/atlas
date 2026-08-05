@@ -8,6 +8,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { ChessKingIcon, MeetingRoomIcon } from "@hugeicons/core-free-icons";
 import { MeetingsTabs } from "@/components/app/meetings-tabs";
 import { NewMeetingTrigger } from "./_ui/new-meeting-trigger";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
 
 type MeetingRow = {
   id: string;
@@ -160,28 +161,29 @@ export default async function MeetingsPage() {
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
   return (
-    <div className="space-y-8">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-extrabold text-ink">
-            Meetings
-          </h1>
-          <p className="text-sm text-ink-soft">
-            Upcoming rituals for your team.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            render={<Link href={"/meetings/past" as never} />}
-          >
-            Past
-          </Button>
-          <NewMeetingTrigger defaultTimezone={viewerTz} />
-        </div>
-      </header>
+    <DetailWithRail>
+      <div className="space-y-8">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-extrabold text-ink">
+              Meetings
+            </h1>
+            <p className="text-sm text-ink-soft">
+              Upcoming rituals for your team.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              render={<Link href={"/meetings/past" as never} />}
+            >
+              Past
+            </Button>
+            <NewMeetingTrigger defaultTimezone={viewerTz} />
+          </div>
+        </header>
 
-      <MeetingsTabs />
+        <MeetingsTabs />
 
       {live.length > 0 && (
         <section className="space-y-3">
@@ -255,6 +257,7 @@ export default async function MeetingsPage() {
           </div>
         )}
       </section>
-    </div>
+      </div>
+    </DetailWithRail>
   );
 }

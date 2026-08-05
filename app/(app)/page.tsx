@@ -5,6 +5,8 @@ import {
   getAccountsMonthly,
   getAccountsDaily,
 } from "@/lib/thamani/read";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
+import { HomeRail } from "@/components/app/home-rail";
 
 export default async function HomePage() {
   const { supabase } = await requireUser();
@@ -19,23 +21,27 @@ export default async function HomePage() {
     ]);
 
   return (
-    <div className="space-y-8">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-extrabold text-ink">
-            Thamani
-          </h1>
-          <p className="text-sm text-ink-soft">Product growth at a glance.</p>
-        </div>
-      </header>
+    <DetailWithRail rail={<HomeRail />}>
+      <div className="space-y-8">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-extrabold text-ink">
+              Thamani
+            </h1>
+            <p className="text-sm text-ink-soft">
+              Product growth at a glance.
+            </p>
+          </div>
+        </header>
 
-      <AccountsMetric
-        current={current}
-        previous={previous}
-        monthly={accountsMonthly}
-        daily={accountsDaily}
-        year={metricsYear}
-      />
-    </div>
+        <AccountsMetric
+          current={current}
+          previous={previous}
+          monthly={accountsMonthly}
+          daily={accountsDaily}
+          year={metricsYear}
+        />
+      </div>
+    </DetailWithRail>
   );
 }

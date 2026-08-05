@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardAction,
 } from "@/components/ui/card";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
 
 type MeetingRow = {
   id: string;
@@ -86,7 +87,8 @@ export default async function PastMeetingsPage() {
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <DetailWithRail>
+      <div className="space-y-6 max-w-3xl">
       {/* Back link */}
       <div className="flex items-center gap-2 text-sm">
         <Link
@@ -149,6 +151,7 @@ export default async function PastMeetingsPage() {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </DetailWithRail>
   );
 }

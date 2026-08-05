@@ -12,6 +12,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { SeriesForm } from "@/components/series/series-form";
 import type { AgendaTemplateItem } from "@/lib/zod/series";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
 
 type SeriesRow = {
   id: string;
@@ -118,7 +119,8 @@ export default async function SeriesDetailPage({
   const nextOccurrence = upcoming.length > 0 ? upcoming[0] : null;
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <DetailWithRail>
+      <div className="space-y-8 max-w-3xl">
       {/* Back link */}
       <div className="flex items-center gap-2">
         <Link
@@ -260,6 +262,7 @@ export default async function SeriesDetailPage({
           />
         </section>
       )}
-    </div>
+      </div>
+    </DetailWithRail>
   );
 }

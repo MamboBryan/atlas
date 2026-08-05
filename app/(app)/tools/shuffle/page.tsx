@@ -1,4 +1,5 @@
 import { ShuffleStage } from "@/components/tools/shuffle-stage";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
 
 export default async function ToolsShufflePage({
   searchParams,
@@ -6,5 +7,9 @@ export default async function ToolsShufflePage({
   searchParams: Promise<{ id?: string }>;
 }) {
   const { id } = await searchParams;
-  return <ShuffleStage sessionId={id ?? null} />;
+  return (
+    <DetailWithRail>
+      <ShuffleStage sessionId={id ?? null} />
+    </DetailWithRail>
+  );
 }

@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarUserIcon } from "@hugeicons/core-free-icons";
 import { MeetingsTabs } from "@/components/app/meetings-tabs";
 import { NewSeriesTrigger } from "./_ui/new-series-trigger";
+import { DetailWithRail } from "@/components/app/detail-with-rail";
 
 type SeriesRow = {
   id: string;
@@ -106,52 +107,54 @@ export default async function SeriesListPage() {
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
 
   return (
-    <div className="space-y-8 max-w-3xl">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-extrabold text-ink">
-            Series
-          </h1>
-          <p className="text-sm text-ink-soft">
-            Recurring meeting rituals for your team.
-          </p>
-        </div>
-        {isAdmin && (
-          <div className="shrink-0">
-            <NewSeriesTrigger roster={roster} defaultTimezone={viewerTz} />
+    <DetailWithRail>
+      <div className="space-y-8 max-w-3xl">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl font-extrabold text-ink">
+              Series
+            </h1>
+            <p className="text-sm text-ink-soft">
+              Recurring meeting rituals for your team.
+            </p>
+          </div>
+          {isAdmin && (
+            <div className="shrink-0">
+              <NewSeriesTrigger roster={roster} defaultTimezone={viewerTz} />
+            </div>
+          )}
+        </header>
+
+        <MeetingsTabs />
+
+        {series.length === 0 ? (
+          <EmptyState
+            icon={CalendarUserIcon}
+            headline="No series yet"
+            body={
+              isAdmin
+                ? "Create one to auto-generate recurring meetings."
+                : "Ask an admin to create a recurring series."
+            }
+            action={
+              isAdmin
+                ? { label: "New series", href: "/series?new=series" as never }
+                : undefined
+            }
+          />
+        ) : (
+          <div className="space-y-2">
+            {series.map((s) => (
+              <SeriesCard
+                key={s.id}
+                s={s}
+                ownerName={nameById.get(s.owner_user_id) ?? "?"}
+              />
+            ))}
           </div>
         )}
-      </header>
-
-      <MeetingsTabs />
-
-      {series.length === 0 ? (
-        <EmptyState
-          icon={CalendarUserIcon}
-          headline="No series yet"
-          body={
-            isAdmin
-              ? "Create one to auto-generate recurring meetings."
-              : "Ask an admin to create a recurring series."
-          }
-          action={
-            isAdmin
-              ? { label: "New series", href: "/series?new=series" as never }
-              : undefined
-          }
-        />
-      ) : (
-        <div className="space-y-2">
-          {series.map((s) => (
-            <SeriesCard
-              key={s.id}
-              s={s}
-              ownerName={nameById.get(s.owner_user_id) ?? "?"}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+      </div>
+    </DetailWithRail>
   );
 }
 

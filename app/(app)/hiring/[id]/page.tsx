@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getEvaluationForViewer } from "@/lib/evaluation/queries";
-import { RatingPanel } from "@/app/(app)/hiring/[id]/_ui/rating-panel";
+import { RankList } from "@/app/(app)/hiring/[id]/_ui/rank-list";
 import { ResultsView } from "@/app/(app)/hiring/[id]/_ui/results-view";
 import { StatusBadge } from "@/app/(app)/hiring/_ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -9,7 +9,7 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
   const { id } = await params;
   const data = await getEvaluationForViewer(id);
   if (!data) notFound();
-  const { ev, isAdmin, isPanelist, candidates, questions, answers, myRatings, results } = data;
+  const { ev, isAdmin, isPanelist, candidates, questions, answers, myRatings, personal, results } = data;
 
   // Admin management moved to the right rail (@right/hiring/[id]). When an admin
   // has nothing to rate/review in the main column, point them there.
@@ -28,8 +28,8 @@ export default async function EvaluationDetail({ params }: { params: Promise<{ i
       )}
 
       {ev.status === "open" && isPanelist && (
-        <RatingPanel evaluationId={ev.id} candidates={candidates} questions={questions}
-          answers={answers} myRatings={myRatings} />
+        <RankList evaluationId={ev.id} candidates={candidates} questions={questions}
+          answers={answers} myRatings={myRatings} ranked={personal} />
       )}
 
       {ev.status === "open" && !isPanelist && !isAdmin && (

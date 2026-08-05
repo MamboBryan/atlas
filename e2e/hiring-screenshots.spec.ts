@@ -203,34 +203,52 @@ test.describe("hiring evaluations screenshots", () => {
     }
   });
 
-  test("open detail — rating panel (panelist)", async ({ browser, baseURL }) => {
+  test("open detail — ranked list + fullscreen evaluate (panelist)", async ({ browser, baseURL }) => {
     if (!baseURL) throw new Error("baseURL not configured");
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 960 } });
     try {
       await signIn(ctx, "hiring-shot-p1@atlas.com", baseURL);
       const page = await ctx.newPage();
-      await page.goto(`/hiring/${openId}`);
-      // One candidate at a time, opening on the first unrated one.
-      await expect(page.getByText("Ada Nakamura")).toBeVisible();
-      await expect(page.getByText(/0 of 3 candidates rated/)).toBeVisible();
-      await expect(page.getByText(/Candidate 1 of 3/)).toBeVisible();
-      await expect(page.getByRole("button", { name: "1", exact: true }).first()).toBeVisible();
-      await expect(page.getByRole("button", { name: "5", exact: true }).first()).toBeVisible();
 
-      // Rate the first question, then reload: the selection must persist,
-      // proving ratings save and are restored (the core fix).
-      const firstFour = page.getByRole("button", { name: "4", exact: true }).first();
-      await firstFour.click();
-      await expect(page.getByText(/1 of 3 answered/)).toBeVisible();
+      // --- Ranked list on the detail page. ---
+      await page.goto(`/hiring/${openId}`);
+      await expect(page.getByText(/0 of 3 candidates rated/)).toBeVisible();
+      await expect(page.getByText("Ada Nakamura")).toBeVisible();
       await page.screenshot({
-        path: "qa-screenshots/hiring/04-detail-open-rating.png",
+        path: "qa-screenshots/hiring/04-detail-open-ranklist.png",
         fullPage: true,
       });
 
+      // --- Enter the fullscreen evaluate flow (top CTA links to /evaluate). ---
+      await page.locator(`a[href="/hiring/${openId}/evaluate"]`).click();
+      await expect(page).toHaveURL(new RegExp(`/hiring/${openId}/evaluate$`));
+      await expect(page.getByRole("heading", { name: "Ada Nakamura" })).toBeVisible();
+      await expect(page.getByText(/0 of 3 candidates rated/)).toBeVisible();
+
+      // Rate the first question; progress updates and it auto-saves.
+      await page.getByRole("button", { name: "4", exact: true }).first().click();
+      await expect(page.getByText(/1 of 3 answered/)).toBeVisible();
+      await page.screenshot({
+        path: "qa-screenshots/hiring/04b-fullscreen-evaluate.png",
+        fullPage: true,
+      });
+
+      // Reload the fullscreen route: the selection persists (save + restore).
       await page.reload();
       await expect(
         page.getByRole("button", { name: "4", exact: true }).first(),
       ).toHaveAttribute("aria-pressed", "true");
+
+      // Close returns to the detail page.
+      await page.getByRole("button", { name: "Close" }).click();
+      await expect(page).toHaveURL(new RegExp(`/hiring/${openId}$`));
+
+      // --- Single-candidate re-evaluate from a ranked row. ---
+      await page.locator(`a[href*="/evaluate?candidate="]`).first().click();
+      await expect(page).toHaveURL(/\/evaluate\?candidate=/);
+      await expect(page.getByRole("button", { name: "Finish" })).toBeVisible();
+      await page.getByRole("button", { name: "Finish" }).click();
+      await expect(page).toHaveURL(new RegExp(`/hiring/${openId}$`));
     } finally {
       await ctx.close();
     }

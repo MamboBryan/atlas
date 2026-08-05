@@ -18,6 +18,15 @@ type ContextFields = { questions: ContextQuestion[]; answers: ContextAnswer[] };
 
 const PAGE_SIZE = 10;
 
+// Evaluator score → quality color, by nearest whole point on a red→green scale:
+// 1 red · 2 light red · 3 orange · 4 light green · 5 green. Dark ink text reads
+// on every band.
+const SCORE_BAND_COLORS = ["#ff4b4b", "#ff9a9a", "#ffa733", "#b0e57c", "#58cc02"];
+function scoreBandColor(score: number): string {
+  const band = Math.min(5, Math.max(1, Math.round(score)));
+  return SCORE_BAND_COLORS[band - 1];
+}
+
 export function ResultsView({
   results,
   answers = [],
@@ -117,14 +126,17 @@ export function ResultsView({
               {isOpen && (
                 <div className="border-t border-divider bg-surface">
                   {(evaluators[c.candidate_id]?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap gap-1.5 px-4 py-2.5">
+                    <div className="flex flex-wrap justify-end gap-1.5 px-4 py-2.5">
                       {evaluators[c.candidate_id].map((e, i) => (
                         <span
                           key={`${e.name}-${i}`}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-divider bg-ink/5 py-0.5 pl-2.5 pr-1.5 text-xs text-ink-soft"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-divider bg-ink/5 py-0.5 pl-2.5 pr-1 text-xs text-ink-soft"
                         >
                           <span className="truncate">{e.name}</span>
-                          <span className="rounded-full bg-ink/10 px-1.5 font-semibold tabular-nums text-ink">
+                          <span
+                            className="rounded-full px-1.5 font-semibold tabular-nums text-[#111]"
+                            style={{ backgroundColor: scoreBandColor(e.overall) }}
+                          >
                             {e.overall}
                           </span>
                         </span>

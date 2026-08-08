@@ -12,6 +12,7 @@ import {
   addEvaluationOwnerAction,
   removeEvaluationOwnerAction,
   saveEvaluationFieldsAction,
+  setAggregateQuestionsAction,
 } from "@/lib/actions/evaluation";
 import { parseCsv } from "@/lib/sheets/csv";
 import { detectMapping } from "@/lib/sheets/parse";
@@ -55,6 +56,7 @@ export function AdminControls({
   fields = [],
   identityFields = [],
   hideNames = false,
+  aggregateQuestions = false,
 }: {
   evaluation: Ev;
   roster?: { id: string; display_name: string }[];
@@ -64,6 +66,7 @@ export function AdminControls({
   fields?: Field[];
   identityFields?: IdentityField[];
   hideNames?: boolean;
+  aggregateQuestions?: boolean;
 }) {
   const ownerIds = new Set(owners.map((o) => o.id));
   const [sheetId, setSheetId] = useState(evaluation.sheet_id ?? "");
@@ -320,6 +323,39 @@ export function AdminControls({
                   );
                 })}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="font-display text-sm font-extrabold text-ink">
+                Scoring
+              </p>
+              <div className="flex items-center justify-between gap-3 rounded-md border-chunk border-ink bg-surface-raised p-3">
+                <div className="flex flex-col">
+                  <span className="font-medium">Aggregate questions</span>
+                  <span className="text-xs text-ink-soft">
+                    On = averaged 1–5 score. Off = summed total.
+                  </span>
+                </div>
+                <Button
+                  variant={aggregateQuestions ? "default" : "secondary"}
+                  disabled={pending || evaluation.status === "closed"}
+                  onClick={() =>
+                    run(() =>
+                      setAggregateQuestionsAction({
+                        evaluationId: evaluation.id,
+                        aggregateQuestions: !aggregateQuestions,
+                      }),
+                    )
+                  }
+                >
+                  {aggregateQuestions ? "On" : "Off"}
+                </Button>
+              </div>
+              {evaluation.status === "closed" && (
+                <p className="text-xs font-semibold text-ink-soft">
+                  Scoring locks after closing.
+                </p>
+              )}
             </div>
           </div>
         ) : (

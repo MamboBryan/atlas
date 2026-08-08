@@ -48,6 +48,7 @@ export default async function EvaluationDetail({
             fields={data.fields}
             identityFields={data.identityFields}
             hideNames={data.hideNames}
+            aggregateQuestions={data.aggregateQuestions}
           />
         ) : null
       }

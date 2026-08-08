@@ -58,6 +58,7 @@ export function ResultsView({
   answers = [],
   evaluators = {},
   contextFields = { questions: [], answers: [] },
+  aggregateQuestions,
 }: {
   results: Results;
   answers?: Answer[];
@@ -65,6 +66,9 @@ export function ResultsView({
   evaluators?: Record<string, EvaluatorScore[]>;
   // Hidden (unscored) fields, shown as read-only context. Empty for non-panelist viewers.
   contextFields?: ContextFields;
+  // Whether this evaluation averages question scores (true) or sums them
+  // (false). Determines how e.overall is interpreted for badge coloring.
+  aggregateQuestions: boolean;
 }) {
   const [openCand, setOpenCand] = useState<Set<string>>(new Set());
   const [openQ, setOpenQ] = useState<Set<string>>(new Set());
@@ -163,7 +167,11 @@ export function ResultsView({
                           className="border-transparent px-1.5 py-0 font-semibold tabular-nums text-[#111]"
                           style={{
                             backgroundColor: scoreBandColor(
-                              e.ratedCount ? e.overall / e.ratedCount : e.overall,
+                              aggregateQuestions
+                                ? e.overall
+                                : e.ratedCount
+                                  ? e.overall / e.ratedCount
+                                  : e.overall,
                             ),
                           }}
                         >

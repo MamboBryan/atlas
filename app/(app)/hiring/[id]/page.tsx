@@ -67,6 +67,7 @@ export default async function EvaluationDetail({
             answers={answers}
             evaluators={evaluatorBreakdown}
             contextFields={contextFields}
+            aggregateQuestions={data.aggregateQuestions}
           />
         )}
 

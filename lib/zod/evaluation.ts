@@ -50,6 +50,11 @@ export const setEvaluationFieldInput = z.object({
   isHidden: z.boolean().optional(),
 });
 
+export const setAggregateQuestionsInput = z.object({
+  evaluationId: z.string().uuid(),
+  aggregateQuestions: z.boolean(),
+});
+
 export const evaluationFieldRole = z.enum([
   "email",
   "name",

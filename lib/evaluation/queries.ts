@@ -141,10 +141,13 @@ export async function getEvaluationForViewer(id: string) {
   const { user, supabase } = await requireUser();
   const { data: ev } = await supabase
     .from("evaluations")
-    .select("id,name,status,sheet_id,mapping_confirmed,last_synced_at")
+    .select(
+      "id,name,status,sheet_id,mapping_confirmed,last_synced_at,aggregate_questions",
+    )
     .eq("id", id)
     .single();
   if (!ev) return null;
+  const aggregateQuestions = ev?.aggregate_questions ?? false;
 
   const { data: prof } = await supabase
     .from("profiles")
@@ -231,6 +234,7 @@ export async function getEvaluationForViewer(id: string) {
         myRatings,
         candidates.map((c) => c.id),
         questions.map((q) => q.id),
+        aggregateQuestions,
       );
     }
   }
@@ -247,8 +251,10 @@ export async function getEvaluationForViewer(id: string) {
   // results view. Deliberately bypasses the anonymized aggregate — read via the
   // service client because ratings_read_self RLS only exposes the caller's own
   // ratings. Withheld entirely from everyone else (empty map serialized as {}).
-  let evaluatorBreakdown: Record<string, { name: string; overall: number }[]> =
-    {};
+  let evaluatorBreakdown: Record<
+    string,
+    { name: string; overall: number; ratedCount: number }[]
+  > = {};
   if (ev.status === "closed" && (isAdmin || isOwner)) {
     const activeCandIds = (
       (
@@ -297,12 +303,14 @@ export async function getEvaluationForViewer(id: string) {
       })),
       activeCandIds,
       activeQIds,
+      aggregateQuestions,
     );
     for (const [candidateId, scores] of breakdown) {
       if (!scores.length) continue;
       evaluatorBreakdown[candidateId] = scores.map((s) => ({
         name: nameByRater.get(s.raterId) ?? "Unknown",
-        overall: s.average,
+        overall: s.value,
+        ratedCount: s.ratedCount,
       }));
     }
   }
@@ -514,6 +522,7 @@ export async function getEvaluationForViewer(id: string) {
     fields,
     identityFields,
     hideNames,
+    aggregateQuestions,
     preview,
     contextFields,
   };

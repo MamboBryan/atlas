@@ -18,6 +18,7 @@ import {
   evaluationOwnerInput,
   setEvaluationFieldInput,
   saveEvaluationFieldsInput,
+  setAggregateQuestionsInput,
 } from "@/lib/zod/evaluation";
 import { readSheet } from "@/lib/sheets/client";
 import { detectMapping } from "@/lib/sheets/parse";
@@ -311,6 +312,29 @@ export async function setEvaluationFieldAction(
     .update(patch)
     .eq("id", parsed.data.questionId)
     .eq("evaluation_id", parsed.data.evaluationId);
+  if (error) return err("db_error", error.message);
+  revalidatePath(`/hiring/${parsed.data.evaluationId}`);
+  return ok(null);
+}
+
+export async function setAggregateQuestionsAction(
+  input: unknown,
+): Promise<ActionResult<null>> {
+  const parsed = setAggregateQuestionsInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+  await requireEvaluationOwner(parsed.data.evaluationId);
+  const svc = atlasServiceClient();
+  const { data: ev } = await svc
+    .from("evaluations")
+    .select("status")
+    .eq("id", parsed.data.evaluationId)
+    .single();
+  if (ev?.status === "closed")
+    return err("locked", "scoring is locked after the evaluation is closed");
+  const { error } = await svc
+    .from("evaluations")
+    .update({ aggregate_questions: parsed.data.aggregateQuestions })
+    .eq("id", parsed.data.evaluationId);
   if (error) return err("db_error", error.message);
   revalidatePath(`/hiring/${parsed.data.evaluationId}`);
   return ok(null);

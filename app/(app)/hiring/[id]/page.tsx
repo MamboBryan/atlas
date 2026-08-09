@@ -48,6 +48,7 @@ export default async function EvaluationDetail({
             fields={data.fields}
             identityFields={data.identityFields}
             hideNames={data.hideNames}
+            aggregateQuestions={data.aggregateQuestions}
           />
         ) : null
       }
@@ -66,6 +67,7 @@ export default async function EvaluationDetail({
             answers={answers}
             evaluators={evaluatorBreakdown}
             contextFields={contextFields}
+            aggregateQuestions={data.aggregateQuestions}
           />
         )}
 

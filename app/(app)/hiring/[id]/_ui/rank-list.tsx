@@ -18,7 +18,7 @@ type A = {
 type R = { candidateId: string; questionId: string; score: number };
 type Ranked = {
   candidateId: string;
-  average: number | null;
+  value: number | null;
   ratedCount: number;
 };
 
@@ -138,10 +138,10 @@ export function RankList({
                   <span
                     className={cn(
                       "shrink-0 font-display text-lg font-extrabold",
-                      r.average == null ? "text-ink-soft" : "text-ink",
+                      r.value == null ? "text-ink-soft" : "text-ink",
                     )}
                   >
-                    {r.average ?? "—"}
+                    {r.value ?? "—"}
                   </span>
                 </button>
                 <div className="flex items-center pr-3">

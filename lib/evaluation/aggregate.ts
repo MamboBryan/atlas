@@ -5,21 +5,29 @@ export type RatingRow = {
 };
 export type PersonalScore = {
   candidateId: string;
-  average: number | null;
+  value: number | null;
   ratedCount: number;
 };
 
 export type RaterRatingRow = RatingRow & { raterId: string };
 export type EvaluatorScore = {
   raterId: string;
-  average: number;
+  value: number;
   ratedCount: number;
 };
+
+// value = sum of scores (aggregateQuestions=false) or mean (true), 2dp.
+function collapse(scores: number[], aggregateQuestions: boolean): number {
+  const total = scores.reduce((a, b) => a + b, 0);
+  const raw = aggregateQuestions ? total / scores.length : total;
+  return Math.round(raw * 100) / 100;
+}
 
 export function computePersonalScores(
   rows: RatingRow[],
   activeCandidateIds: string[],
   activeQuestionIds: string[],
+  aggregateQuestions: boolean,
 ): PersonalScore[] {
   const activeQ = new Set(activeQuestionIds);
   const activeC = new Set(activeCandidateIds);
@@ -31,28 +39,28 @@ export function computePersonalScores(
   }
   const out: PersonalScore[] = activeCandidateIds.map((candidateId) => {
     const scores = byCandidate.get(candidateId)!;
-    const average = scores.length
-      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) /
-        100
-      : null;
-    return { candidateId, average, ratedCount: scores.length };
+    const value = scores.length ? collapse(scores, aggregateQuestions) : null;
+    return { candidateId, value, ratedCount: scores.length };
   });
-  out.sort((a, b) => (b.average ?? -Infinity) - (a.average ?? -Infinity));
+  out.sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity));
   return out;
 }
 
 /**
- * Per-candidate breakdown of each evaluator's own average across the active
+ * Per-candidate breakdown of each evaluator's own value across the active
  * (non-hidden) questions they scored. Owner/admin-only, closed-evaluation view —
  * this deliberately de-anonymizes the aggregate, so no small-panel suppression
- * is applied here (that gate lives at the query layer). Rounding matches the
- * closed candidate overall (2dp). Evaluators are sorted highest-first per
- * candidate; candidates with no ratings map to an empty array.
+ * is applied here (that gate lives at the query/RPC layer). Value is a sum
+ * (aggregateQuestions=false) or a 2dp mean (true). Partial raters are included
+ * (diagnostic view); the RPC overall separately counts only completed raters.
+ * Evaluators are sorted highest-first per candidate; candidates with no ratings
+ * map to an empty array.
  */
 export function computeEvaluatorBreakdown(
   rows: RaterRatingRow[],
   activeCandidateIds: string[],
   activeQuestionIds: string[],
+  aggregateQuestions: boolean,
 ): Map<string, EvaluatorScore[]> {
   const activeQ = new Set(activeQuestionIds);
   const activeC = new Set(activeCandidateIds);
@@ -69,15 +77,16 @@ export function computeEvaluatorBreakdown(
   for (const c of activeCandidateIds) byCandidate.set(c, []);
   for (const [key, scores] of groups) {
     const [candidateId, raterId] = key.split("|");
-    const average =
-      Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) /
-      100;
     byCandidate
       .get(candidateId)!
-      .push({ raterId, average, ratedCount: scores.length });
+      .push({
+        raterId,
+        value: collapse(scores, aggregateQuestions),
+        ratedCount: scores.length,
+      });
   }
   for (const list of byCandidate.values()) {
-    list.sort((a, b) => b.average - a.average);
+    list.sort((a, b) => b.value - a.value);
   }
   return byCandidate;
 }

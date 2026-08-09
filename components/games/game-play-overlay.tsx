@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PlayerResult, RoundLite } from "@/lib/games/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { TargetNumberRound } from "@/components/games/target-number-round";
 import { ZeroInRound } from "@/components/games/zero-in-round";
 import { RoundScoreboard } from "@/components/games/round-scoreboard";
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function GamePlayOverlay({
   round,
@@ -15,10 +18,52 @@ export function GamePlayOverlay({
   onClose: () => void;
 }) {
   const [results, setResults] = useState<PlayerResult[]>([]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  // Focus management: move focus into the dialog on open, trap Tab/Shift+Tab
+  // inside it so background content stays out of the tab order, and restore
+  // focus to whatever triggered the overlay (normally the card's Play
+  // button) once it closes.
+  useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    const root = dialogRef.current;
+    const firstFocusable = root?.querySelector<HTMLElement>(
+      FOCUSABLE_SELECTOR,
+    );
+    (firstFocusable ?? root)?.focus();
+    return () => {
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const root = dialogRef.current;
+      if (!root) return;
+      const focusable = Array.from(
+        root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey) {
+        if (active === first || !active || !root.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last || !active || !root.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -33,12 +78,17 @@ export function GamePlayOverlay({
     let cancelled = false;
     (async () => {
       const s = createSupabaseBrowserClient();
-      const { data } = await s
+      const { data, error } = await s
         .from("game_submissions")
         .select("player_id, points, payload, profiles!inner(display_name)")
         .eq("round_id", round.id)
         .not("points", "is", null);
-      if (cancelled || !data) return;
+      if (cancelled) return;
+      if (error) {
+        console.error("game_submissions results query failed:", error);
+        return;
+      }
+      if (!data) return;
       const rows = data as unknown as Array<{
         player_id: string;
         points: number | null;
@@ -67,7 +117,9 @@ export function GamePlayOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-ink text-paper"
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 overflow-y-auto bg-ink text-paper outline-none"
       role="dialog"
       aria-modal="true"
       aria-label="Play the round"

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(9);
+SELECT plan(10);
 
 SELECT has_table('public', 'game_rounds', 'game_rounds table exists');
 SELECT has_table('public', 'game_submissions', 'game_submissions table exists');
@@ -40,6 +40,15 @@ SELECT ok(
    WHERE conrelid = 'public.game_rounds'::regclass
      AND conname = 'game_rounds_agenda_item_key') = 1,
   'one round per agenda item'
+);
+
+-- game_rounds.puzzle carries an active Zero In round's secret; it must never
+-- be broadcast over the game_rounds realtime channel (see 0034).
+SELECT ok(
+  (SELECT NOT ('puzzle' = ANY(t.attnames))
+   FROM pg_publication_tables t
+   WHERE t.pubname = 'supabase_realtime' AND t.tablename = 'game_rounds'),
+  'game_rounds realtime publication excludes puzzle'
 );
 
 SELECT * FROM finish();

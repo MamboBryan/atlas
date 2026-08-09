@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import type { RoundLite } from "@/lib/games/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { listMeetingRoundsAction } from "@/lib/actions/game";
 import { GamePlayOverlay } from "@/components/games/game-play-overlay";
 
 /**
@@ -19,72 +20,71 @@ export function GamePlayCard({
   viewerId: string;
   isHost: boolean;
 }) {
-  const [round, setRound] = useState<RoundLite | null>(null);
+  const [rounds, setRounds] = useState<RoundLite[]>([]);
   const [hasPlayed, setHasPlayed] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [openedRoundId, setOpenedRoundId] = useState<string | null>(null);
   const [expired, setExpired] = useState(false);
   const instanceId = useId();
 
-  const refresh = useCallback(async () => {
-    const s = createSupabaseBrowserClient();
-    // Deliberately NOT filtered to status = 'active'. If it were, the round
-    // would drop out of state the moment the presenter finished and React
-    // would unmount an open overlay mid-interaction. Card visibility is
-    // derived from status further down instead.
-    const { data } = await s
-      .from("game_rounds")
-      .select("id,agenda_item_id,kind,puzzle,ends_at,status,started_at")
-      .eq("meeting_id", meetingId)
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  // The card always shows the meeting's latest round. The overlay, once
+  // opened, stays pinned to whatever round it was opened for (see below) —
+  // it must not silently swap to a newer round the host starts later.
+  const latest = rounds[0] ?? null;
+  const overlayRound = rounds.find((r) => r.id === openedRoundId) ?? null;
 
-    if (!data) {
-      setRound(null);
+  const refresh = useCallback(async () => {
+    // Routed through a server action rather than a direct table query: the
+    // action redacts an active Zero In round's secret via the same
+    // `publicize()` path startRoundAction uses. A direct client select on
+    // game_rounds would ship the raw `puzzle` column (including the secret)
+    // in the REST response before any client-side mapping ever ran.
+    const res = await listMeetingRoundsAction({ meeting_id: meetingId });
+    if (!res.ok) {
+      console.error("listMeetingRoundsAction failed:", res.error);
+      return;
+    }
+
+    const mapped: RoundLite[] = res.data.map((r) => ({
+      id: r.round_id,
+      agenda_item_id: r.agenda_item_id,
+      kind: r.kind,
+      puzzle: r.puzzle,
+      ends_at: r.ends_at,
+      status: r.status,
+    }));
+    setRounds(mapped);
+
+    const top = mapped[0];
+    if (!top) {
       setHasPlayed(false);
       setExpired(false);
       return;
     }
+    setExpired(new Date(top.ends_at).getTime() <= Date.now());
 
-    const row = data as {
-      id: string;
-      agenda_item_id: string;
-      kind: "target_number" | "zero_in";
-      puzzle: { target?: number; bases?: number[]; secret?: number };
-      ends_at: string;
-      status: "active" | "finished";
-    };
-
-    setRound({
-      id: row.id,
-      agenda_item_id: row.agenda_item_id,
-      kind: row.kind,
-      puzzle:
-        row.kind === "target_number"
-          ? {
-              kind: "target_number",
-              target: row.puzzle.target ?? 0,
-              bases: row.puzzle.bases ?? [],
-            }
-          : row.status === "finished"
-            ? { kind: "zero_in", secret: row.puzzle.secret ?? 0 }
-            : { kind: "zero_in" },
-      ends_at: row.ends_at,
-      status: row.status,
-    });
-    setExpired(new Date(row.ends_at).getTime() <= Date.now());
-
-    const { count } = await s
+    // No secret on this table — a direct client query is fine here.
+    const s = createSupabaseBrowserClient();
+    const { count, error } = await s
       .from("game_submissions")
       .select("id", { count: "exact", head: true })
-      .eq("round_id", row.id)
+      .eq("round_id", top.id)
       .eq("player_id", viewerId);
+    if (error) {
+      console.error("game_submissions count query failed:", error);
+      return;
+    }
     setHasPlayed((count ?? 0) > 0);
   }, [meetingId, viewerId]);
 
   useEffect(() => {
     if (isHost) return;
     refresh();
+  }, [isHost, refresh]);
+
+  // game_rounds changes are only a trigger to re-fetch through the action —
+  // the payload itself is never read, so a leaked column here is moot.
+  useEffect(() => {
+    if (isHost) return;
     const s = createSupabaseBrowserClient();
     const ch = s
       .channel(`meeting-game:${meetingId}:${instanceId}`)
@@ -98,53 +98,75 @@ export function GamePlayCard({
         },
         () => refresh(),
       )
-      .on(
-        "postgres_changes" as never,
-        { event: "*", schema: "public", table: "game_submissions" },
-        () => refresh(),
-      )
       .subscribe();
     return () => {
       s.removeChannel(ch);
     };
   }, [meetingId, isHost, instanceId, refresh]);
 
+  // Submissions subscription is scoped to the latest round's id so a
+  // submission in some other meeting's round never wakes this card up.
+  // Re-subscribes whenever the latest round changes.
+  useEffect(() => {
+    if (isHost || !latest) return;
+    const s = createSupabaseBrowserClient();
+    const ch = s
+      .channel(`meeting-game-subs:${meetingId}:${latest.id}:${instanceId}`)
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "*",
+          schema: "public",
+          table: "game_submissions",
+          filter: `round_id=eq.${latest.id}`,
+        },
+        () => refresh(),
+      )
+      .subscribe();
+    return () => {
+      s.removeChannel(ch);
+    };
+  }, [meetingId, isHost, instanceId, latest, refresh]);
+
   // The round can lapse without any row changing, so watch the clock too.
   useEffect(() => {
-    if (!round || round.status !== "active") return;
-    const remaining = new Date(round.ends_at).getTime() - Date.now();
+    if (!latest || latest.status !== "active") return;
+    const remaining = new Date(latest.ends_at).getTime() - Date.now();
     if (remaining <= 0) {
       setExpired(true);
       return;
     }
     const t = setTimeout(() => setExpired(true), remaining);
     return () => clearTimeout(t);
-  }, [round]);
+  }, [latest]);
 
-  if (isHost || !round) return null;
+  if (isHost || !latest) return null;
 
-  const visible = round.status === "active" && !hasPlayed && !expired;
+  const visible = latest.status === "active" && !hasPlayed && !expired;
 
   return (
     <>
-      {open && (
-        <GamePlayOverlay round={round} onClose={() => setOpen(false)} />
+      {overlayRound && (
+        <GamePlayOverlay
+          round={overlayRound}
+          onClose={() => setOpenedRoundId(null)}
+        />
       )}
-      {visible && !open && (
+      {visible && !overlayRound && (
         <div className="sticky bottom-4 z-30 mx-auto flex max-w-xl items-center gap-4 rounded-2xl border-[2.5px] border-ink bg-accent px-5 py-4 text-accent-ink shadow-[-3px_3px_0_0_var(--accent-shadow)]">
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-display font-extrabold uppercase tracking-widest opacity-70">
               Round in progress
             </div>
             <div className="font-display text-lg font-black leading-tight">
-              {round.kind === "target_number"
+              {latest.kind === "target_number"
                 ? "Hit the target number"
                 : "Guess the secret number"}
             </div>
           </div>
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => setOpenedRoundId(latest.id)}
             className="shrink-0 rounded-xl border-2 border-current px-4 py-2 font-extrabold"
           >
             Play

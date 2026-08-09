@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth/require";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   startRoundInput,
+  meetingRoundsInput,
   submitTargetNumberInput,
   submitZeroInInput,
   finalizeRoundInput,
@@ -117,6 +118,31 @@ export async function startRoundAction(
   }
 
   return ok(publicize(insert.data));
+}
+
+// Participants (not just the host) need to read round state — e.g. the sticky
+// play card and the presenter's own live view. RLS on game_rounds already
+// gates *row* visibility to meeting participants/host/admin, so this is
+// intentionally NOT host-gated. What it must not do is leak `puzzle` past
+// redaction: every row is run through the same `publicize()` helper
+// `startRoundAction` uses, so an active Zero In round never exposes its
+// secret to a client, whether read via this action or over the wire.
+export async function listMeetingRoundsAction(
+  input: unknown,
+): Promise<ActionResult<StartRoundResult[]>> {
+  const parsed = meetingRoundsInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+
+  const { supabase } = await requireUser();
+
+  const { data, error } = await supabase
+    .from("game_rounds")
+    .select("id, agenda_item_id, kind, puzzle, started_at, ends_at, status")
+    .eq("meeting_id", parsed.data.meeting_id)
+    .order("started_at", { ascending: false });
+  if (error) return err("db_error", error.message);
+
+  return ok((data ?? []).map((row) => publicize(row as RoundRow)));
 }
 
 async function isHostOrAdmin(

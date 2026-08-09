@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { advanceMeetingAgenda } from "@/lib/actions/meeting";
+import { listMeetingRoundsAction } from "@/lib/actions/game";
 import {
   deriveSlideState,
   type AgendaItemLite,
@@ -129,41 +130,26 @@ export function PresentShell(props: PresentShellProps) {
     }
   }, [props.meetingId]);
 
+  // Routed through the same server action the play card uses: a direct
+  // client select on game_rounds would ship an active Zero In round's raw
+  // `puzzle.secret` in the REST response before any redaction ran.
   const refreshRounds = useCallback(async () => {
-    const s = createSupabaseBrowserClient();
-    const { data } = await s
-      .from("game_rounds")
-      .select("id,agenda_item_id,kind,puzzle,ends_at,status")
-      .eq("meeting_id", props.meetingId);
-    if (!data) return;
+    const res = await listMeetingRoundsAction({
+      meeting_id: props.meetingId,
+    });
+    if (!res.ok) {
+      console.error("listMeetingRoundsAction failed:", res.error);
+      return;
+    }
     setRounds(
-      data.map((r) => {
-        const row = r as {
-          id: string;
-          agenda_item_id: string;
-          kind: "target_number" | "zero_in";
-          puzzle: { target?: number; bases?: number[]; secret?: number };
-          ends_at: string;
-          status: "active" | "finished";
-        };
-        return {
-          id: row.id,
-          agenda_item_id: row.agenda_item_id,
-          kind: row.kind,
-          puzzle:
-            row.kind === "target_number"
-              ? {
-                  kind: "target_number" as const,
-                  target: row.puzzle.target ?? 0,
-                  bases: row.puzzle.bases ?? [],
-                }
-              : row.status === "finished"
-                ? { kind: "zero_in" as const, secret: row.puzzle.secret ?? 0 }
-                : { kind: "zero_in" as const },
-          ends_at: row.ends_at,
-          status: row.status,
-        };
-      }),
+      res.data.map((r) => ({
+        id: r.round_id,
+        agenda_item_id: r.agenda_item_id,
+        kind: r.kind,
+        puzzle: r.puzzle,
+        ends_at: r.ends_at,
+        status: r.status,
+      })),
     );
   }, [props.meetingId]);
 

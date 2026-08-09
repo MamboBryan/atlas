@@ -5,6 +5,11 @@ export const startRoundInput = z.object({
 });
 export type StartRoundInput = z.infer<typeof startRoundInput>;
 
+export const meetingRoundsInput = z.object({
+  meeting_id: z.string().uuid(),
+});
+export type MeetingRoundsInput = z.infer<typeof meetingRoundsInput>;
+
 export const targetNumberOp = z.object({
   op: z.enum(["+", "-", "*", "/"]),
   left: z.number().int().positive(),

@@ -5,6 +5,7 @@ import {
   type AgendaItemLite,
   type PromptLite,
 } from "@/lib/present/slide-state";
+import type { RoundLite } from "@/lib/games/types";
 
 const baseMeeting: MeetingLite = {
   status: "live",
@@ -132,4 +133,74 @@ test("picker-shuffle idle vs revealed", () => {
   expect(deriveSlideState(m1, [revealed], {}).kind).toBe(
     "picker-shuffle-revealed",
   );
+});
+
+const gameItem: AgendaItemLite = {
+  id: "g1",
+  ordinal: 5,
+  title: "Warm-up game",
+  kind: "game",
+  prompt_id: null,
+  picker_config: null,
+  picker_result: null,
+  timer_ends_at: null,
+};
+
+const activeRound: RoundLite = {
+  id: "r1",
+  agenda_item_id: "g1",
+  kind: "target_number",
+  puzzle: { kind: "target_number", target: 347, bases: [2, 4, 7, 25, 50, 75] },
+  ends_at: "2026-08-09T10:01:00.000Z",
+  status: "active",
+};
+
+test("game item with no round is idle", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "g1" },
+    [gameItem],
+    {},
+    {},
+  );
+  expect(s.kind).toBe("game-idle");
+});
+
+test("game item with an active round is active and carries the round", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "g1" },
+    [gameItem],
+    {},
+    { g1: activeRound },
+  );
+  expect(s.kind).toBe("game-active");
+  if (s.kind === "game-active") expect(s.round.id).toBe("r1");
+});
+
+test("game item with a finished round is finished", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "g1" },
+    [gameItem],
+    {},
+    { g1: { ...activeRound, status: "finished" } },
+  );
+  expect(s.kind).toBe("game-finished");
+});
+
+test("a round keyed to a different item does not leak into this one", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "g1" },
+    [gameItem],
+    {},
+    { someOtherItem: activeRound },
+  );
+  expect(s.kind).toBe("game-idle");
+});
+
+test("existing three-argument calls still derive non-game items", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "d1" },
+    [disc],
+    {},
+  );
+  expect(s.kind).toBe("discussion");
 });

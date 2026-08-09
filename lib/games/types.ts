@@ -33,3 +33,23 @@ export type PlayerResult = {
   points: number;
   display: string;
 };
+
+/**
+ * A puzzle as it may be sent to clients. Zero In's secret is withheld while the
+ * round is active and only appears once it is finished — narrow with
+ * `"secret" in puzzle`.
+ */
+export type PublicPuzzle =
+  | { kind: "target_number"; target: number; bases: number[] }
+  | { kind: "zero_in" }
+  | { kind: "zero_in"; secret: number };
+
+/** A round as the presenter slide and the play card need to see it. */
+export type RoundLite = {
+  id: string;
+  agenda_item_id: string;
+  kind: GameKind;
+  puzzle: PublicPuzzle;
+  ends_at: string;
+  status: "active" | "finished";
+};

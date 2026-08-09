@@ -1,3 +1,5 @@
+import type { RoundLite } from "@/lib/games/types";
+
 export type MeetingLite = {
   status: "scheduled" | "live" | "ended" | "postponed" | "cancelled";
   current_agenda_item_id: string | null;
@@ -8,7 +10,7 @@ export type AgendaItemLite = {
   id: string;
   ordinal: number;
   title: string;
-  kind: "discussion" | "prompt" | "picker";
+  kind: "discussion" | "prompt" | "picker" | "game";
   prompt_id: string | null;
   picker_config: { mode: "oneshot" | "shuffle" } | null;
   picker_result: unknown;
@@ -36,12 +38,16 @@ export type SlideState =
   | { kind: "picker-oneshot-idle"; item: AgendaItemLite }
   | { kind: "picker-oneshot-revealed"; item: AgendaItemLite }
   | { kind: "picker-shuffle-idle"; item: AgendaItemLite }
-  | { kind: "picker-shuffle-revealed"; item: AgendaItemLite };
+  | { kind: "picker-shuffle-revealed"; item: AgendaItemLite }
+  | { kind: "game-idle"; item: AgendaItemLite }
+  | { kind: "game-active"; item: AgendaItemLite; round: RoundLite }
+  | { kind: "game-finished"; item: AgendaItemLite; round: RoundLite };
 
 export function deriveSlideState(
   meeting: MeetingLite,
   items: AgendaItemLite[],
   promptsById: Record<string, PromptLite>,
+  roundsByItemId: Record<string, RoundLite> = {},
 ): SlideState {
   if (meeting.status !== "live") return { kind: "not-live" };
   if (meeting.current_agenda_item_id == null) {
@@ -63,6 +69,14 @@ export function deriveSlideState(
     return prompt.is_open
       ? { kind: "prompt-open", item, prompt }
       : { kind: "prompt-closed", item, prompt };
+  }
+
+  if (item.kind === "game") {
+    const round = roundsByItemId[item.id];
+    if (!round) return { kind: "game-idle", item };
+    return round.status === "finished"
+      ? { kind: "game-finished", item, round }
+      : { kind: "game-active", item, round };
   }
 
   // picker

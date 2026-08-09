@@ -67,6 +67,22 @@ export function AgendaRunner({
     );
   }
 
+  if (current.kind === "game") {
+    return (
+      <RunnerCard>
+        <KindLabel>Game</KindLabel>
+        <div className="font-display text-xl font-extrabold text-ink">
+          {current.title}
+        </div>
+        <p className="text-sm text-ink-soft">
+          {isHost
+            ? "Start or skip this from present mode."
+            : "Watch the big screen — a card appears here when the round opens."}
+        </p>
+      </RunnerCard>
+    );
+  }
+
   return (
     <RunnerCard>
       <KindLabel>Prompt</KindLabel>

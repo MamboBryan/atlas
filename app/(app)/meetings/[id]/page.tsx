@@ -12,7 +12,7 @@ import {
   type AgendaItem,
   type PromptOption,
 } from "@/components/meetings/agenda-editor";
-import { GameLobbyPanel } from "@/components/games/game-lobby-panel";
+import { GamePlayCard } from "@/components/games/game-play-card";
 import { DetailWithRail } from "@/components/app/detail-with-rail";
 import { MeetingRail } from "@/components/meetings/meeting-rail";
 
@@ -240,14 +240,6 @@ export default async function MeetingDetailPage({
           </div>
         </header>
 
-        {m.status === "scheduled" && (
-          <GameLobbyPanel
-            meetingId={m.id}
-            scheduledStart={m.scheduled_start}
-            status={m.status}
-          />
-        )}
-
         {(m.status === "live" || m.status === "ended") && (
           <MeetingLiveView
             meetingId={m.id}
@@ -258,6 +250,14 @@ export default async function MeetingDetailPage({
               current_agenda_item_id: m.current_agenda_item_id,
             }}
             initialItems={agendaItems}
+            isHost={isHost}
+          />
+        )}
+
+        {m.status === "live" && (
+          <GamePlayCard
+            meetingId={m.id}
+            viewerId={user.id}
             isHost={isHost}
           />
         )}

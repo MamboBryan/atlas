@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(15);
+SELECT plan(18);
 
 SELECT has_table('public', 'game_rounds', 'game_rounds table exists');
 SELECT has_table('public', 'game_submissions', 'game_submissions table exists');
@@ -28,8 +28,8 @@ SELECT ok(
 
 SELECT ok(
   (SELECT count(*) FROM pg_policies
-   WHERE schemaname = 'public' AND tablename = 'game_submissions') = 4,
-  'game_submissions has 4 policies (read-self + read-finished + insert-self + update-self)'
+   WHERE schemaname = 'public' AND tablename = 'game_submissions') = 5,
+  'game_submissions has 5 policies (read-self + read-finished + read-host + insert-self + update-self)'
 );
 
 SELECT has_column('public', 'game_rounds', 'agenda_item_id',
@@ -72,6 +72,13 @@ SELECT ok(
    WHERE schemaname = 'public' AND tablename = 'game_submissions'
      AND policyname = 'game_submissions_read_finished') = 1,
   'game_submissions_read_finished policy exists'
+);
+
+SELECT ok(
+  (SELECT count(*) FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'game_submissions'
+     AND policyname = 'game_submissions_read_host') = 1,
+  'game_submissions_read_host policy exists'
 );
 
 -- End-to-end proof that a non-host, non-admin authenticated user cannot
@@ -129,6 +136,73 @@ END;
 $test$ LANGUAGE plpgsql;
 
 SELECT * FROM pg_temp.test_finalize_round_host_gate();
+
+-- 0036: the host must be able to read game_submissions for a round in
+-- their own meeting WHILE IT IS STILL ACTIVE — finalizeRoundAction reads
+-- submissions through the host's own RLS-bound client before flipping the
+-- round to finished, to compute scores. Without this, every submission
+-- gets scored 0 (see 0036's migration comment for the full story). At the
+-- same time, another player who is neither the host nor the submitter
+-- must still see nothing while the round is active — that's the secrecy
+-- property 0035 exists to protect, and this policy must not have widened
+-- it beyond the host.
+CREATE FUNCTION pg_temp.test_game_submissions_host_read() RETURNS SETOF TEXT AS $test$
+DECLARE
+  v_host     uuid := gen_random_uuid();
+  v_player   uuid := gen_random_uuid();
+  v_other    uuid := gen_random_uuid();
+  v_meeting  uuid;
+  v_item     uuid;
+  v_round    uuid;
+  v_count    int;
+BEGIN
+  INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data)
+  VALUES
+    (v_host,   'games-rls-read-host@atlas.test',   'x', now(), '{}'::jsonb, '{}'::jsonb),
+    (v_player, 'games-rls-read-player@atlas.test', 'x', now(), '{}'::jsonb, '{}'::jsonb),
+    (v_other,  'games-rls-read-other@atlas.test',  'x', now(), '{}'::jsonb, '{}'::jsonb);
+
+  INSERT INTO public.meetings (title, scheduled_start, timezone, host_user_id, created_by, status)
+  VALUES ('RLS submission read', now(), 'UTC', v_host, v_host, 'live')
+  RETURNING id INTO v_meeting;
+
+  INSERT INTO public.agenda_items (meeting_id, ordinal, title, kind)
+  VALUES (v_meeting, 1, 'Warm-up game', 'game')
+  RETURNING id INTO v_item;
+
+  INSERT INTO public.game_rounds (meeting_id, agenda_item_id, kind, puzzle, started_at, ends_at, status)
+  VALUES (v_meeting, v_item, 'zero_in', '{"secret":500}'::jsonb, now(), now() + interval '45 seconds', 'active')
+  RETURNING id INTO v_round;
+
+  INSERT INTO public.game_submissions (round_id, player_id, payload)
+  VALUES (
+    v_round, v_player,
+    '{"guesses":[{"value":500,"at":"2026-01-01T00:00:00Z","feedback":"exact"}],"best_guess":500}'::jsonb
+  );
+
+  -- The pgTAP runner connects as `postgres`, which has BYPASSRLS — so a
+  -- plain SELECT here would see every row regardless of policy and prove
+  -- nothing. Actually exercise RLS by switching the *Postgres* role to
+  -- `authenticated` (which has no bypass) for the duration of each read;
+  -- auth.uid() still resolves from the request.jwt.claims GUC set above,
+  -- independent of the role switch.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v_host::text, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO v_count FROM public.game_submissions WHERE round_id = v_round;
+  RESET ROLE;
+  RETURN NEXT is(v_count, 1, 'the host can read a submission during an active round');
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v_other::text, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO v_count FROM public.game_submissions WHERE round_id = v_round;
+  RESET ROLE;
+  RETURN NEXT is(v_count, 0, 'another player still cannot read a submission during an active round');
+
+  PERFORM set_config('request.jwt.claims', NULL, true);
+END;
+$test$ LANGUAGE plpgsql;
+
+SELECT * FROM pg_temp.test_game_submissions_host_read();
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -264,7 +264,16 @@ test.runIf(canRun)(
       .select("points")
       .eq("round_id", round!.id)
       .single();
-    expect(subAfterFirst!.points).not.toBeNull();
+    // A lone exact guess on a Zero In round scores the full 46: 1
+    // (participation) + 3 (within 5%) + 5 (within 1%) + 12 (closest — the
+    // only player) + 25 (exact). Asserting "not null" here was the gap
+    // that let a real regression slip through: finalizeRoundAction reads
+    // submissions through the HOST's RLS-bound client before flipping the
+    // round to finished, and a prior read-policy split (0035, before the
+    // 0036 host-read fix) gave the host zero visible rows during an
+    // active round — so it silently computed [] and every submission's
+    // points landed at 0, which is not null and would have passed here.
+    expect(subAfterFirst!.points).toBe(46);
 
     const second = await finalizeRoundAction({ round_id: round!.id });
     expect(second.ok).toBe(true);

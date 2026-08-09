@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import type { Palette } from "@/lib/present/palettes";
 import type { AgendaItemLite } from "@/lib/present/slide-state";
 import type { PlayerResult, RoundLite } from "@/lib/games/types";
@@ -33,20 +33,34 @@ export function GameSlide({
   onNext: () => void;
 }) {
   const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
 
   const startRound = useCallback(() => {
+    setErr(null);
     start(async () => {
-      await startRoundAction({ agenda_item_id: item.id });
+      const res = await startRoundAction({ agenda_item_id: item.id });
+      if (!res.ok) {
+        setErr(res.error.message);
+        return;
+      }
+      setErr(null);
     });
   }, [item.id]);
 
   // Both the "Finish now" button and the countdown reaching zero land here.
   // atlas_finalize_game_round returns early when the round is already
-  // finished, so a double call is harmless.
+  // finished, so a double call is harmless. A failed finalize — including
+  // one triggered by expiry — surfaces the same way as a failed start.
   const finish = useCallback(() => {
     if (!round) return;
+    setErr(null);
     start(async () => {
-      await finalizeRoundAction({ round_id: round.id });
+      const res = await finalizeRoundAction({ round_id: round.id });
+      if (!res.ok) {
+        setErr(res.error.message);
+        return;
+      }
+      setErr(null);
     });
   }, [round]);
 
@@ -74,6 +88,7 @@ export function GameSlide({
           palette={palette}
           title={item.title}
           pending={pending}
+          error={err}
           onStart={startRound}
           onSkip={onNext}
         />
@@ -85,6 +100,7 @@ export function GameSlide({
           round={round}
           eligibleCount={eligibleCount}
           pending={pending}
+          error={err}
           onFinish={finish}
         />
       )}
@@ -106,12 +122,14 @@ function IdleBody({
   palette,
   title,
   pending,
+  error,
   onStart,
   onSkip,
 }: {
   palette: Palette;
   title: string;
   pending: boolean;
+  error: string | null;
   onStart: () => void;
   onSkip: () => void;
 }) {
@@ -129,19 +147,22 @@ function IdleBody({
           start.
         </p>
       </div>
-      <footer className="flex items-end justify-between">
-        <button
-          type="button"
-          className="rounded-xl border-2 px-5 py-3 font-extrabold disabled:opacity-60"
-          style={{ borderColor: palette.ink, color: palette.ink }}
-          onClick={onSkip}
-          disabled={pending}
-        >
-          Skip game
-        </button>
-        <SlideButton palette={palette} disabled={pending} onClick={onStart}>
-          Start round →
-        </SlideButton>
+      <footer className="flex flex-col gap-3">
+        <GameSlideError message={error} />
+        <div className="flex items-end justify-between">
+          <button
+            type="button"
+            className="rounded-xl border-2 px-5 py-3 font-extrabold disabled:opacity-60"
+            style={{ borderColor: palette.ink, color: palette.ink }}
+            onClick={onSkip}
+            disabled={pending}
+          >
+            Skip game
+          </button>
+          <SlideButton palette={palette} disabled={pending} onClick={onStart}>
+            Start round →
+          </SlideButton>
+        </div>
       </footer>
     </>
   );
@@ -152,12 +173,14 @@ function ActiveBody({
   round,
   eligibleCount,
   pending,
+  error,
   onFinish,
 }: {
   palette: Palette;
   round: RoundLite;
   eligibleCount: number;
   pending: boolean;
+  error: string | null;
   onFinish: () => void;
 }) {
   const totalMs =
@@ -215,14 +238,17 @@ function ActiveBody({
         />
       </div>
 
-      <footer className="flex items-end justify-between">
-        <SubmissionCounter
-          roundId={round.id}
-          eligibleCount={eligibleCount}
-        />
-        <SlideButton palette={palette} disabled={pending} onClick={onFinish}>
-          Finish now
-        </SlideButton>
+      <footer className="flex flex-col gap-3">
+        <GameSlideError message={error} />
+        <div className="flex items-end justify-between">
+          <SubmissionCounter
+            roundId={round.id}
+            eligibleCount={eligibleCount}
+          />
+          <SlideButton palette={palette} disabled={pending} onClick={onFinish}>
+            Finish now
+          </SlideButton>
+        </div>
       </footer>
     </>
   );
@@ -276,6 +302,23 @@ function FinishedBody({
         </SlideButton>
       </footer>
     </>
+  );
+}
+
+function GameSlideError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <div
+      role="alert"
+      className="self-start rounded-xl border-2 px-5 py-3 text-lg font-extrabold"
+      style={{
+        background: "#111111",
+        color: "#FFE84D",
+        borderColor: "#FFE84D",
+      }}
+    >
+      {message}
+    </div>
   );
 }
 

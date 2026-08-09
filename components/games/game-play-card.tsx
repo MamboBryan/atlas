@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { RoundLite } from "@/lib/games/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { listMeetingRoundsAction } from "@/lib/actions/game";
@@ -31,6 +31,15 @@ export function GamePlayCard({
   // it must not silently swap to a newer round the host starts later.
   const latest = rounds[0] ?? null;
   const overlayRound = rounds.find((r) => r.id === openedRoundId) ?? null;
+
+  // refresh() rebuilds `rounds` (and therefore `latest`) into a fresh array
+  // and object on every call, including calls triggered by this very
+  // subscription. A ref lets the submissions effect below resolve "the
+  // current latest round" without putting the `latest` object itself in
+  // its dependency array — depending on the object would tear down and
+  // rejoin the channel on every submission event.
+  const latestRef = useRef<RoundLite | null>(null);
+  latestRef.current = latest;
 
   const refresh = useCallback(async () => {
     // Routed through a server action rather than a direct table query: the
@@ -106,19 +115,23 @@ export function GamePlayCard({
 
   // Submissions subscription is scoped to the latest round's id so a
   // submission in some other meeting's round never wakes this card up.
-  // Re-subscribes whenever the latest round changes.
+  // Depends on latest?.id (a primitive) rather than the latest object —
+  // refresh() produces a new object on every call, and depending on the
+  // object would tear down and rejoin this channel on every submission
+  // event, dropping events that land in the rejoin gap.
   useEffect(() => {
-    if (isHost || !latest) return;
+    const round = latestRef.current;
+    if (isHost || !round) return;
     const s = createSupabaseBrowserClient();
     const ch = s
-      .channel(`meeting-game-subs:${meetingId}:${latest.id}:${instanceId}`)
+      .channel(`meeting-game-subs:${meetingId}:${round.id}:${instanceId}`)
       .on(
         "postgres_changes" as never,
         {
           event: "*",
           schema: "public",
           table: "game_submissions",
-          filter: `round_id=eq.${latest.id}`,
+          filter: `round_id=eq.${round.id}`,
         },
         () => refresh(),
       )
@@ -126,7 +139,7 @@ export function GamePlayCard({
     return () => {
       s.removeChannel(ch);
     };
-  }, [meetingId, isHost, instanceId, latest, refresh]);
+  }, [meetingId, isHost, instanceId, latest?.id, refresh]);
 
   // The round can lapse without any row changing, so watch the clock too.
   useEffect(() => {

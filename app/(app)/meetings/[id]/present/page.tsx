@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/require";
 import { PresentShell } from "@/components/present/present-shell";
 import type { AgendaItemLite, PromptLite } from "@/lib/present/slide-state";
+import type { RoundLite } from "@/lib/games/types";
 
 type MeetingRow = {
   id: string;
@@ -90,6 +91,57 @@ export default async function PresentPage({
     }
   }
 
+  const { data: roundRows } = await supabase
+    .from("game_rounds")
+    .select("id,agenda_item_id,kind,puzzle,ends_at,status")
+    .eq("meeting_id", id);
+
+  const initialRounds: RoundLite[] = (roundRows ?? []).map((r) => {
+    const row = r as {
+      id: string;
+      agenda_item_id: string;
+      kind: "target_number" | "zero_in";
+      puzzle: { target?: number; bases?: number[]; secret?: number };
+      ends_at: string;
+      status: "active" | "finished";
+    };
+    return {
+      id: row.id,
+      agenda_item_id: row.agenda_item_id,
+      kind: row.kind,
+      // The secret is withheld until the round is finished.
+      puzzle:
+        row.kind === "target_number"
+          ? {
+              kind: "target_number",
+              target: row.puzzle.target ?? 0,
+              bases: row.puzzle.bases ?? [],
+            }
+          : row.status === "finished"
+            ? { kind: "zero_in", secret: row.puzzle.secret ?? 0 }
+            : { kind: "zero_in" },
+      ends_at: row.ends_at,
+      status: row.status,
+    };
+  });
+
+  // Eligible players exclude the presenter, who does not play.
+  const { data: mtg } = await supabase
+    .from("meetings")
+    .select("participants_override")
+    .eq("id", id)
+    .single();
+  let eligibleCount = 0;
+  if (mtg?.participants_override && Array.isArray(mtg.participants_override)) {
+    eligibleCount = mtg.participants_override.length;
+  } else {
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true });
+    eligibleCount = count ?? 0;
+  }
+  eligibleCount = Math.max(0, eligibleCount - 1);
+
   return (
     <PresentShell
       viewerId={user.id}
@@ -116,6 +168,8 @@ export default async function PresentPage({
       }))}
       initialReactionsByComment={reactionsByComment}
       meetingId={id}
+      initialRounds={initialRounds}
+      eligibleCount={eligibleCount}
     />
   );
 }

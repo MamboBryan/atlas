@@ -27,7 +27,9 @@ import { DiscussionSlide } from "@/components/present/slides/discussion-slide";
 import { PromptSlide } from "@/components/present/slides/prompt-slide";
 import { PickerSlide } from "@/components/present/slides/picker-slide";
 import { CurtainSlide } from "@/components/present/slides/curtain-slide";
+import { GameSlide } from "@/components/present/slides/game-slide";
 import { PresentRail } from "@/components/present/present-rail";
+import type { PlayerResult, RoundLite } from "@/lib/games/types";
 
 export type PresentComment = {
   id: string;
@@ -54,6 +56,8 @@ export type PresentShellProps = {
     string,
     { emoji: string; user_id: string }[]
   >;
+  initialRounds: RoundLite[];
+  eligibleCount: number;
 };
 
 export function PresentShell(props: PresentShellProps) {
@@ -65,6 +69,8 @@ export function PresentShell(props: PresentShellProps) {
   const [reactionsByComment, setReactionsByComment] = useState(
     props.initialReactionsByComment,
   );
+  const [rounds, setRounds] = useState(props.initialRounds);
+  const [roundResults, setRoundResults] = useState<PlayerResult[]>([]);
   const [_pending, start] = useTransition();
   const knownCommentIds = useRef<Set<string>>(new Set());
 
@@ -123,6 +129,44 @@ export function PresentShell(props: PresentShellProps) {
     }
   }, [props.meetingId]);
 
+  const refreshRounds = useCallback(async () => {
+    const s = createSupabaseBrowserClient();
+    const { data } = await s
+      .from("game_rounds")
+      .select("id,agenda_item_id,kind,puzzle,ends_at,status")
+      .eq("meeting_id", props.meetingId);
+    if (!data) return;
+    setRounds(
+      data.map((r) => {
+        const row = r as {
+          id: string;
+          agenda_item_id: string;
+          kind: "target_number" | "zero_in";
+          puzzle: { target?: number; bases?: number[]; secret?: number };
+          ends_at: string;
+          status: "active" | "finished";
+        };
+        return {
+          id: row.id,
+          agenda_item_id: row.agenda_item_id,
+          kind: row.kind,
+          puzzle:
+            row.kind === "target_number"
+              ? {
+                  kind: "target_number" as const,
+                  target: row.puzzle.target ?? 0,
+                  bases: row.puzzle.bases ?? [],
+                }
+              : row.status === "finished"
+                ? { kind: "zero_in" as const, secret: row.puzzle.secret ?? 0 }
+                : { kind: "zero_in" as const },
+          ends_at: row.ends_at,
+          status: row.status,
+        };
+      }),
+    );
+  }, [props.meetingId]);
+
   // meeting + agenda_items + prompts channel
   useEffect(() => {
     const s = createSupabaseBrowserClient();
@@ -156,11 +200,27 @@ export function PresentShell(props: PresentShellProps) {
         { event: "UPDATE", schema: "public", table: "prompts" },
         () => refreshPrompts(),
       )
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "*",
+          schema: "public",
+          table: "game_rounds",
+          filter: `meeting_id=eq.${props.meetingId}`,
+        },
+        () => refreshRounds(),
+      )
       .subscribe();
     return () => {
       s.removeChannel(ch);
     };
-  }, [props.meetingId, refreshMeeting, refreshItems, refreshPrompts]);
+  }, [
+    props.meetingId,
+    refreshMeeting,
+    refreshItems,
+    refreshPrompts,
+    refreshRounds,
+  ]);
 
   // comments + reactions channel
   useEffect(() => {
@@ -244,10 +304,53 @@ export function PresentShell(props: PresentShellProps) {
     };
   }, [props.meetingId]);
 
-  const slideState = useMemo(
-    () => deriveSlideState(meeting, items, promptsById),
-    [meeting, items, promptsById],
+  const roundsByItemId = useMemo(
+    () => Object.fromEntries(rounds.map((r) => [r.agenda_item_id, r])),
+    [rounds],
   );
+
+  const slideState = useMemo(
+    () => deriveSlideState(meeting, items, promptsById, roundsByItemId),
+    [meeting, items, promptsById, roundsByItemId],
+  );
+
+  const finishedRound =
+    slideState.kind === "game-finished" ? slideState.round : null;
+
+  useEffect(() => {
+    if (!finishedRound) {
+      setRoundResults([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const s = createSupabaseBrowserClient();
+      const { data } = await s
+        .from("game_submissions")
+        .select("player_id, points, payload, profiles!inner(display_name)")
+        .eq("round_id", finishedRound.id)
+        .not("points", "is", null);
+      if (cancelled || !data) return;
+      const rows = data as unknown as Array<{
+        player_id: string;
+        points: number | null;
+        payload: { best_result?: number; best_guess?: number } | null;
+        profiles: { display_name: string };
+      }>;
+      setRoundResults(
+        rows.map((r) => ({
+          player_id: r.player_id,
+          points: r.points ?? 0,
+          display: `${r.profiles.display_name} · ${
+            r.payload?.best_result ?? r.payload?.best_guess ?? "—"
+          }`,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [finishedRound]);
 
   // "not-live" means the guard was raced. Send back.
   useEffect(() => {
@@ -387,6 +490,21 @@ export function PresentShell(props: PresentShellProps) {
             palette={palette}
             meetingId={props.meetingId}
             meetingTitle={props.meetingTitle}
+          />
+        )}
+        {(slideState.kind === "game-idle" ||
+          slideState.kind === "game-active" ||
+          slideState.kind === "game-finished") && (
+          <GameSlide
+            palette={palette}
+            item={slideState.item}
+            round={slideState.kind === "game-idle" ? null : slideState.round}
+            index={index}
+            total={total}
+            meetingTitle={props.meetingTitle}
+            eligibleCount={props.eligibleCount}
+            results={roundResults}
+            onNext={advanceNext}
           />
         )}
 

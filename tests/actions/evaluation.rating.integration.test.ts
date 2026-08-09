@@ -172,7 +172,99 @@ test.runIf(canRun)(
     const q2cell = candOut.cells.find((x: any) => x.question_id === q2!.id);
     expect(Number(q1cell.avg)).toBe(4); // 3 raters => revealed
     expect(q2cell.avg).toBeNull(); // single-rater cell => suppressed
-    expect(Number(candOut.overall)).toBe(4); // mean-of-means over qualifying cells only
+    // Since 0032, overall is the mean across evaluators who rated EVERY active
+    // question — not a mean-of-means over qualifying cells. Only A rated both
+    // Q1 and Q2, so one evaluator completed, which is below min_raters (3).
+    expect(candOut.overall).toBeNull();
+  },
+);
+
+test.runIf(canRun)(
+  "aggregate_questions switches overall between mean-of-sums and mean-of-averages",
+  async () => {
+    const c = admin!;
+    const A = await userClient("hiring-agg-a@atlas.com");
+    const B = await userClient("hiring-agg-b@atlas.com");
+    const D = await userClient("hiring-agg-d@atlas.com");
+    const clients = [A, B, D];
+    const ids = await Promise.all(
+      clients.map(async (x) => (await x.auth.getUser()).data.user!.id),
+    );
+
+    const { data: ev } = await c
+      .from("evaluations")
+      .insert({ name: "Agg", status: "open", created_by: ids[0] })
+      .select("id")
+      .single();
+    const questions = [];
+    for (const [position, key] of [
+      [0, "Q1"],
+      [1, "Q2"],
+    ] as const) {
+      const { data: q } = await c
+        .from("evaluation_questions")
+        .insert({
+          evaluation_id: ev!.id,
+          column_key: key,
+          prompt: key,
+          position,
+        })
+        .select("id")
+        .single();
+      questions.push(q!.id);
+    }
+    const { data: cand } = await c
+      .from("evaluation_candidates")
+      .insert({
+        evaluation_id: ev!.id,
+        email: "agg-cand@x.com",
+        display_name: "Agg Cand",
+      })
+      .select("id")
+      .single();
+    await c
+      .from("evaluation_panelists")
+      .insert(ids.map((id) => ({ evaluation_id: ev!.id, profile_id: id })));
+
+    // Every rater answers EVERY question, so all three count as completed.
+    // Q1 scores 3,4,5 and Q2 scores 1,2,3 give per-rater sums 4,6,8 (mean 6)
+    // and per-rater averages 2,3,4 (mean 3) — two distinct, checkable numbers.
+    for (let i = 0; i < 3; i++) {
+      await clients[i].from("evaluation_ratings").insert([
+        {
+          evaluation_id: ev!.id,
+          candidate_id: cand!.id,
+          question_id: questions[0],
+          rater_id: ids[i],
+          score: i + 3,
+        },
+        {
+          evaluation_id: ev!.id,
+          candidate_id: cand!.id,
+          question_id: questions[1],
+          rater_id: ids[i],
+          score: i + 1,
+        },
+      ]);
+    }
+    await c.from("evaluations").update({ status: "closed" }).eq("id", ev!.id);
+
+    // OFF (default): mean of each completed evaluator's SUM.
+    const { data: offRes } = await A.rpc("evaluation_results", {
+      p_evaluation_id: ev!.id,
+    });
+    expect(offRes.suppressed).toBe(false);
+    expect(Number(offRes.candidates[0].overall)).toBe(6);
+
+    // ON: mean of each completed evaluator's AVERAGE.
+    await c
+      .from("evaluations")
+      .update({ aggregate_questions: true })
+      .eq("id", ev!.id);
+    const { data: onRes } = await A.rpc("evaluation_results", {
+      p_evaluation_id: ev!.id,
+    });
+    expect(Number(onRes.candidates[0].overall)).toBe(3);
   },
 );
 

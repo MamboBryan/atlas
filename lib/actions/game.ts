@@ -10,6 +10,7 @@ import {
   finalizeRoundInput,
 } from "@/lib/zod/game";
 import { pickGame } from "@/lib/games/select";
+import { publicizePuzzle } from "@/lib/games/publicize";
 import {
   generateTargetNumberPuzzle,
   TARGET_NUMBER_DURATION_MS,
@@ -170,36 +171,11 @@ type RoundRow = {
 };
 
 function publicize(row: RoundRow): StartRoundResult {
-  if (row.kind === "target_number") {
-    const p = row.puzzle as { target: number; bases: number[] };
-    return {
-      round_id: row.id,
-      agenda_item_id: row.agenda_item_id,
-      kind: "target_number",
-      puzzle: { kind: "target_number", target: p.target, bases: p.bases },
-      started_at: row.started_at,
-      ends_at: row.ends_at,
-      status: row.status,
-    };
-  }
-  // Reveal the secret only after the round is finished.
-  const p = row.puzzle as { secret: number };
-  if (row.status === "finished") {
-    return {
-      round_id: row.id,
-      agenda_item_id: row.agenda_item_id,
-      kind: "zero_in",
-      puzzle: { kind: "zero_in", secret: p.secret },
-      started_at: row.started_at,
-      ends_at: row.ends_at,
-      status: row.status,
-    };
-  }
   return {
     round_id: row.id,
     agenda_item_id: row.agenda_item_id,
-    kind: "zero_in",
-    puzzle: { kind: "zero_in" },
+    kind: row.kind,
+    puzzle: publicizePuzzle(row.kind, row.puzzle, row.status),
     started_at: row.started_at,
     ends_at: row.ends_at,
     status: row.status,

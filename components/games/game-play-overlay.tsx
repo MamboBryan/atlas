@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { PlayerResult, RoundLite } from "@/lib/games/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { TargetNumberRound } from "@/components/games/target-number-round";
@@ -21,6 +22,15 @@ export function GamePlayOverlay({
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
+  // Rendered into a dedicated node appended directly to <body>, rather than
+  // wherever this component happens to sit in the tree (the sticky card, or
+  // an agenda item). That makes "everything except this dialog" trivially
+  // computable as document.body's other children, which the scroll-lock /
+  // inert effect below relies on.
+  const [portalNode] = useState(() =>
+    typeof document !== "undefined" ? document.createElement("div") : null,
+  );
+
   // Focus management: move focus into the dialog on open, trap Tab/Shift+Tab
   // inside it so background content stays out of the tab order, and restore
   // focus to whatever triggered the overlay (normally the card's Play
@@ -36,6 +46,32 @@ export function GamePlayOverlay({
       previouslyFocusedRef.current?.focus?.();
     };
   }, []);
+
+  // The overlay is fullscreen and modal, so the page underneath must not
+  // scroll or stay reachable to assistive tech while it's open. `inert`
+  // additionally covers pointer/keyboard interaction the Tab trap above
+  // doesn't (e.g. a screen reader's own virtual cursor), and is dropped
+  // from the accessibility tree entirely, unlike aria-hidden on content
+  // that can still be focused.
+  useEffect(() => {
+    if (!portalNode) return;
+    const { body } = document;
+    body.appendChild(portalNode);
+
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+
+    const siblings = Array.from(body.children).filter(
+      (el) => el !== portalNode,
+    );
+    for (const el of siblings) el.setAttribute("inert", "");
+
+    return () => {
+      body.style.overflow = previousOverflow;
+      for (const el of siblings) el.removeAttribute("inert");
+      body.removeChild(portalNode);
+    };
+  }, [portalNode]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -115,7 +151,9 @@ export function GamePlayOverlay({
       ? round.puzzle.secret
       : null;
 
-  return (
+  if (!portalNode) return null;
+
+  return createPortal(
     <div
       ref={dialogRef}
       tabIndex={-1}
@@ -171,6 +209,7 @@ export function GamePlayOverlay({
           <ZeroInRound roundId={round.id} endsAt={round.ends_at} />
         )}
       </div>
-    </div>
+    </div>,
+    portalNode,
   );
 }

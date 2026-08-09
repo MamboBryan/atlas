@@ -180,6 +180,9 @@ export function AgendaAddItem({
         title,
         picker_config: { mode: pickerMode, scope: pickerScope },
       };
+    } else {
+      kind satisfies never;
+      throw new Error(`unhandled agenda item kind: ${kind}`);
     }
     start(async () => {
       const res = await addAgendaItemAction(input);

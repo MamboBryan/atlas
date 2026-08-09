@@ -41,7 +41,7 @@ export type PlayerResult = {
  */
 export type PublicPuzzle =
   | { kind: "target_number"; target: number; bases: number[] }
-  | { kind: "zero_in" }
+  | { kind: "zero_in"; secret?: never }
   | { kind: "zero_in"; secret: number };
 
 /** A round as the presenter slide and the play card need to see it. */

@@ -2,7 +2,8 @@ import { redirect, notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/require";
 import { PresentShell } from "@/components/present/present-shell";
 import type { AgendaItemLite, PromptLite } from "@/lib/present/slide-state";
-import type { RoundLite } from "@/lib/games/types";
+import type { GameKind, RoundLite } from "@/lib/games/types";
+import { publicizePuzzle } from "@/lib/games/publicize";
 
 type MeetingRow = {
   id: string;
@@ -96,12 +97,15 @@ export default async function PresentPage({
     .select("id,agenda_item_id,kind,puzzle,ends_at,status")
     .eq("meeting_id", id);
 
+  // Redaction goes through the same publicizePuzzle() the server actions use
+  // (lib/games/publicize.ts) — this page reads game_rounds directly rather
+  // than through an action, so it must not reimplement that logic.
   const initialRounds: RoundLite[] = (roundRows ?? []).map((r) => {
     const row = r as {
       id: string;
       agenda_item_id: string;
-      kind: "target_number" | "zero_in";
-      puzzle: { target?: number; bases?: number[]; secret?: number };
+      kind: GameKind;
+      puzzle: unknown;
       ends_at: string;
       status: "active" | "finished";
     };
@@ -109,17 +113,7 @@ export default async function PresentPage({
       id: row.id,
       agenda_item_id: row.agenda_item_id,
       kind: row.kind,
-      // The secret is withheld until the round is finished.
-      puzzle:
-        row.kind === "target_number"
-          ? {
-              kind: "target_number",
-              target: row.puzzle.target ?? 0,
-              bases: row.puzzle.bases ?? [],
-            }
-          : row.status === "finished"
-            ? { kind: "zero_in", secret: row.puzzle.secret ?? 0 }
-            : { kind: "zero_in" },
+      puzzle: publicizePuzzle(row.kind, row.puzzle, row.status),
       ends_at: row.ends_at,
       status: row.status,
     };

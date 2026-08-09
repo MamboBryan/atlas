@@ -24,12 +24,13 @@ export default async function LeaderboardPage() {
         <header>
           <h1 className="text-2xl font-bold">Leaderboard</h1>
           <p className="text-sm text-muted-foreground">
-            All-time points across pre-meeting games.
+            All-time points across meeting games.
           </p>
         </header>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No games played yet. Play a round before your next meeting.
+            No games played yet. A round is played from a meeting&apos;s
+            agenda.
           </p>
         ) : (
           <ol className="space-y-1">

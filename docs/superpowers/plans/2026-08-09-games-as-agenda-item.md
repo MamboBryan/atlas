@@ -1,0 +1,2050 @@
+# Games as an Agenda Item — Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Move pre-meeting games out of the meeting lobby and into the agenda, so the presenter starts, skips, and finishes a game round fullscreen from present mode while everyone else gets a sticky card nudging them to play.
+
+**Architecture:** A new `'game'` value on the `agenda_kind` enum makes a game a first-class agenda item. `game_rounds` re-anchors from `meeting_id` to `agenda_item_id`, so each game item owns exactly one round. Present mode gains three derived slide states (`game-idle` / `game-active` / `game-finished`) rendered by a new `GameSlide`; the meeting page gains a sticky play card that opens a fullscreen overlay wrapping the existing per-game round components. Game rules and scoring are untouched.
+
+**Tech Stack:** Next.js App Router (server components + server actions), Supabase (Postgres, RLS, realtime `postgres_changes`), Zod, TypeScript, Vitest, pgTAP.
+
+**Spec:** `docs/superpowers/specs/2026-08-09-games-as-agenda-item-design.md`
+
+## Global Constraints
+
+- **Node is currently broken on this machine.** `node` aborts with `Library not loaded: .../libsimdjson.29.dylib`. Run `brew reinstall node@24` before starting — every test step below needs a working `node`.
+- Package manager is **pnpm**. Unit/integration tests: `pnpm test`. Type check: `pnpm typecheck`. RLS tests: `pnpm test:rls` (needs a running local Supabase: `pnpm supabase start`).
+- Integration tests are gated on `SUPABASE_TEST_URL` / `SUPABASE_TEST_SERVICE_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` via `test.runIf(canRun)`. They no-op without them — always confirm they actually ran, not just that the suite was green.
+- **Do not modify** `lib/games/target-number.ts`, `lib/games/zero-in.ts`, `lib/games/select.ts`, or their tests. Rules and scoring do not change in this work.
+- Server action files carry `"use server"` and may export **only async functions** — module-level constants must stay unexported.
+- Commit messages describe the change. **No `Co-Authored-By: Claude` trailer, no Claude-branding lines.**
+- Migration files live in `db/supabase/migrations/` and are numbered sequentially. The next free number is **0033**.
+- Realtime already publishes `game_rounds` and `game_submissions` (migration `0027`) — no publication changes needed.
+
+---
+
+## File Structure
+
+**Created**
+
+| File | Responsibility |
+| --- | --- |
+| `db/supabase/migrations/0033_game_agenda_items.sql` | Enum value, round re-anchoring, insert policy tightening |
+| `components/present/slides/game-slide.tsx` | Presenter's fullscreen game slide — idle / active / finished |
+| `components/games/game-play-card.tsx` | Sticky "play now" card on the meeting page |
+| `components/games/game-play-overlay.tsx` | Fullscreen play surface for non-presenters |
+
+**Modified**
+
+| File | Change |
+| --- | --- |
+| `db/supabase/tests/games_rls.sql` | Assert the new column, constraint, and policy name |
+| `lib/games/types.ts` | Add `PublicPuzzle` and `RoundLite` shared types |
+| `lib/present/slide-state.ts` | Three game states, `roundsByItemId` argument, widened `kind` |
+| `lib/zod/game.ts` | `ensureRoundInput` → `startRoundInput` |
+| `lib/zod/meeting.ts` | `game` variant in the `addAgendaItem` union |
+| `lib/actions/game.ts` | `startRoundAction`, host gate on finalize, lobby-window removal |
+| `components/meetings/agenda-editor.tsx` | Widened `AgendaItem["kind"]` |
+| `components/meetings/agenda-add-item.tsx` | Game tab |
+| `components/meetings/agenda-runner.tsx` | Game branch in the "Now" section |
+| `components/present/present-shell.tsx` | Rounds state, realtime subscription, slide switch |
+| `app/(app)/meetings/[id]/present/page.tsx` | Fetch rounds and eligible count |
+| `app/(app)/meetings/[id]/page.tsx` | Drop lobby panel, mount sticky card |
+| `tests/lib/present-slide-state.test.ts` | Game derivation cases |
+| `tests/actions/game.integration.test.ts` | Replace lobby cases with agenda-anchored + host-gate cases |
+
+**Deleted**
+
+- `components/games/game-lobby-panel.tsx`
+
+**Untouched (reused as-is):** `components/games/round-countdown.tsx`, `submission-counter.tsx`, `round-scoreboard.tsx`, `target-number-round.tsx`, `zero-in-round.tsx`, `app/(app)/leaderboard/page.tsx`.
+
+---
+
+## Task 1: Migration — game agenda kind and round re-anchoring
+
+**Files:**
+
+- Create: `db/supabase/migrations/0033_game_agenda_items.sql`
+- Modify: `db/supabase/tests/games_rls.sql`
+
+**Interfaces:**
+
+- Consumes: nothing.
+- Produces: `agenda_items.kind` may be `'game'`; `game_rounds.agenda_item_id uuid not null unique`; policy `game_rounds_insert_host`. Every later task depends on this schema.
+
+**Context:** `game_rounds` today has `meeting_id uuid not null unique` (constraint name `game_rounds_meeting_id_key`, generated by the inline `unique` in migration `0025`). Existing rows were created under the lobby model and have no agenda item to point at, so they are deleted — this cascades to `game_submissions` and zeroes the all-time leaderboard. That was accepted in the spec: the leaderboard has no meaningful history yet.
+
+- [ ] **Step 1: Write the migration**
+
+Create `db/supabase/migrations/0033_game_agenda_items.sql`:
+
+```sql
+-- 0033_game_agenda_items.sql
+-- Games move from the pre-meeting lobby to a presenter-run agenda item.
+-- Supersedes the lobby delivery model in 0025; game rules and scoring are unchanged.
+
+-- 1. A game is now an agenda item kind.
+--    Postgres forbids *using* a new enum value in the transaction that adds it.
+--    Nothing below references 'game', so a single migration file is safe. Any
+--    future migration that needs 'game' in a predicate must be its own file.
+alter type public.agenda_kind add value 'game';
+
+-- 2. Lobby-era rounds have no agenda item to anchor to, and the new column is
+--    NOT NULL. Cascades to game_submissions, zeroing the (not yet meaningful)
+--    all-time leaderboard.
+delete from public.game_rounds;
+
+-- 3. Re-anchor rounds from the meeting to the agenda item. meeting_id stays:
+--    the RLS predicates and the realtime filter both key off it.
+alter table public.game_rounds
+  drop constraint game_rounds_meeting_id_key;
+
+alter table public.game_rounds
+  add column agenda_item_id uuid not null
+    references public.agenda_items(id) on delete cascade;
+
+alter table public.game_rounds
+  add constraint game_rounds_agenda_item_key unique (agenda_item_id);
+
+create index game_rounds_agenda_item_idx on public.game_rounds(agenda_item_id);
+
+-- 4. Players no longer open rounds — only the presenter does. Mirrors the
+--    host-or-admin gate on agenda_items_write_host.
+drop policy game_rounds_insert on public.game_rounds;
+
+create policy game_rounds_insert_host on public.game_rounds
+  for insert with check (
+    exists (
+      select 1 from public.meetings m
+      where m.id = meeting_id
+        and (m.host_user_id = auth.uid() or public.atlas_is_admin(auth.uid()))
+    )
+  );
+```
+
+- [ ] **Step 2: Update the pgTAP assertions**
+
+Replace the whole of `db/supabase/tests/games_rls.sql`:
+
+```sql
+BEGIN;
+SELECT plan(9);
+
+SELECT has_table('public', 'game_rounds', 'game_rounds table exists');
+SELECT has_table('public', 'game_submissions', 'game_submissions table exists');
+
+SELECT ok(
+  (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.game_rounds'::regclass),
+  'game_rounds has RLS'
+);
+SELECT ok(
+  (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.game_submissions'::regclass),
+  'game_submissions has RLS'
+);
+
+SELECT ok(
+  (SELECT count(*) FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'game_rounds') = 2,
+  'game_rounds has 2 policies (read + insert-host)'
+);
+
+SELECT ok(
+  (SELECT count(*) FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'game_rounds'
+     AND policyname = 'game_rounds_insert_host') = 1,
+  'game_rounds insert is gated to the host'
+);
+
+SELECT ok(
+  (SELECT count(*) FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'game_submissions') = 3,
+  'game_submissions has 3 policies (read + insert-self + update-self)'
+);
+
+SELECT has_column('public', 'game_rounds', 'agenda_item_id',
+  'game_rounds is anchored to an agenda item');
+
+SELECT ok(
+  (SELECT count(*) FROM pg_constraint
+   WHERE conrelid = 'public.game_rounds'::regclass
+     AND conname = 'game_rounds_agenda_item_key') = 1,
+  'one round per agenda item'
+);
+
+SELECT * FROM finish();
+ROLLBACK;
+```
+
+- [ ] **Step 3: Reset the local database and run the RLS tests**
+
+Run:
+
+```bash
+pnpm supabase start
+pnpm supabase db reset
+pnpm test:rls
+```
+
+Expected: `db reset` applies `0033` without error, and `games_rls.sql` reports 9 passing assertions.
+
+If `alter type ... add value` errors with "cannot run inside a transaction block", the local Postgres is older than 12 — stop and report rather than splitting the migration, since the hosted project is PG15+.
+
+- [ ] **Step 4: Verify the enum accepts the new kind**
+
+Run:
+
+```bash
+pnpm supabase db reset && psql "$(pnpm -s supabase status -o json | python3 -c 'import json,sys;print(json.load(sys.stdin)["DB_URL"])')" \
+  -c "select unnest(enum_range(null::public.agenda_kind))"
+```
+
+Expected: four rows — `discussion`, `prompt`, `picker`, `game`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add db/supabase/migrations/0033_game_agenda_items.sql db/supabase/tests/games_rls.sql
+git commit -m "feat(games): anchor rounds to agenda items, add game agenda kind
+
+Adds 'game' to agenda_kind, moves game_rounds from unique(meeting_id) to
+unique(agenda_item_id), and tightens round creation to the host. Lobby-era
+rounds are dropped — they have no agenda item to anchor to."
+```
+
+---
+
+## Task 2: Shared round types and slide-state derivation
+
+**Files:**
+
+- Modify: `lib/games/types.ts`
+- Modify: `lib/present/slide-state.ts`
+- Test: `tests/lib/present-slide-state.test.ts`
+
+**Interfaces:**
+
+- Consumes: the `agenda_item_id` column from Task 1.
+- Produces:
+  - `PublicPuzzle` and `RoundLite` exported from `@/lib/games/types`
+  - `AgendaItemLite["kind"]` widened to `"discussion" | "prompt" | "picker" | "game"`
+  - `deriveSlideState(meeting, items, promptsById, roundsByItemId?)` — the fourth argument defaults to `{}` so existing 3-argument call sites keep compiling
+  - Slide states `{ kind: "game-idle"; item }`, `{ kind: "game-active"; item; round }`, `{ kind: "game-finished"; item; round }`
+
+**Context:** `lib/actions/game.ts` currently declares a local `PublicPuzzle` type. It moves to `lib/games/types.ts` so client components and the pure slide-state module can import it without pulling in a `"use server"` module.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `tests/lib/present-slide-state.test.ts`:
+
+```ts
+const gameItem: AgendaItemLite = {
+  id: "g1",
+  ordinal: 5,
+  title: "Warm-up game",
+  kind: "game",
+  prompt_id: null,
+  picker_config: null,
+  picker_result: null,
+  timer_ends_at: null,
+};
+
+const activeRound: RoundLite = {
+  id: "r1",
+  agenda_item_id: "g1",
+  kind: "target_number",
+  puzzle: { kind: "target_number", target: 347, bases: [2, 4, 7, 25, 50, 75] },
+  ends_at: "2026-08-09T10:01:00.000Z",
+  status: "active",
+};
+
+test("game item with no round is idle", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "g1" },
+    [gameItem],
+    {},
+    {},
+  );
+  expect(s.kind).toBe("game-idle");
+});
+
+test("game item with an active round is active and carries the round", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "g1" },
+    [gameItem],
+    {},
+    { g1: activeRound },
+  );
+  expect(s.kind).toBe("game-active");
+  if (s.kind === "game-active") expect(s.round.id).toBe("r1");
+});
+
+test("game item with a finished round is finished", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "g1" },
+    [gameItem],
+    {},
+    { g1: { ...activeRound, status: "finished" } },
+  );
+  expect(s.kind).toBe("game-finished");
+});
+
+test("a round keyed to a different item does not leak into this one", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "g1" },
+    [gameItem],
+    {},
+    { someOtherItem: activeRound },
+  );
+  expect(s.kind).toBe("game-idle");
+});
+
+test("existing three-argument calls still derive non-game items", () => {
+  const s = deriveSlideState(
+    { ...baseMeeting, current_agenda_item_id: "d1" },
+    [disc],
+    {},
+  );
+  expect(s.kind).toBe("discussion");
+});
+```
+
+Add `RoundLite` to the import block at the top of the file:
+
+```ts
+import type { RoundLite } from "@/lib/games/types";
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `pnpm test tests/lib/present-slide-state.test.ts`
+Expected: FAIL — `RoundLite` is not exported from `@/lib/games/types`, and `kind: "game"` is not assignable to `AgendaItemLite["kind"]`.
+
+- [ ] **Step 3: Add the shared types**
+
+Append to `lib/games/types.ts`:
+
+```ts
+/**
+ * A puzzle as it may be sent to clients. Zero In's secret is withheld while the
+ * round is active and only appears once it is finished — narrow with
+ * `"secret" in puzzle`.
+ */
+export type PublicPuzzle =
+  | { kind: "target_number"; target: number; bases: number[] }
+  | { kind: "zero_in" }
+  | { kind: "zero_in"; secret: number };
+
+/** A round as the presenter slide and the play card need to see it. */
+export type RoundLite = {
+  id: string;
+  agenda_item_id: string;
+  kind: GameKind;
+  puzzle: PublicPuzzle;
+  ends_at: string;
+  status: "active" | "finished";
+};
+```
+
+- [ ] **Step 4: Widen the item kind and derive the game states**
+
+In `lib/present/slide-state.ts`, add the import at the top:
+
+```ts
+import type { RoundLite } from "@/lib/games/types";
+```
+
+Widen the kind on `AgendaItemLite`:
+
+```ts
+  kind: "discussion" | "prompt" | "picker" | "game";
+```
+
+Add three members to the `SlideState` union, after the picker members:
+
+```ts
+  | { kind: "game-idle"; item: AgendaItemLite }
+  | { kind: "game-active"; item: AgendaItemLite; round: RoundLite }
+  | { kind: "game-finished"; item: AgendaItemLite; round: RoundLite };
+```
+
+Add the fourth parameter to `deriveSlideState`:
+
+```ts
+export function deriveSlideState(
+  meeting: MeetingLite,
+  items: AgendaItemLite[],
+  promptsById: Record<string, PromptLite>,
+  roundsByItemId: Record<string, RoundLite> = {},
+): SlideState {
+```
+
+Insert the game branch immediately after the `item.kind === "prompt"` block and before the picker fall-through:
+
+```ts
+  if (item.kind === "game") {
+    const round = roundsByItemId[item.id];
+    if (!round) return { kind: "game-idle", item };
+    return round.status === "finished"
+      ? { kind: "game-finished", item, round }
+      : { kind: "game-active", item, round };
+  }
+```
+
+- [ ] **Step 5: Run the tests to verify they pass**
+
+Run: `pnpm test tests/lib/present-slide-state.test.ts`
+Expected: PASS, including the pre-existing discussion/prompt/picker cases.
+
+- [ ] **Step 6: Type check**
+
+Run: `pnpm typecheck`
+Expected: clean. `lib/actions/game.ts` still declares its own local `PublicPuzzle`; that is fine for now and is removed in Task 3.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/games/types.ts lib/present/slide-state.ts tests/lib/present-slide-state.test.ts
+git commit -m "feat(games): derive game slide states from agenda rounds
+
+Adds PublicPuzzle and RoundLite to lib/games/types and teaches
+deriveSlideState to emit game-idle/active/finished from a
+roundsByItemId map. The new argument defaults to {} so existing
+call sites are unaffected."
+```
+
+---
+
+## Task 3: Server actions — host-started, host-finished rounds
+
+**Files:**
+
+- Modify: `lib/zod/game.ts`
+- Modify: `lib/actions/game.ts`
+- Test: `tests/actions/game.integration.test.ts`
+
+**Interfaces:**
+
+- Consumes: `agenda_item_id` (Task 1), `PublicPuzzle` (Task 2).
+- Produces:
+  - `startRoundInput` (Zod: `{ agenda_item_id: string }`) exported from `@/lib/zod/game`
+  - `startRoundAction(input: unknown): Promise<ActionResult<StartRoundResult>>` from `@/lib/actions/game`
+  - `StartRoundResult = { round_id, agenda_item_id, kind, puzzle, started_at, ends_at, status }`
+  - `finalizeRoundAction` keeps its signature; it now rejects non-host callers with `err("forbidden", …)`
+
+**Context:** `ensureRoundAction` is deleted outright — nothing else calls it once `GameLobbyPanel` goes in Task 6. The 10-minute `LOBBY_OPEN_WINDOW_MS` constant and the `status === 'scheduled'` guard go with it.
+
+The RLS policy from Task 1 allows host **or admin** to insert. The action checks host **or admin** too, so the two agree; the admin path is a break-glass for support, not a normal flow.
+
+- [ ] **Step 1: Write the failing tests**
+
+Replace the first test in `tests/actions/game.integration.test.ts` (`"game_rounds insert with valid meeting is idempotent per meeting"`) with the two below, and add the `userClient` helper. Keep the existing `"target_number submission is rejected once past ends_at"` test and every other test in the file, but add `agenda_item_id` to each `game_rounds` insert they perform — the column is `NOT NULL` now, so they will fail without it.
+
+Add near the top, after the `admin` constant:
+
+```ts
+const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+async function userClient(email: string) {
+  const { data } = await admin!.auth.admin.createUser({
+    email,
+    password: "passw0rd!",
+    email_confirm: true,
+  });
+  await admin!.from("profiles").update({ role: "member" }).eq("id", data.user!.id);
+  const c = createClient(url!, anon!);
+  await c.auth.signInWithPassword({ email, password: "passw0rd!" });
+  return { client: c, id: data.user!.id };
+}
+
+async function makeMeetingWithGameItem(hostId: string, title: string) {
+  const { data: meeting } = await admin!
+    .from("meetings")
+    .insert({
+      title,
+      scheduled_start: new Date(Date.now() + 60_000).toISOString(),
+      timezone: "UTC",
+      host_user_id: hostId,
+      created_by: hostId,
+      status: "live",
+    })
+    .select("id")
+    .single();
+  const { data: item } = await admin!
+    .from("agenda_items")
+    .insert({
+      meeting_id: meeting!.id,
+      ordinal: 1,
+      title: "Warm-up game",
+      kind: "game",
+    })
+    .select("id")
+    .single();
+  return { meetingId: meeting!.id as string, itemId: item!.id as string };
+}
+```
+
+Then the tests:
+
+```ts
+test.runIf(canRun)("one round per agenda item", async () => {
+  const c = admin!;
+  const { data: host } = await c.auth.admin.inviteUserByEmail(
+    "gamehost@atlas.com",
+    { data: { full_name: "Game Host" } },
+  );
+  const { meetingId, itemId } = await makeMeetingWithGameItem(
+    host!.user!.id,
+    "Test",
+  );
+
+  const first = await c.from("game_rounds").insert({
+    meeting_id: meetingId,
+    agenda_item_id: itemId,
+    kind: "target_number",
+    puzzle: { target: 347, bases: [2, 4, 7, 25, 50, 75] },
+    started_at: new Date().toISOString(),
+    ends_at: new Date(Date.now() + 60_000).toISOString(),
+  });
+  expect(first.error).toBeNull();
+
+  const second = await c.from("game_rounds").insert({
+    meeting_id: meetingId,
+    agenda_item_id: itemId,
+    kind: "target_number",
+    puzzle: { target: 999, bases: [1, 2, 3, 25, 50, 75] },
+    started_at: new Date().toISOString(),
+    ends_at: new Date(Date.now() + 60_000).toISOString(),
+  });
+  expect(second.error).not.toBeNull(); // unique(agenda_item_id) violation
+});
+
+test.runIf(canRun)(
+  "a second game item in the same meeting gets its own round",
+  async () => {
+    const c = admin!;
+    const { data: host } = await c.auth.admin.inviteUserByEmail(
+      "gamehost-multi@atlas.com",
+      { data: { full_name: "Multi Host" } },
+    );
+    const { meetingId, itemId } = await makeMeetingWithGameItem(
+      host!.user!.id,
+      "Two games",
+    );
+    const { data: second } = await c
+      .from("agenda_items")
+      .insert({
+        meeting_id: meetingId,
+        ordinal: 2,
+        title: "Second game",
+        kind: "game",
+      })
+      .select("id")
+      .single();
+
+    for (const id of [itemId, second!.id]) {
+      const res = await c.from("game_rounds").insert({
+        meeting_id: meetingId,
+        agenda_item_id: id,
+        kind: "zero_in",
+        puzzle: { secret: 500 },
+        started_at: new Date().toISOString(),
+        ends_at: new Date(Date.now() + 45_000).toISOString(),
+      });
+      expect(res.error).toBeNull();
+    }
+  },
+);
+
+test.runIf(canRun)(
+  "a non-host cannot open a round, the host can",
+  async () => {
+    const hostU = await userClient("game-host-rls@atlas.com");
+    const otherU = await userClient("game-other-rls@atlas.com");
+    const { meetingId, itemId } = await makeMeetingWithGameItem(
+      hostU.id,
+      "RLS check",
+    );
+
+    const asOther = await otherU.client.from("game_rounds").insert({
+      meeting_id: meetingId,
+      agenda_item_id: itemId,
+      kind: "zero_in",
+      puzzle: { secret: 12 },
+      started_at: new Date().toISOString(),
+      ends_at: new Date(Date.now() + 45_000).toISOString(),
+    });
+    expect(asOther.error).not.toBeNull(); // game_rounds_insert_host
+
+    const asHost = await hostU.client.from("game_rounds").insert({
+      meeting_id: meetingId,
+      agenda_item_id: itemId,
+      kind: "zero_in",
+      puzzle: { secret: 12 },
+      started_at: new Date().toISOString(),
+      ends_at: new Date(Date.now() + 45_000).toISOString(),
+    });
+    expect(asHost.error).toBeNull();
+  },
+);
+
+test.runIf(canRun)(
+  "finalizing early scores submissions and is idempotent",
+  async () => {
+    const c = admin!;
+    const player = await userClient("game-early-player@atlas.com");
+    const { meetingId, itemId } = await makeMeetingWithGameItem(
+      player.id,
+      "Early finish",
+    );
+    const { data: round } = await c
+      .from("game_rounds")
+      .insert({
+        meeting_id: meetingId,
+        agenda_item_id: itemId,
+        kind: "zero_in",
+        puzzle: { secret: 500 },
+        started_at: new Date().toISOString(),
+        ends_at: new Date(Date.now() + 45_000).toISOString(), // still open
+      })
+      .select("id")
+      .single();
+
+    await c.from("game_submissions").insert({
+      round_id: round!.id,
+      player_id: player.id,
+      payload: {
+        guesses: [{ value: 500, at: new Date().toISOString(), feedback: "exact" }],
+        best_guess: 500,
+      },
+    });
+
+    const first = await player.client.rpc("atlas_finalize_game_round", {
+      p_round: round!.id,
+      p_results: [{ player_id: player.id, points: 41 }],
+    });
+    expect(first.error).toBeNull();
+
+    const { data: after } = await c
+      .from("game_rounds")
+      .select("status, finalized_at")
+      .eq("id", round!.id)
+      .single();
+    expect(after!.status).toBe("finished");
+    expect(after!.finalized_at).not.toBeNull();
+
+    // Second call is a no-op, not an error, and must not rewrite points.
+    const second = await player.client.rpc("atlas_finalize_game_round", {
+      p_round: round!.id,
+      p_results: [{ player_id: player.id, points: 0 }],
+    });
+    expect(second.error).toBeNull();
+
+    const { data: sub } = await c
+      .from("game_submissions")
+      .select("points")
+      .eq("round_id", round!.id)
+      .single();
+    expect(sub!.points).toBe(41);
+  },
+);
+```
+
+Update the `beforeEach` to also clear agenda items, meetings, and users so `userClient` emails are reusable across runs:
+
+```ts
+beforeEach(async () => {
+  if (!admin) return;
+  await admin.from("game_submissions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin.from("game_rounds").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin.from("agenda_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await admin.from("meetings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { data } = await admin.auth.admin.listUsers();
+  for (const u of data.users ?? []) await admin.auth.admin.deleteUser(u.id);
+});
+```
+
+Also update the `canRun` guard to require the anon key:
+
+```ts
+const canRun = !!url && !!svc && !!anon;
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `pnpm test tests/actions/game.integration.test.ts`
+Expected: FAIL — inserts are rejected because `agenda_item_id` is `NOT NULL` and, for the non-host case, because the old permissive `game_rounds_insert` policy is gone.
+
+If every test reports as skipped, the env vars are missing. Export them from `.env.local` and rerun — a skipped suite proves nothing.
+
+- [ ] **Step 3: Rewrite the Zod input**
+
+In `lib/zod/game.ts`, replace the `ensureRoundInput` block with:
+
+```ts
+export const startRoundInput = z.object({
+  agenda_item_id: z.string().uuid(),
+});
+export type StartRoundInput = z.infer<typeof startRoundInput>;
+```
+
+Leave `targetNumberOp`, `submitTargetNumberInput`, `submitZeroInInput`, and `finalizeRoundInput` exactly as they are.
+
+- [ ] **Step 4: Replace `ensureRoundAction` with `startRoundAction`**
+
+In `lib/actions/game.ts`:
+
+Update the imports — swap `ensureRoundInput` for `startRoundInput`, and pull `PublicPuzzle` from the shared types:
+
+```ts
+import {
+  startRoundInput,
+  submitTargetNumberInput,
+  submitZeroInInput,
+  finalizeRoundInput,
+} from "@/lib/zod/game";
+```
+
+```ts
+import type {
+  GameKind,
+  PublicPuzzle,
+  TargetNumberOp,
+  TargetNumberPayload,
+  ZeroInFeedback,
+  ZeroInGuess,
+  ZeroInPayload,
+  PlayerResult,
+} from "@/lib/games/types";
+```
+
+Delete the local `PublicPuzzle` type declaration and the `LOBBY_OPEN_WINDOW_MS` constant.
+
+Replace the `EnsureRoundResult` type and the whole `ensureRoundAction` function with:
+
+```ts
+export type StartRoundResult = {
+  round_id: string;
+  agenda_item_id: string;
+  kind: GameKind;
+  puzzle: PublicPuzzle;
+  started_at: string;
+  ends_at: string;
+  status: "active" | "finished";
+};
+
+export async function startRoundAction(
+  input: unknown,
+): Promise<ActionResult<StartRoundResult>> {
+  const parsed = startRoundInput.safeParse(input);
+  if (!parsed.success) return err("invalid_input", parsed.error.message);
+
+  const { user, supabase } = await requireUser();
+
+  const { data: item } = await supabase
+    .from("agenda_items")
+    .select("id, kind, meeting_id")
+    .eq("id", parsed.data.agenda_item_id)
+    .single();
+  if (!item) return err("not_found", "agenda item");
+  if (item.kind !== "game") {
+    return err("wrong_kind", "agenda item is not a game");
+  }
+
+  const { data: meeting } = await supabase
+    .from("meetings")
+    .select("id, status, host_user_id")
+    .eq("id", item.meeting_id)
+    .single();
+  if (!meeting) return err("not_found", "meeting");
+  if (meeting.status !== "live") {
+    return err("not_live", "meeting is not live");
+  }
+  if (!(await isHostOrAdmin(supabase, meeting.host_user_id, user.id))) {
+    return err("forbidden", "only the host can start a round");
+  }
+
+  // Idempotent: a double-click or a re-render must not re-roll the puzzle.
+  const existing = await supabase
+    .from("game_rounds")
+    .select("id, agenda_item_id, kind, puzzle, started_at, ends_at, status")
+    .eq("agenda_item_id", parsed.data.agenda_item_id)
+    .maybeSingle();
+  if (existing.data) return ok(publicize(existing.data));
+
+  const kind = pickGame();
+  const now = new Date();
+  const durationMs =
+    kind === "target_number" ? TARGET_NUMBER_DURATION_MS : ZERO_IN_DURATION_MS;
+  const puzzle =
+    kind === "target_number"
+      ? generateTargetNumberPuzzle()
+      : generateZeroInPuzzle();
+
+  const insert = await supabase
+    .from("game_rounds")
+    .insert({
+      meeting_id: item.meeting_id,
+      agenda_item_id: parsed.data.agenda_item_id,
+      kind,
+      puzzle,
+      started_at: now.toISOString(),
+      ends_at: new Date(now.getTime() + durationMs).toISOString(),
+      status: "active",
+    })
+    .select("id, agenda_item_id, kind, puzzle, started_at, ends_at, status")
+    .single();
+
+  // Lost the create race — read back the winner's row.
+  if (insert.error) {
+    const again = await supabase
+      .from("game_rounds")
+      .select("id, agenda_item_id, kind, puzzle, started_at, ends_at, status")
+      .eq("agenda_item_id", parsed.data.agenda_item_id)
+      .maybeSingle();
+    if (again.data) return ok(publicize(again.data));
+    return err("db_error", insert.error.message);
+  }
+
+  return ok(publicize(insert.data));
+}
+```
+
+Add the helper (not exported — this is a `"use server"` module):
+
+```ts
+async function isHostOrAdmin(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  hostUserId: string | null,
+  userId: string,
+): Promise<boolean> {
+  if (hostUserId === userId) return true;
+  const { data } = await supabase
+    .from("profiles")
+    .select("role, is_active")
+    .eq("id", userId)
+    .single();
+  return data?.role === "admin" && data?.is_active === true;
+}
+```
+
+Update `RoundRow` and `publicize` to carry the new column:
+
+```ts
+type RoundRow = {
+  id: string;
+  agenda_item_id: string;
+  kind: GameKind;
+  puzzle: unknown;
+  started_at: string;
+  ends_at: string;
+  status: "active" | "finished";
+};
+
+function publicize(row: RoundRow): StartRoundResult {
+  if (row.kind === "target_number") {
+    const p = row.puzzle as { target: number; bases: number[] };
+    return {
+      round_id: row.id,
+      agenda_item_id: row.agenda_item_id,
+      kind: "target_number",
+      puzzle: { kind: "target_number", target: p.target, bases: p.bases },
+      started_at: row.started_at,
+      ends_at: row.ends_at,
+      status: row.status,
+    };
+  }
+  // Reveal the secret only after the round is finished.
+  const p = row.puzzle as { secret: number };
+  if (row.status === "finished") {
+    return {
+      round_id: row.id,
+      agenda_item_id: row.agenda_item_id,
+      kind: "zero_in",
+      puzzle: { kind: "zero_in", secret: p.secret },
+      started_at: row.started_at,
+      ends_at: row.ends_at,
+      status: row.status,
+    };
+  }
+  return {
+    round_id: row.id,
+    agenda_item_id: row.agenda_item_id,
+    kind: "zero_in",
+    puzzle: { kind: "zero_in" },
+    started_at: row.started_at,
+    ends_at: row.ends_at,
+    status: row.status,
+  };
+}
+```
+
+- [ ] **Step 5: Gate `finalizeRoundAction` to the host**
+
+In `finalizeRoundAction`, change the destructure and add the gate right after the round is loaded:
+
+```ts
+  const { user, supabase } = await requireUser();
+```
+
+```ts
+  if (!round) return err("not_found", "round");
+
+  const { data: meeting } = await supabase
+    .from("meetings")
+    .select("host_user_id")
+    .eq("id", round.meeting_id)
+    .single();
+  if (!meeting) return err("not_found", "meeting");
+  if (!(await isHostOrAdmin(supabase, meeting.host_user_id, user.id))) {
+    return err("forbidden", "only the host can finish a round");
+  }
+```
+
+Leave the scoring loops and the `atlas_finalize_game_round` RPC call unchanged.
+
+- [ ] **Step 6: Run the tests to verify they pass**
+
+Run: `pnpm test tests/actions/game.integration.test.ts`
+Expected: PASS, with the tests actually executing (not skipped).
+
+- [ ] **Step 7: Type check**
+
+Run: `pnpm typecheck`
+Expected: one remaining error — `components/games/game-lobby-panel.tsx` imports the now-deleted `ensureRoundAction`. That file is deleted in Task 6. If you want a clean gate here, run `pnpm typecheck 2>&1 | grep -v game-lobby-panel` and confirm nothing else appears.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add lib/zod/game.ts lib/actions/game.ts tests/actions/game.integration.test.ts
+git commit -m "feat(games): host starts and finishes rounds from an agenda item
+
+Replaces ensureRoundAction with startRoundAction, keyed on agenda_item_id
+and gated to the meeting host. Drops the 10-minute lobby window. Adds the
+same host gate to finalizeRoundAction so only the presenter can end a round."
+```
+
+---
+
+## Task 4: The `game` agenda kind in the editor
+
+**Files:**
+
+- Modify: `lib/zod/meeting.ts`
+- Modify: `components/meetings/agenda-editor.tsx`
+- Modify: `components/meetings/agenda-add-item.tsx`
+
+**Interfaces:**
+
+- Consumes: the `'game'` enum value (Task 1).
+- Produces: hosts can add a game item; `AgendaItem["kind"]` in `agenda-editor.tsx` includes `"game"` and is imported by `meeting-live-view.tsx` and `agenda-runner.tsx`.
+
+**Context:** A game item carries neither `prompt_id` nor `picker_config`, so the existing `agenda_items` check constraints hold with no change. `addAgendaItemAction` in `lib/actions/agenda.ts` writes the kind through generically — it needs no edit.
+
+- [ ] **Step 1: Add the Zod variant**
+
+In `lib/zod/meeting.ts`, add a fourth member to the `addAgendaItem` discriminated union, after the `picker` member:
+
+```ts
+  z.object({
+    meeting_id: z.string().uuid(),
+    kind: z.literal("game"),
+    title: z.string().min(1).max(120),
+  }),
+```
+
+- [ ] **Step 2: Widen the editor's item type**
+
+In `components/meetings/agenda-editor.tsx`, line 24:
+
+```ts
+  kind: "discussion" | "prompt" | "picker" | "game";
+```
+
+- [ ] **Step 3: Add the Game tab to the add-item form**
+
+In `components/meetings/agenda-add-item.tsx`:
+
+```ts
+type Kind = "discussion" | "prompt" | "picker" | "game";
+```
+
+```ts
+const KINDS: { v: Kind; label: string }[] = [
+  { v: "discussion", label: "Discussion" },
+  { v: "prompt", label: "Prompt" },
+  { v: "picker", label: "Picker" },
+  { v: "game", label: "Game" },
+];
+```
+
+In the submit handler, add a `game` branch alongside the existing ones (it needs only a title, like `discussion`):
+
+```ts
+    } else if (kind === "game") {
+      input = { meeting_id: meetingId, kind, title };
+    } else if (kind === "picker") {
+```
+
+Add an explanatory block below the picker options block, so the host knows the game is not chosen here:
+
+```tsx
+      {kind === "game" && (
+        <p className="text-xs text-ink-soft">
+          A quick round for the room. The game is picked at random when you
+          start it from present mode — you can also skip it on the day.
+        </p>
+      )}
+```
+
+The title input is already rendered for every kind except `prompt` (`{kind !== "prompt" && …}`), so `game` gets it with no further change.
+
+- [ ] **Step 4: Type check**
+
+Run: `pnpm typecheck`
+Expected: only the known `game-lobby-panel.tsx` error from Task 3.
+
+- [ ] **Step 5: Verify by hand**
+
+Run `pnpm dev`, open a meeting you host, and add an agenda item with the **Game** tab. Confirm the row appears in the agenda list with kind `game` and that reloading the page keeps it.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/zod/meeting.ts components/meetings/agenda-editor.tsx components/meetings/agenda-add-item.tsx
+git commit -m "feat(games): let hosts add a game to the agenda
+
+New Game tab in the add-item form and a matching variant in the
+addAgendaItem union. The game itself is still picked at random at
+start time — the host only chooses where it lands."
+```
+
+---
+
+## Task 5: The presenter's fullscreen game slide
+
+**Files:**
+
+- Create: `components/present/slides/game-slide.tsx`
+- Modify: `components/present/present-shell.tsx`
+- Modify: `app/(app)/meetings/[id]/present/page.tsx`
+
+**Interfaces:**
+
+- Consumes: `startRoundAction`, `finalizeRoundAction` (Task 3); `RoundLite`, the game slide states (Task 2).
+- Produces: `GameSlide` rendering the three states; `PresentShell` accepts a new required prop `eligibleCount: number` and a new required prop `initialRounds: RoundLite[]`.
+
+**Context:** `/meetings/[id]/present` already redirects anyone who is not the host, so "presenter" and "host" are the same person throughout this file. `RoundCountdown` takes `endsAt`, `totalMs`, and an `onExpire` callback — that callback is how the round finalizes when time runs out. `SubmissionCounter` takes `roundId` and `eligibleCount`.
+
+- [ ] **Step 1: Write the slide**
+
+Create `components/present/slides/game-slide.tsx`:
+
+```tsx
+"use client";
+
+import { useCallback, useTransition } from "react";
+import type { Palette } from "@/lib/present/palettes";
+import type { AgendaItemLite } from "@/lib/present/slide-state";
+import type { PlayerResult, RoundLite } from "@/lib/games/types";
+import { startRoundAction, finalizeRoundAction } from "@/lib/actions/game";
+import { TARGET_NUMBER_DURATION_MS } from "@/lib/games/target-number";
+import { ZERO_IN_DURATION_MS } from "@/lib/games/zero-in";
+import { RoundCountdown } from "@/components/games/round-countdown";
+import { SubmissionCounter } from "@/components/games/submission-counter";
+import { RoundScoreboard } from "@/components/games/round-scoreboard";
+
+export function GameSlide({
+  palette,
+  item,
+  round,
+  index,
+  total,
+  meetingTitle,
+  eligibleCount,
+  results,
+  onNext,
+}: {
+  palette: Palette;
+  item: AgendaItemLite;
+  round: RoundLite | null;
+  index: number;
+  total: number;
+  meetingTitle: string;
+  eligibleCount: number;
+  results: PlayerResult[];
+  onNext: () => void;
+}) {
+  const [pending, start] = useTransition();
+
+  const startRound = useCallback(() => {
+    start(async () => {
+      await startRoundAction({ agenda_item_id: item.id });
+    });
+  }, [item.id]);
+
+  // Both the "Finish now" button and the countdown reaching zero land here.
+  // atlas_finalize_game_round returns early when the round is already
+  // finished, so a double call is harmless.
+  const finish = useCallback(() => {
+    if (!round) return;
+    start(async () => {
+      await finalizeRoundAction({ round_id: round.id });
+    });
+  }, [round]);
+
+  return (
+    <div className="flex h-full flex-col p-10">
+      <div className="flex items-start justify-between text-xs uppercase tracking-widest font-extrabold opacity-90">
+        <span>
+          Item {String(index).padStart(2, "0")} of{" "}
+          {String(total).padStart(2, "0")} · {meetingTitle}
+        </span>
+        <span
+          className="inline-flex items-center gap-2 rounded-full border-2 px-3 py-1.5"
+          style={{ borderColor: palette.ink }}
+        >
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: palette.ink }}
+          />
+          Game
+        </span>
+      </div>
+
+      {round === null && (
+        <IdleBody
+          palette={palette}
+          title={item.title}
+          pending={pending}
+          onStart={startRound}
+          onSkip={onNext}
+        />
+      )}
+
+      {round !== null && round.status === "active" && (
+        <ActiveBody
+          palette={palette}
+          round={round}
+          eligibleCount={eligibleCount}
+          pending={pending}
+          onFinish={finish}
+        />
+      )}
+
+      {round !== null && round.status === "finished" && (
+        <FinishedBody
+          palette={palette}
+          round={round}
+          results={results}
+          pending={pending}
+          onNext={onNext}
+        />
+      )}
+    </div>
+  );
+}
+
+function IdleBody({
+  palette,
+  title,
+  pending,
+  onStart,
+  onSkip,
+}: {
+  palette: Palette;
+  title: string;
+  pending: boolean;
+  onStart: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <>
+      <div className="flex-1 flex flex-col justify-center gap-4">
+        <h1
+          className="font-display font-black leading-none tracking-tight"
+          style={{ fontSize: 88 }}
+        >
+          {title}
+        </h1>
+        <p className="max-w-2xl text-xl font-semibold opacity-80">
+          A quick round for the room. The game is picked at random when you
+          start.
+        </p>
+      </div>
+      <footer className="flex items-end justify-between">
+        <button
+          type="button"
+          className="rounded-xl border-2 px-5 py-3 font-extrabold disabled:opacity-60"
+          style={{ borderColor: palette.ink, color: palette.ink }}
+          onClick={onSkip}
+          disabled={pending}
+        >
+          Skip game
+        </button>
+        <SlideButton palette={palette} disabled={pending} onClick={onStart}>
+          Start round →
+        </SlideButton>
+      </footer>
+    </>
+  );
+}
+
+function ActiveBody({
+  palette,
+  round,
+  eligibleCount,
+  pending,
+  onFinish,
+}: {
+  palette: Palette;
+  round: RoundLite;
+  eligibleCount: number;
+  pending: boolean;
+  onFinish: () => void;
+}) {
+  const totalMs =
+    round.kind === "target_number"
+      ? TARGET_NUMBER_DURATION_MS
+      : ZERO_IN_DURATION_MS;
+
+  return (
+    <>
+      <div className="flex-1 flex flex-col justify-center gap-8">
+        {round.puzzle.kind === "target_number" ? (
+          <div className="space-y-6">
+            <div className="text-sm uppercase tracking-widest font-extrabold opacity-70">
+              Hit the target
+            </div>
+            <div
+              className="font-display font-black leading-none tabular-nums"
+              style={{ fontSize: 140 }}
+            >
+              {round.puzzle.target}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {round.puzzle.bases.map((b, i) => (
+                <span
+                  key={`${b}-${i}`}
+                  className="rounded-xl border-2 px-6 py-4 text-4xl font-black tabular-nums"
+                  style={{ borderColor: palette.ink }}
+                >
+                  {b}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="text-sm uppercase tracking-widest font-extrabold opacity-70">
+              Zero in
+            </div>
+            <div
+              className="font-display font-black leading-none"
+              style={{ fontSize: 96 }}
+            >
+              1 — 1000
+            </div>
+            <p className="text-xl font-semibold opacity-80">
+              Guess the secret number. Three tries, higher or lower after each.
+            </p>
+          </div>
+        )}
+
+        <RoundCountdown
+          endsAt={round.ends_at}
+          totalMs={totalMs}
+          onExpire={onFinish}
+        />
+      </div>
+
+      <footer className="flex items-end justify-between">
+        <SubmissionCounter
+          roundId={round.id}
+          eligibleCount={eligibleCount}
+        />
+        <SlideButton palette={palette} disabled={pending} onClick={onFinish}>
+          Finish now
+        </SlideButton>
+      </footer>
+    </>
+  );
+}
+
+function FinishedBody({
+  palette,
+  round,
+  results,
+  pending,
+  onNext,
+}: {
+  palette: Palette;
+  round: RoundLite;
+  results: PlayerResult[];
+  pending: boolean;
+  onNext: () => void;
+}) {
+  const secret =
+    round.puzzle.kind === "zero_in" && "secret" in round.puzzle
+      ? round.puzzle.secret
+      : null;
+
+  return (
+    <>
+      <div className="flex-1 flex flex-col justify-center gap-6 overflow-hidden">
+        {secret !== null && (
+          <div>
+            <div className="text-sm uppercase tracking-widest font-extrabold opacity-70">
+              The secret was
+            </div>
+            <div
+              className="font-display font-black leading-none tabular-nums"
+              style={{ fontSize: 120 }}
+            >
+              {secret}
+            </div>
+          </div>
+        )}
+        <div className="overflow-y-auto">
+          <RoundScoreboard
+            roundId={round.id}
+            kind={round.kind}
+            initialResults={results}
+          />
+        </div>
+      </div>
+      <footer className="flex items-end justify-end">
+        <SlideButton palette={palette} disabled={pending} onClick={onNext}>
+          Next item →
+        </SlideButton>
+      </footer>
+    </>
+  );
+}
+
+function SlideButton({
+  palette,
+  disabled,
+  onClick,
+  children,
+}: {
+  palette: Palette;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className="rounded-xl border-2 px-5 py-3 font-extrabold shadow-[3px_3px_0_rgba(0,0,0,0.6)] disabled:opacity-60"
+      style={{
+        background: palette.accent,
+        color: palette.accentInk,
+        borderColor: palette.accentInk,
+      }}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+}
+```
+
+- [ ] **Step 2: Fetch rounds, results, and the eligible count on the server**
+
+In `app/(app)/meetings/[id]/present/page.tsx`, after the `initialComments` query and before the `return`, add:
+
+```ts
+  const { data: roundRows } = await supabase
+    .from("game_rounds")
+    .select("id,agenda_item_id,kind,puzzle,ends_at,status")
+    .eq("meeting_id", id);
+
+  const initialRounds: RoundLite[] = (roundRows ?? []).map((r) => {
+    const row = r as {
+      id: string;
+      agenda_item_id: string;
+      kind: "target_number" | "zero_in";
+      puzzle: { target?: number; bases?: number[]; secret?: number };
+      ends_at: string;
+      status: "active" | "finished";
+    };
+    return {
+      id: row.id,
+      agenda_item_id: row.agenda_item_id,
+      kind: row.kind,
+      // The secret is withheld until the round is finished.
+      puzzle:
+        row.kind === "target_number"
+          ? {
+              kind: "target_number",
+              target: row.puzzle.target ?? 0,
+              bases: row.puzzle.bases ?? [],
+            }
+          : row.status === "finished"
+            ? { kind: "zero_in", secret: row.puzzle.secret ?? 0 }
+            : { kind: "zero_in" },
+      ends_at: row.ends_at,
+      status: row.status,
+    };
+  });
+
+  // Eligible players exclude the presenter, who does not play.
+  const { data: mtg } = await supabase
+    .from("meetings")
+    .select("participants_override")
+    .eq("id", id)
+    .single();
+  let eligibleCount = 0;
+  if (mtg?.participants_override && Array.isArray(mtg.participants_override)) {
+    eligibleCount = mtg.participants_override.length;
+  } else {
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true });
+    eligibleCount = count ?? 0;
+  }
+  eligibleCount = Math.max(0, eligibleCount - 1);
+```
+
+Add to the imports at the top:
+
+```ts
+import type { RoundLite } from "@/lib/games/types";
+```
+
+Pass both down in the `<PresentShell …>` call:
+
+```tsx
+      initialRounds={initialRounds}
+      eligibleCount={eligibleCount}
+```
+
+- [ ] **Step 3: Wire rounds into the shell**
+
+In `components/present/present-shell.tsx`:
+
+Add to the imports:
+
+```ts
+import { GameSlide } from "@/components/present/slides/game-slide";
+import type { PlayerResult, RoundLite } from "@/lib/games/types";
+```
+
+Add to `PresentShellProps`:
+
+```ts
+  initialRounds: RoundLite[];
+  eligibleCount: number;
+```
+
+Add state and a refresher, next to the existing ones:
+
+```ts
+  const [rounds, setRounds] = useState(props.initialRounds);
+  const [roundResults, setRoundResults] = useState<PlayerResult[]>([]);
+
+  const refreshRounds = useCallback(async () => {
+    const s = createSupabaseBrowserClient();
+    const { data } = await s
+      .from("game_rounds")
+      .select("id,agenda_item_id,kind,puzzle,ends_at,status")
+      .eq("meeting_id", props.meetingId);
+    if (!data) return;
+    setRounds(
+      data.map((r) => {
+        const row = r as {
+          id: string;
+          agenda_item_id: string;
+          kind: "target_number" | "zero_in";
+          puzzle: { target?: number; bases?: number[]; secret?: number };
+          ends_at: string;
+          status: "active" | "finished";
+        };
+        return {
+          id: row.id,
+          agenda_item_id: row.agenda_item_id,
+          kind: row.kind,
+          puzzle:
+            row.kind === "target_number"
+              ? {
+                  kind: "target_number" as const,
+                  target: row.puzzle.target ?? 0,
+                  bases: row.puzzle.bases ?? [],
+                }
+              : row.status === "finished"
+                ? { kind: "zero_in" as const, secret: row.puzzle.secret ?? 0 }
+                : { kind: "zero_in" as const },
+          ends_at: row.ends_at,
+          status: row.status,
+        };
+      }),
+    );
+  }, [props.meetingId]);
+```
+
+Add a `game_rounds` listener to the existing meeting channel, chained before `.subscribe()`:
+
+```ts
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "*",
+          schema: "public",
+          table: "game_rounds",
+          filter: `meeting_id=eq.${props.meetingId}`,
+        },
+        () => refreshRounds(),
+      )
+```
+
+and add `refreshRounds` to that effect's dependency array.
+
+Build the lookup and pass it to the deriver:
+
+```ts
+  const roundsByItemId = useMemo(
+    () => Object.fromEntries(rounds.map((r) => [r.agenda_item_id, r])),
+    [rounds],
+  );
+
+  const slideState = useMemo(
+    () => deriveSlideState(meeting, items, promptsById, roundsByItemId),
+    [meeting, items, promptsById, roundsByItemId],
+  );
+```
+
+Load the scoreboard whenever a round finishes, so `GameSlide` has something to show immediately:
+
+```ts
+  const finishedRound =
+    slideState.kind === "game-finished" ? slideState.round : null;
+
+  useEffect(() => {
+    if (!finishedRound) {
+      setRoundResults([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const s = createSupabaseBrowserClient();
+      const { data } = await s
+        .from("game_submissions")
+        .select("player_id, points, payload, profiles!inner(display_name)")
+        .eq("round_id", finishedRound.id)
+        .not("points", "is", null);
+      if (cancelled || !data) return;
+      const rows = data as unknown as Array<{
+        player_id: string;
+        points: number | null;
+        payload: { best_result?: number; best_guess?: number } | null;
+        profiles: { display_name: string };
+      }>;
+      setRoundResults(
+        rows.map((r) => ({
+          player_id: r.player_id,
+          points: r.points ?? 0,
+          display: `${r.profiles.display_name} · ${
+            r.payload?.best_result ?? r.payload?.best_guess ?? "—"
+          }`,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [finishedRound]);
+```
+
+Render the slide, alongside the other slide blocks:
+
+```tsx
+        {(slideState.kind === "game-idle" ||
+          slideState.kind === "game-active" ||
+          slideState.kind === "game-finished") && (
+          <GameSlide
+            palette={palette}
+            item={slideState.item}
+            round={slideState.kind === "game-idle" ? null : slideState.round}
+            index={index}
+            total={total}
+            meetingTitle={props.meetingTitle}
+            eligibleCount={props.eligibleCount}
+            results={roundResults}
+            onNext={advanceNext}
+          />
+        )}
+```
+
+- [ ] **Step 4: Type check**
+
+Run: `pnpm typecheck`
+Expected: only the known `game-lobby-panel.tsx` error.
+
+- [ ] **Step 5: Run the full unit suite**
+
+Run: `pnpm test`
+Expected: PASS. `deriveSlideState` now receives a fourth argument from the shell; the pure-function tests from Task 2 cover both the 3- and 4-argument shapes.
+
+- [ ] **Step 6: Verify by hand**
+
+With `pnpm dev` running: host a meeting, add a Game item, start the meeting, open present mode, and advance to the game.
+
+- Confirm the idle slide shows **Start round** and **Skip game**.
+- Press Start — the slide flips to active via realtime, showing the puzzle and a draining countdown.
+- Let the countdown run out — the slide flips to finished on its own.
+- Repeat with a second game item and press **Finish now** partway through instead.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add components/present/slides/game-slide.tsx components/present/present-shell.tsx "app/(app)/meetings/[id]/present/page.tsx"
+git commit -m "feat(games): fullscreen game slide in present mode
+
+The presenter reaches a game item and gets Start or Skip; once started
+they see the puzzle, a live submission count, and a countdown, and can
+finish early. Expiry finalizes through the same path."
+```
+
+---
+
+## Task 6: Sticky play card, fullscreen overlay, and lobby removal
+
+**Files:**
+
+- Create: `components/games/game-play-card.tsx`
+- Create: `components/games/game-play-overlay.tsx`
+- Modify: `components/meetings/agenda-runner.tsx`
+- Modify: `app/(app)/meetings/[id]/page.tsx`
+- Delete: `components/games/game-lobby-panel.tsx`
+
+**Interfaces:**
+
+- Consumes: `RoundLite` (Task 2), the game agenda kind (Task 4).
+- Produces: `GamePlayCard({ meetingId, viewerId, isHost })` and `GamePlayOverlay({ round, onClose })`.
+
+**Context:** The card is the last piece; deleting `game-lobby-panel.tsx` here is what finally clears the `pnpm typecheck` error carried since Task 3. `TargetNumberRound` takes `{ roundId, target, bases, endsAt }`; `ZeroInRound` takes `{ roundId, endsAt }`.
+
+Two traps in this task:
+
+1. The card must track the meeting's **latest** round regardless of status, not filter on `status = 'active'`. If it filtered, the round would vanish from state the instant the presenter finished and React would unmount the open overlay — exactly the yank the spec forbids. Visibility of the *card* is derived from status instead.
+2. `RoundScoreboard` renders `initialResults` as given; its realtime subscription only calls `router.refresh()`, which does nothing for results held in client state. The overlay therefore fetches the finished round's results itself.
+
+- [ ] **Step 1: Write the fullscreen overlay**
+
+Create `components/games/game-play-overlay.tsx`:
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import type { PlayerResult, RoundLite } from "@/lib/games/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { TargetNumberRound } from "@/components/games/target-number-round";
+import { ZeroInRound } from "@/components/games/zero-in-round";
+import { RoundScoreboard } from "@/components/games/round-scoreboard";
+
+export function GamePlayOverlay({
+  round,
+  onClose,
+}: {
+  round: RoundLite;
+  onClose: () => void;
+}) {
+  const [results, setResults] = useState<PlayerResult[]>([]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const finished = round.status === "finished";
+
+  // RoundScoreboard renders whatever it is handed — its own realtime hook only
+  // calls router.refresh(), which cannot reach client state. Fetch here.
+  useEffect(() => {
+    if (!finished) return;
+    let cancelled = false;
+    (async () => {
+      const s = createSupabaseBrowserClient();
+      const { data } = await s
+        .from("game_submissions")
+        .select("player_id, points, payload, profiles!inner(display_name)")
+        .eq("round_id", round.id)
+        .not("points", "is", null);
+      if (cancelled || !data) return;
+      const rows = data as unknown as Array<{
+        player_id: string;
+        points: number | null;
+        payload: { best_result?: number; best_guess?: number } | null;
+        profiles: { display_name: string };
+      }>;
+      setResults(
+        rows.map((r) => ({
+          player_id: r.player_id,
+          points: r.points ?? 0,
+          display: `${r.profiles.display_name} · ${
+            r.payload?.best_result ?? r.payload?.best_guess ?? "—"
+          }`,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [finished, round.id]);
+
+  const secret =
+    round.puzzle.kind === "zero_in" && "secret" in round.puzzle
+      ? round.puzzle.secret
+      : null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-ink text-paper"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Play the round"
+    >
+      <div className="mx-auto flex min-h-full max-w-3xl flex-col gap-6 p-6">
+        <header className="flex items-center justify-between">
+          <span className="text-xs font-display font-extrabold uppercase tracking-widest opacity-70">
+            {round.kind === "target_number" ? "Target Number" : "Zero In"}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border-2 border-current px-3 py-1 text-[11px] font-black uppercase tracking-widest opacity-70 hover:opacity-100"
+          >
+            Close
+          </button>
+        </header>
+
+        {/*
+          If the presenter finishes while this is open, swap to the result
+          rather than yanking a fullscreen surface out from under the player.
+        */}
+        {finished ? (
+          <div className="flex flex-1 flex-col gap-6">
+            {secret !== null && (
+              <div className="text-center">
+                <div className="text-xs font-extrabold uppercase tracking-widest opacity-70">
+                  The secret was
+                </div>
+                <div className="font-display text-6xl font-black tabular-nums">
+                  {secret}
+                </div>
+              </div>
+            )}
+            <RoundScoreboard
+              roundId={round.id}
+              kind={round.kind}
+              initialResults={results}
+            />
+          </div>
+        ) : round.puzzle.kind === "target_number" ? (
+          <TargetNumberRound
+            roundId={round.id}
+            target={round.puzzle.target}
+            bases={round.puzzle.bases}
+            endsAt={round.ends_at}
+          />
+        ) : (
+          <ZeroInRound roundId={round.id} endsAt={round.ends_at} />
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Write the sticky card**
+
+Create `components/games/game-play-card.tsx`:
+
+```tsx
+"use client";
+
+import { useCallback, useEffect, useId, useState } from "react";
+import type { RoundLite } from "@/lib/games/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { GamePlayOverlay } from "@/components/games/game-play-overlay";
+
+/**
+ * Nudges everyone except the presenter to play the open round. It clears
+ * itself the moment it stops being relevant: the viewer submits, the
+ * presenter finishes, or the clock runs out.
+ */
+export function GamePlayCard({
+  meetingId,
+  viewerId,
+  isHost,
+}: {
+  meetingId: string;
+  viewerId: string;
+  isHost: boolean;
+}) {
+  const [round, setRound] = useState<RoundLite | null>(null);
+  const [hasPlayed, setHasPlayed] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const instanceId = useId();
+
+  const refresh = useCallback(async () => {
+    const s = createSupabaseBrowserClient();
+    // Deliberately NOT filtered to status = 'active'. If it were, the round
+    // would drop out of state the moment the presenter finished and React
+    // would unmount an open overlay mid-interaction. Card visibility is
+    // derived from status further down instead.
+    const { data } = await s
+      .from("game_rounds")
+      .select("id,agenda_item_id,kind,puzzle,ends_at,status,started_at")
+      .eq("meeting_id", meetingId)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!data) {
+      setRound(null);
+      setHasPlayed(false);
+      setExpired(false);
+      return;
+    }
+
+    const row = data as {
+      id: string;
+      agenda_item_id: string;
+      kind: "target_number" | "zero_in";
+      puzzle: { target?: number; bases?: number[]; secret?: number };
+      ends_at: string;
+      status: "active" | "finished";
+    };
+
+    setRound({
+      id: row.id,
+      agenda_item_id: row.agenda_item_id,
+      kind: row.kind,
+      puzzle:
+        row.kind === "target_number"
+          ? {
+              kind: "target_number",
+              target: row.puzzle.target ?? 0,
+              bases: row.puzzle.bases ?? [],
+            }
+          : row.status === "finished"
+            ? { kind: "zero_in", secret: row.puzzle.secret ?? 0 }
+            : { kind: "zero_in" },
+      ends_at: row.ends_at,
+      status: row.status,
+    });
+    setExpired(new Date(row.ends_at).getTime() <= Date.now());
+
+    const { count } = await s
+      .from("game_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("round_id", row.id)
+      .eq("player_id", viewerId);
+    setHasPlayed((count ?? 0) > 0);
+  }, [meetingId, viewerId]);
+
+  useEffect(() => {
+    if (isHost) return;
+    refresh();
+    const s = createSupabaseBrowserClient();
+    const ch = s
+      .channel(`meeting-game:${meetingId}:${instanceId}`)
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "*",
+          schema: "public",
+          table: "game_rounds",
+          filter: `meeting_id=eq.${meetingId}`,
+        },
+        () => refresh(),
+      )
+      .on(
+        "postgres_changes" as never,
+        { event: "*", schema: "public", table: "game_submissions" },
+        () => refresh(),
+      )
+      .subscribe();
+    return () => {
+      s.removeChannel(ch);
+    };
+  }, [meetingId, isHost, instanceId, refresh]);
+
+  // The round can lapse without any row changing, so watch the clock too.
+  useEffect(() => {
+    if (!round || round.status !== "active") return;
+    const remaining = new Date(round.ends_at).getTime() - Date.now();
+    if (remaining <= 0) {
+      setExpired(true);
+      return;
+    }
+    const t = setTimeout(() => setExpired(true), remaining);
+    return () => clearTimeout(t);
+  }, [round]);
+
+  if (isHost || !round) return null;
+
+  const visible = round.status === "active" && !hasPlayed && !expired;
+
+  return (
+    <>
+      {open && (
+        <GamePlayOverlay round={round} onClose={() => setOpen(false)} />
+      )}
+      {visible && !open && (
+        <div className="sticky bottom-4 z-30 mx-auto flex max-w-xl items-center gap-4 rounded-2xl border-[2.5px] border-ink bg-accent px-5 py-4 text-accent-ink shadow-[-3px_3px_0_0_var(--accent-shadow)]">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-display font-extrabold uppercase tracking-widest opacity-70">
+              Round in progress
+            </div>
+            <div className="font-display text-lg font-black leading-tight">
+              {round.kind === "target_number"
+                ? "Hit the target number"
+                : "Guess the secret number"}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="shrink-0 rounded-xl border-2 border-current px-4 py-2 font-extrabold"
+          >
+            Play
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+```
+
+- [ ] **Step 3: Handle the game kind in the agenda runner**
+
+In `components/meetings/agenda-runner.tsx`, add a branch before the trailing prompt fall-through, right after the `picker` branch:
+
+```tsx
+  if (current.kind === "game") {
+    return (
+      <RunnerCard>
+        <KindLabel>Game</KindLabel>
+        <div className="font-display text-xl font-extrabold text-ink">
+          {current.title}
+        </div>
+        <p className="text-sm text-ink-soft">
+          {isHost
+            ? "Start or skip this from present mode."
+            : "Watch the big screen — a card appears here when the round opens."}
+        </p>
+      </RunnerCard>
+    );
+  }
+```
+
+- [ ] **Step 4: Swap the lobby panel for the card**
+
+In `app/(app)/meetings/[id]/page.tsx`:
+
+Replace the import
+
+```ts
+import { GameLobbyPanel } from "@/components/games/game-lobby-panel";
+```
+
+with
+
+```ts
+import { GamePlayCard } from "@/components/games/game-play-card";
+```
+
+Delete the whole lobby block (lines 243–249):
+
+```tsx
+        {m.status === "scheduled" && (
+          <GameLobbyPanel
+            meetingId={m.id}
+            scheduledStart={m.scheduled_start}
+            status={m.status}
+          />
+        )}
+```
+
+and mount the card just after the `<MeetingLiveView …>` block instead:
+
+```tsx
+        {m.status === "live" && (
+          <GamePlayCard
+            meetingId={m.id}
+            viewerId={user.id}
+            isHost={isHost}
+          />
+        )}
+```
+
+`user` is already bound at line 80 (`const { user, supabase } = await requireUser();`) and `isHost` at line 128 (`const isHost = m.host_user_id === user.id;`). Reuse both — do not add a second `requireUser()` call.
+
+- [ ] **Step 5: Delete the lobby panel**
+
+```bash
+git rm components/games/game-lobby-panel.tsx
+```
+
+- [ ] **Step 6: Type check — this time with no known exceptions**
+
+Run: `pnpm typecheck`
+Expected: completely clean. The `game-lobby-panel.tsx` error carried since Task 3 is gone. If anything else still references `ensureRoundAction`, grep for it and fix the caller:
+
+```bash
+grep -rn "ensureRoundAction\|GameLobbyPanel" app components lib tests
+```
+
+Expected: no matches.
+
+- [ ] **Step 7: Run everything**
+
+```bash
+pnpm test
+pnpm typecheck
+pnpm test:rls
+```
+
+Expected: all green, with the integration tests actually executing.
+
+- [ ] **Step 8: Verify the whole flow by hand**
+
+Two browsers — one as host, one as a participant.
+
+1. Host adds a Game item, starts the meeting, opens present mode.
+2. Host advances to the game and presses **Start round**.
+3. Participant's meeting page shows the sticky card within a second or two.
+4. Participant presses **Play**, the fullscreen overlay opens, they submit.
+5. Overlay closes, card is gone, and it stays gone on reload.
+6. Repeat with a second game item: this time the participant opens the overlay but does **not** submit, and the host presses **Finish now**. The overlay stays open and swaps to the round scoreboard (plus the revealed secret, for Zero In) instead of closing, and the card does not come back.
+7. Repeat once more and let the countdown lapse on its own — the card disappears without any host action.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add components/games/game-play-card.tsx components/games/game-play-overlay.tsx components/meetings/agenda-runner.tsx "app/(app)/meetings/[id]/page.tsx"
+git commit -m "feat(games): sticky play card and fullscreen play surface
+
+Non-presenters get a persistent nudge while a round is open; it clears
+on submit, on the presenter finishing, or on expiry. Removes the
+pre-meeting lobby panel, which the agenda item replaces."
+```
+
+---
+
+## Done criteria
+
+- `pnpm test`, `pnpm typecheck`, and `pnpm test:rls` are all green, with integration tests executing rather than skipping.
+- `grep -rn "ensureRoundAction\|GameLobbyPanel" app components lib tests` returns nothing.
+- A host can add a game to an agenda, reach it in present mode, and either skip it or start it and finish it early.
+- A participant sees the card appear on start and disappear on any of: their own submission, the presenter finishing, the clock lapsing.
+- Two game items in one meeting hold two independent rounds and scoreboards.

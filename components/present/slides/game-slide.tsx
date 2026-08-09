@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import type { Palette } from "@/lib/present/palettes";
 import type { AgendaItemLite } from "@/lib/present/slide-state";
 import type { PlayerResult, RoundLite } from "@/lib/games/types";
@@ -34,6 +34,18 @@ export function GameSlide({
 }) {
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+
+  // GameSlide is reused across agenda items and rounds without remounting
+  // (present-shell renders it by slide-state kind, not by item/round key), so
+  // an error left over from a prior item or round must not linger once the
+  // presenter moves on — whether that's via Skip, Next item, or the meeting
+  // advancing from another device through realtime. Clear whenever what is
+  // being displayed changes; a failure that belongs to the *current* subject
+  // never trips this, since neither item.id nor round?.id/round?.status
+  // change as a side effect of a failed dispatch.
+  useEffect(() => {
+    setErr(null);
+  }, [item.id, round?.id, round?.status]);
 
   const startRound = useCallback(() => {
     setErr(null);

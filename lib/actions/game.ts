@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/require";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
-  ensureRoundInput,
+  startRoundInput,
   submitTargetNumberInput,
   submitZeroInInput,
   finalizeRoundInput,
@@ -24,6 +24,7 @@ import {
 } from "@/lib/games/zero-in";
 import type {
   GameKind,
+  PublicPuzzle,
   TargetNumberOp,
   TargetNumberPayload,
   ZeroInFeedback,
@@ -32,16 +33,9 @@ import type {
   PlayerResult,
 } from "@/lib/games/types";
 
-// Not exported: a "use server" file may only export async functions.
-const LOBBY_OPEN_WINDOW_MS = 10 * 60_000;
-
-type PublicPuzzle =
-  | { kind: "target_number"; target: number; bases: number[] }
-  | { kind: "zero_in" } // active: secret hidden
-  | { kind: "zero_in"; secret: number }; // finished: secret revealed
-
-export type EnsureRoundResult = {
+export type StartRoundResult = {
   round_id: string;
+  agenda_item_id: string;
   kind: GameKind;
   puzzle: PublicPuzzle;
   started_at: string;
@@ -49,39 +43,45 @@ export type EnsureRoundResult = {
   status: "active" | "finished";
 };
 
-export async function ensureRoundAction(
+export async function startRoundAction(
   input: unknown,
-): Promise<ActionResult<EnsureRoundResult>> {
-  const parsed = ensureRoundInput.safeParse(input);
+): Promise<ActionResult<StartRoundResult>> {
+  const parsed = startRoundInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
 
-  const { supabase } = await requireUser();
+  const { user, supabase } = await requireUser();
+
+  const { data: item } = await supabase
+    .from("agenda_items")
+    .select("id, kind, meeting_id")
+    .eq("id", parsed.data.agenda_item_id)
+    .single();
+  if (!item) return err("not_found", "agenda item");
+  if (item.kind !== "game") {
+    return err("wrong_kind", "agenda item is not a game");
+  }
 
   const { data: meeting } = await supabase
     .from("meetings")
-    .select("id, scheduled_start, status")
-    .eq("id", parsed.data.meeting_id)
+    .select("id, status, host_user_id")
+    .eq("id", item.meeting_id)
     .single();
   if (!meeting) return err("not_found", "meeting");
-  if (meeting.status !== "scheduled") {
-    return err("lobby_closed", "meeting is not in scheduled state");
+  if (meeting.status !== "live") {
+    return err("not_live", "meeting is not live");
   }
-  const startsAtMs = new Date(meeting.scheduled_start).getTime();
-  if (Date.now() < startsAtMs - LOBBY_OPEN_WINDOW_MS) {
-    return err("too_early", "lobby is not open yet");
+  if (!(await isHostOrAdmin(supabase, meeting.host_user_id, user.id))) {
+    return err("forbidden", "only the host can start a round");
   }
 
-  // Try to read an existing round first (idempotent).
+  // Idempotent: a double-click or a re-render must not re-roll the puzzle.
   const existing = await supabase
     .from("game_rounds")
-    .select("id, kind, puzzle, started_at, ends_at, status")
-    .eq("meeting_id", parsed.data.meeting_id)
+    .select("id, agenda_item_id, kind, puzzle, started_at, ends_at, status")
+    .eq("agenda_item_id", parsed.data.agenda_item_id)
     .maybeSingle();
-  if (existing.data) {
-    return ok(publicize(existing.data));
-  }
+  if (existing.data) return ok(publicize(existing.data));
 
-  // Otherwise create it.
   const kind = pickGame();
   const now = new Date();
   const durationMs =
@@ -94,36 +94,48 @@ export async function ensureRoundAction(
   const insert = await supabase
     .from("game_rounds")
     .insert({
-      meeting_id: parsed.data.meeting_id,
+      meeting_id: item.meeting_id,
+      agenda_item_id: parsed.data.agenda_item_id,
       kind,
       puzzle,
       started_at: now.toISOString(),
       ends_at: new Date(now.getTime() + durationMs).toISOString(),
       status: "active",
     })
-    .select("id, kind, puzzle, started_at, ends_at, status")
+    .select("id, agenda_item_id, kind, puzzle, started_at, ends_at, status")
     .single();
 
-  // If we lost the create race, read the winner's row.
+  // Lost the create race — read back the winner's row.
   if (insert.error) {
     const again = await supabase
       .from("game_rounds")
-      .select("id, kind, puzzle, started_at, ends_at, status")
-      .eq("meeting_id", parsed.data.meeting_id)
+      .select("id, agenda_item_id, kind, puzzle, started_at, ends_at, status")
+      .eq("agenda_item_id", parsed.data.agenda_item_id)
       .maybeSingle();
     if (again.data) return ok(publicize(again.data));
     return err("db_error", insert.error.message);
   }
 
-  // No revalidatePath here: the freshly-created round is returned and rendered
-  // directly by GameLobbyPanel, and live updates arrive via realtime channels.
-  // ensureRoundAction runs during that server render, where revalidatePath is
-  // both unsupported and unnecessary.
   return ok(publicize(insert.data));
+}
+
+async function isHostOrAdmin(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  hostUserId: string | null,
+  userId: string,
+): Promise<boolean> {
+  if (hostUserId === userId) return true;
+  const { data } = await supabase
+    .from("profiles")
+    .select("role, is_active")
+    .eq("id", userId)
+    .single();
+  return data?.role === "admin" && data?.is_active === true;
 }
 
 type RoundRow = {
   id: string;
+  agenda_item_id: string;
   kind: GameKind;
   puzzle: unknown;
   started_at: string;
@@ -131,11 +143,12 @@ type RoundRow = {
   status: "active" | "finished";
 };
 
-function publicize(row: RoundRow): EnsureRoundResult {
+function publicize(row: RoundRow): StartRoundResult {
   if (row.kind === "target_number") {
     const p = row.puzzle as { target: number; bases: number[] };
     return {
       round_id: row.id,
+      agenda_item_id: row.agenda_item_id,
       kind: "target_number",
       puzzle: { kind: "target_number", target: p.target, bases: p.bases },
       started_at: row.started_at,
@@ -148,6 +161,7 @@ function publicize(row: RoundRow): EnsureRoundResult {
   if (row.status === "finished") {
     return {
       round_id: row.id,
+      agenda_item_id: row.agenda_item_id,
       kind: "zero_in",
       puzzle: { kind: "zero_in", secret: p.secret },
       started_at: row.started_at,
@@ -157,6 +171,7 @@ function publicize(row: RoundRow): EnsureRoundResult {
   }
   return {
     round_id: row.id,
+    agenda_item_id: row.agenda_item_id,
     kind: "zero_in",
     puzzle: { kind: "zero_in" },
     started_at: row.started_at,
@@ -325,7 +340,7 @@ export async function finalizeRoundAction(
   const parsed = finalizeRoundInput.safeParse(input);
   if (!parsed.success) return err("invalid_input", parsed.error.message);
 
-  const { supabase } = await requireUser();
+  const { user, supabase } = await requireUser();
 
   const { data: round } = await supabase
     .from("game_rounds")
@@ -333,6 +348,16 @@ export async function finalizeRoundAction(
     .eq("id", parsed.data.round_id)
     .single();
   if (!round) return err("not_found", "round");
+
+  const { data: meeting } = await supabase
+    .from("meetings")
+    .select("host_user_id")
+    .eq("id", round.meeting_id)
+    .single();
+  if (!meeting) return err("not_found", "meeting");
+  if (!(await isHostOrAdmin(supabase, meeting.host_user_id, user.id))) {
+    return err("forbidden", "only the host can finish a round");
+  }
 
   const { data: subs } = await supabase
     .from("game_submissions")

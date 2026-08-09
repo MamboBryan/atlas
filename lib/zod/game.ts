@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-export const ensureRoundInput = z.object({
-  meeting_id: z.string().uuid(),
+export const startRoundInput = z.object({
+  agenda_item_id: z.string().uuid(),
 });
-export type EnsureRoundInput = z.infer<typeof ensureRoundInput>;
+export type StartRoundInput = z.infer<typeof startRoundInput>;
 
 export const targetNumberOp = z.object({
   op: z.enum(["+", "-", "*", "/"]),

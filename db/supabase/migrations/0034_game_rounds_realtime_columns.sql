@@ -8,7 +8,23 @@
 -- secret never leaves the server on this channel. The replica identity
 -- column (id, the primary key, since no REPLICA IDENTITY was set) must be
 -- part of the list; it is.
-
-alter publication supabase_realtime drop table public.game_rounds;
-alter publication supabase_realtime add table public.game_rounds
-  (id, meeting_id, agenda_item_id, kind, started_at, ends_at, status, finalized_at, created_at, updated_at);
+--
+-- ALTER PUBLICATION ... DROP TABLE has no IF EXISTS form, so guard it with
+-- an existence lookup: the table may or may not already be registered
+-- (added with no column restriction by 0027, or with this migration's
+-- column list on a prior run), and either way the block below leaves it
+-- registered with exactly this column list. This makes the migration safe
+-- to re-run; it does not change the effect it already had.
+do $$
+begin
+  if exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'game_rounds'
+  ) then
+    alter publication supabase_realtime drop table public.game_rounds;
+  end if;
+  alter publication supabase_realtime add table public.game_rounds
+    (id, meeting_id, agenda_item_id, kind, started_at, ends_at, status, finalized_at, created_at, updated_at);
+end $$;

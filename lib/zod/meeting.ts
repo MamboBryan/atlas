@@ -36,6 +36,11 @@ export const addAgendaItem = z.discriminatedUnion("kind", [
     title: z.string().min(1).max(120),
     picker_config: pickerConfig,
   }),
+  z.object({
+    meeting_id: z.string().uuid(),
+    kind: z.literal("game"),
+    title: z.string().min(1).max(120),
+  }),
 ]);
 export type AddAgendaItemInput = z.infer<typeof addAgendaItem>;
 

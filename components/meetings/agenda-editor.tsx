@@ -21,7 +21,7 @@ export type AgendaItem = {
   id: string;
   ordinal: number;
   title: string;
-  kind: "discussion" | "prompt" | "picker";
+  kind: "discussion" | "prompt" | "picker" | "game";
   prompt_id: string | null;
   picker_config: PickerConfig | null;
   picker_result: PickerResult | null;

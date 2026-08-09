@@ -17,7 +17,7 @@ import { addAgendaItemAction } from "@/lib/actions/agenda";
 import { createPrompt } from "@/lib/actions/prompt";
 import { cn } from "@/lib/utils";
 
-type Kind = "discussion" | "prompt" | "picker";
+type Kind = "discussion" | "prompt" | "picker" | "game";
 type PickerMode = "oneshot" | "shuffle";
 type PickerScope = "meeting_participants" | "whole_roster";
 type PromptResponseType =
@@ -32,6 +32,7 @@ const KINDS: { v: Kind; label: string }[] = [
   { v: "discussion", label: "Discussion" },
   { v: "prompt", label: "Prompt" },
   { v: "picker", label: "Picker" },
+  { v: "game", label: "Game" },
 ];
 
 const MODES: { v: PickerMode; label: string }[] = [
@@ -170,7 +171,9 @@ export function AgendaAddItem({
         return;
       }
       input = { meeting_id: meetingId, kind, title, prompt_id: promptId };
-    } else {
+    } else if (kind === "game") {
+      input = { meeting_id: meetingId, kind, title };
+    } else if (kind === "picker") {
       input = {
         meeting_id: meetingId,
         kind,
@@ -264,6 +267,13 @@ export function AgendaAddItem({
             />
           </div>
         </>
+      )}
+
+      {kind === "game" && (
+        <p className="text-xs text-ink-soft">
+          A quick round for the room. The game is picked at random when you
+          start it from present mode — you can also skip it on the day.
+        </p>
       )}
 
       {err && (

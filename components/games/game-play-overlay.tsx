@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PlayerResult, RoundLite } from "@/lib/games/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -31,29 +31,22 @@ export function GamePlayOverlay({
     typeof document !== "undefined" ? document.createElement("div") : null,
   );
 
-  // Focus management: move focus into the dialog on open, trap Tab/Shift+Tab
-  // inside it so background content stays out of the tab order, and restore
-  // focus to whatever triggered the overlay (normally the card's Play
-  // button) once it closes.
-  useEffect(() => {
-    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
-    const root = dialogRef.current;
-    const firstFocusable = root?.querySelector<HTMLElement>(
-      FOCUSABLE_SELECTOR,
-    );
-    (firstFocusable ?? root)?.focus();
-    return () => {
-      previouslyFocusedRef.current?.focus?.();
-    };
-  }, []);
-
   // The overlay is fullscreen and modal, so the page underneath must not
   // scroll or stay reachable to assistive tech while it's open. `inert`
-  // additionally covers pointer/keyboard interaction the Tab trap above
+  // additionally covers pointer/keyboard interaction the Tab trap below
   // doesn't (e.g. a screen reader's own virtual cursor), and is dropped
   // from the accessibility tree entirely, unlike aria-hidden on content
   // that can still be focused.
-  useEffect(() => {
+  //
+  // This must be a layout effect, not a regular effect: React flushes every
+  // layout effect (setup on mount, cleanup on unmount) before any regular
+  // effect's setup/cleanup runs in the same commit, regardless of
+  // declaration order. The focus-management effect below depends on that
+  // ordering both ways — appending portalNode to <body> has to happen
+  // before it calls .focus() (focusing a detached node is a no-op), and
+  // removing `inert` from the rest of the page has to happen before it
+  // restores focus on close (focusing an inert element is also a no-op).
+  useLayoutEffect(() => {
     if (!portalNode) return;
     const { body } = document;
     body.appendChild(portalNode);
@@ -72,6 +65,22 @@ export function GamePlayOverlay({
       body.removeChild(portalNode);
     };
   }, [portalNode]);
+
+  // Focus management: move focus into the dialog on open, trap Tab/Shift+Tab
+  // inside it so background content stays out of the tab order, and restore
+  // focus to whatever triggered the overlay (normally the card's Play
+  // button) once it closes.
+  useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    const root = dialogRef.current;
+    const firstFocusable = root?.querySelector<HTMLElement>(
+      FOCUSABLE_SELECTOR,
+    );
+    (firstFocusable ?? root)?.focus();
+    return () => {
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

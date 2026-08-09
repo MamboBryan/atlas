@@ -1,63 +1,18 @@
-import { expect, test, beforeEach } from "vitest";
-import { createClient } from "@supabase/supabase-js";
+import { expect, test, beforeEach, afterAll } from "vitest";
+import {
+  admin,
+  canRun,
+  userClient,
+  makeMeetingWithGameItem,
+  resetGameTestDb,
+} from "./game-test-helpers";
 
-const url =
-  process.env.SUPABASE_TEST_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-const svc =
-  process.env.SUPABASE_TEST_SERVICE_KEY ??
-  process.env.SUPABASE_SERVICE_ROLE_KEY;
-const admin = url && svc ? createClient(url, svc) : null;
-const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const canRun = !!url && !!svc && !!anon;
-
-async function userClient(email: string) {
-  const { data } = await admin!.auth.admin.createUser({
-    email,
-    password: "passw0rd!",
-    email_confirm: true,
-  });
-  await admin!.from("profiles").update({ role: "member" }).eq("id", data.user!.id);
-  const c = createClient(url!, anon!);
-  await c.auth.signInWithPassword({ email, password: "passw0rd!" });
-  return { client: c, id: data.user!.id };
-}
-
-async function makeMeetingWithGameItem(hostId: string, title: string) {
-  const { data: meeting } = await admin!
-    .from("meetings")
-    .insert({
-      title,
-      scheduled_start: new Date(Date.now() + 60_000).toISOString(),
-      timezone: "UTC",
-      host_user_id: hostId,
-      created_by: hostId,
-      status: "live",
-    })
-    .select("id")
-    .single();
-  const { data: item } = await admin!
-    .from("agenda_items")
-    .insert({
-      meeting_id: meeting!.id,
-      ordinal: 1,
-      title: "Warm-up game",
-      kind: "game",
-    })
-    .select("id")
-    .single();
-  return { meetingId: meeting!.id as string, itemId: item!.id as string };
-}
-
-beforeEach(async () => {
-  if (!admin) return;
-  await admin.from("game_submissions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await admin.from("game_rounds").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await admin.from("agenda_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await admin.from("meetings").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  const { data } = await admin.auth.admin.listUsers();
-  for (const u of data.users ?? []) await admin.auth.admin.deleteUser(u.id);
-});
+beforeEach(resetGameTestDb);
+// The last test's fixtures would otherwise survive past the end of this
+// file and can trip up unrelated suites later in the run (e.g. a leftover
+// meeting blocks deleting its creator, which other files' cleanup doesn't
+// check for).
+afterAll(resetGameTestDb);
 
 test.runIf(canRun)("one round per agenda item", async () => {
   const c = admin!;

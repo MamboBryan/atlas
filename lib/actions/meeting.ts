@@ -79,18 +79,6 @@ export async function startMeeting(
 ): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
 
-  // If there's an active pre-meeting game round, finalize it first so its
-  // scoreboard is written before the meeting transitions to 'live' (which
-  // hides the lobby panel).
-  const { data: round } = await supabase
-    .from("game_rounds")
-    .select("id, status")
-    .eq("meeting_id", meeting_id)
-    .maybeSingle();
-  if (round?.status === "active") {
-    await finalizeRoundAction({ round_id: round.id });
-  }
-
   const { error } = await supabase
     .from("meetings")
     .update({
@@ -111,14 +99,17 @@ export async function endMeeting(
 ): Promise<ActionResult<null>> {
   const { user, supabase } = await requireUser();
 
-  // Finalize any active pre-meeting game round before ending the meeting,
-  // so its results are written and visible (mirrors the startMeeting hook).
-  const { data: round } = await supabase
+  // A meeting can hold many game rounds (one per agenda item, migration
+  // 0033), so every active round needs finalizing before the meeting ends —
+  // not just one. Leaving a round active strands it forever (nothing ever
+  // finalizes it again) and its game_submissions.points stay null, which
+  // getLeaderboardAction silently excludes.
+  const { data: activeRounds } = await supabase
     .from("game_rounds")
-    .select("id, status")
+    .select("id")
     .eq("meeting_id", meeting_id)
-    .maybeSingle();
-  if (round?.status === "active") {
+    .eq("status", "active");
+  for (const round of activeRounds ?? []) {
     await finalizeRoundAction({ round_id: round.id });
   }
 
@@ -156,17 +147,6 @@ export async function postponeMeetingManual(
   if (meeting.host_user_id !== user.id) return err("forbidden", "host only");
   if (meeting.status !== "scheduled")
     return err("invalid_state", "only scheduled meetings can be postponed");
-
-  // Finalize any active pre-meeting game round before postponing — the lobby
-  // for the original meeting is closing; players deserve their scores.
-  const { data: activeRound } = await supabase
-    .from("game_rounds")
-    .select("id, status")
-    .eq("meeting_id", meeting.id)
-    .maybeSingle();
-  if (activeRound?.status === "active") {
-    await finalizeRoundAction({ round_id: activeRound.id });
-  }
 
   const { data: items } = await supabase
     .from("agenda_items")

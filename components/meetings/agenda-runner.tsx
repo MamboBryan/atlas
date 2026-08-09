@@ -120,6 +120,7 @@ function GameAgendaItem({
   const [loaded, setLoaded] = useState(false);
   const [results, setResults] = useState<PlayerResult[]>([]);
   const [playing, setPlaying] = useState(false);
+  const [expired, setExpired] = useState(false);
   const instanceId = useId();
 
   // Routed through the server action rather than a direct table query, same
@@ -171,6 +172,26 @@ function GameAgendaItem({
       s.removeChannel(ch);
     };
   }, [meetingId, item.id, instanceId, refresh]);
+
+  // A round can lapse without any row changing (nothing writes until the
+  // host finalizes), so watch the clock directly — same pattern as
+  // game-play-card.tsx — rather than keying purely on round.status. Without
+  // this, a participant can still be offered Play in the window between
+  // ends_at passing and the host finishing, into an overlay with a dead
+  // countdown.
+  useEffect(() => {
+    if (!round || round.status !== "active") {
+      setExpired(false);
+      return;
+    }
+    const remaining = new Date(round.ends_at).getTime() - Date.now();
+    if (remaining <= 0) {
+      setExpired(true);
+      return;
+    }
+    const t = setTimeout(() => setExpired(true), remaining);
+    return () => clearTimeout(t);
+  }, [round]);
 
   const finished = round?.status === "finished";
   const finishedRoundId = finished ? round.id : null;
@@ -246,6 +267,10 @@ function GameAgendaItem({
           isHost ? (
             <p className="text-sm text-ink-soft">
               Round in progress — manage it from present mode.
+            </p>
+          ) : expired ? (
+            <p className="text-sm text-ink-soft">
+              Time&apos;s up — waiting for the host to finish this round.
             </p>
           ) : (
             <div className="space-y-2 pt-1">

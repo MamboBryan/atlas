@@ -24,6 +24,9 @@ export function GamePlayCard({
   const [hasPlayed, setHasPlayed] = useState(false);
   const [openedRoundId, setOpenedRoundId] = useState<string | null>(null);
   const [expired, setExpired] = useState(false);
+  const [currentAgendaItemId, setCurrentAgendaItemId] = useState<
+    string | null
+  >(null);
   const instanceId = useId();
 
   // The card always shows the meeting's latest round. The overlay, once
@@ -90,6 +93,50 @@ export function GamePlayCard({
     refresh();
   }, [isHost, refresh]);
 
+  // Tracks which agenda item the meeting is currently "on", purely to
+  // decide whether this card should render its own Play button — see
+  // `ownedByRunner` below. Independent of MeetingLiveView's own copy of the
+  // same value; a small duplicated subscription here is cheaper than
+  // threading current_agenda_item_id down through the server page as a
+  // prop shared between two otherwise-unrelated client components.
+  const refreshCurrentItem = useCallback(async () => {
+    const s = createSupabaseBrowserClient();
+    const { data } = await s
+      .from("meetings")
+      .select("current_agenda_item_id")
+      .eq("id", meetingId)
+      .single();
+    setCurrentAgendaItemId(
+      (data?.current_agenda_item_id as string | null) ?? null,
+    );
+  }, [meetingId]);
+
+  useEffect(() => {
+    if (isHost) return;
+    refreshCurrentItem();
+  }, [isHost, refreshCurrentItem]);
+
+  useEffect(() => {
+    if (isHost) return;
+    const s = createSupabaseBrowserClient();
+    const ch = s
+      .channel(`meeting-game-current-item:${meetingId}:${instanceId}`)
+      .on(
+        "postgres_changes" as never,
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "meetings",
+          filter: `id=eq.${meetingId}`,
+        },
+        () => refreshCurrentItem(),
+      )
+      .subscribe();
+    return () => {
+      s.removeChannel(ch);
+    };
+  }, [meetingId, isHost, instanceId, refreshCurrentItem]);
+
   // game_rounds changes are only a trigger to re-fetch through the action —
   // the payload itself is never read, so a leaked column here is moot.
   useEffect(() => {
@@ -155,7 +202,17 @@ export function GamePlayCard({
 
   if (isHost || !latest) return null;
 
-  const visible = latest.status === "active" && !hasPlayed && !expired;
+  // AgendaRunner (via GameAgendaItem) renders its own Play button whenever
+  // the game item with the open round is the meeting's current agenda item
+  // — the in-context surface. This card is the fallback nudge for when
+  // that isn't true: the round is open but the host has moved on to a
+  // different item (or a participant hasn't scrolled to "Now"), so the
+  // runner's control isn't the thing putting the round in front of anyone.
+  // Stand down only in the case both would actually be on screen at once,
+  // so there's never two Play buttons for the same round simultaneously.
+  const ownedByRunner = currentAgendaItemId === latest.agenda_item_id;
+  const visible =
+    latest.status === "active" && !hasPlayed && !expired && !ownedByRunner;
 
   return (
     <>

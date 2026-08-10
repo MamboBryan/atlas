@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth/require";
+import { isHostOrAdmin } from "@/lib/auth/host-or-admin";
 import {
   AgendaAddItem,
   type PromptOption,
@@ -24,8 +25,16 @@ export async function MeetingRail({ id }: { id: string }) {
       </p>
     );
   }
-  // Any participant can add items during a live meeting; otherwise host-only.
-  const canAdd = meeting.status === "live" || meeting.host_user_id === user.id;
+  // Mirrors addAgendaItemAction: participants may add until the meeting is
+  // live, after which the agenda belongs to the host.
+  const hostOrAdmin = await isHostOrAdmin(
+    supabase,
+    meeting.host_user_id,
+    user.id,
+  );
+  const preLive =
+    meeting.status === "scheduled" || meeting.status === "postponed";
+  const canAdd = hostOrAdmin || preLive;
 
   const { data: promptRows } = canAdd
     ? await supabase
@@ -52,11 +61,15 @@ export async function MeetingRail({ id }: { id: string }) {
           <h2 className="font-display text-xl font-extrabold text-ink">
             Add agenda item
           </h2>
-          <AgendaAddItem meetingId={id} availablePrompts={availablePrompts} />
+          <AgendaAddItem
+            meetingId={id}
+            availablePrompts={availablePrompts}
+            allowGame={hostOrAdmin}
+          />
         </div>
       ) : (
         <p className="text-sm text-ink-soft">
-          Only the host can edit the agenda before it starts.
+          Only the host can add agenda items once the meeting is live.
         </p>
       )}
       {meeting.status === "live" && (

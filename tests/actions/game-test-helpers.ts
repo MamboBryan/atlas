@@ -31,7 +31,7 @@ export async function userClient(
 export async function makeMeeting(
   hostId: string,
   title: string,
-  status: "live" | "scheduled" = "live",
+  status: "live" | "scheduled" | "postponed" | "ended" = "live",
 ) {
   const { data: meeting } = await admin!
     .from("meetings")

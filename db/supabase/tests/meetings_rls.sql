@@ -20,8 +20,8 @@ SELECT ok(
 );
 SELECT ok(
   (SELECT count(*) FROM pg_policies
-   WHERE schemaname = 'public' AND tablename = 'agenda_items') = 2,
-  'agenda_items has 2 policies (read, write_host)'
+   WHERE schemaname = 'public' AND tablename = 'agenda_items') = 3,
+  'agenda_items has 3 policies (read, write_host, insert_participant)'
 );
 
 SELECT has_function(

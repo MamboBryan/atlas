@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/require";
+import { isHostOrAdmin } from "@/lib/auth/host-or-admin";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   addAgendaItem,
@@ -35,9 +36,21 @@ export async function addAgendaItemAction(
     .eq("id", parsed.data.meeting_id)
     .single();
   if (!meeting) return err("not_found", "meeting");
-  // Any participant can add an item while the meeting is live; otherwise host-only.
-  const canAdd = meeting.status === "live" || meeting.host_user_id === user.id;
-  if (!canAdd) return err("forbidden", "host only");
+  // Participants may add items until the meeting starts; once it is live the
+  // agenda belongs to whoever is running it. Games are host-only in any status
+  // because the host starts and finalizes their rounds.
+  const hostOrAdmin = await isHostOrAdmin(
+    supabase,
+    meeting.host_user_id,
+    user.id,
+  );
+  const preLive =
+    meeting.status === "scheduled" || meeting.status === "postponed";
+  if (!hostOrAdmin) {
+    if (parsed.data.kind === "game")
+      return err("forbidden", "host only for game items");
+    if (!preLive) return err("forbidden", "host only once live");
+  }
 
   const { data: maxRow } = await supabase
     .from("agenda_items")

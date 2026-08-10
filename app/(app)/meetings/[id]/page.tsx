@@ -275,7 +275,7 @@ export default async function MeetingDetailPage({
           </section>
         )}
 
-        {!isHost && m.status === "scheduled" && (
+        {!isHost && (m.status === "scheduled" || m.status === "postponed") && (
           <section className="space-y-3">
             <h2 className="font-display text-xl font-extrabold text-ink">
               Agenda

@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/require";
+import { isHostOrAdmin } from "@/lib/auth/host-or-admin";
 import { err, ok, type ActionResult } from "@/lib/actions/_result";
 import {
   startRoundInput,
@@ -144,20 +145,6 @@ export async function listMeetingRoundsAction(
   if (error) return err("db_error", error.message);
 
   return ok((data ?? []).map((row) => publicize(row as RoundRow)));
-}
-
-async function isHostOrAdmin(
-  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
-  hostUserId: string | null,
-  userId: string,
-): Promise<boolean> {
-  if (hostUserId === userId) return true;
-  const { data } = await supabase
-    .from("profiles")
-    .select("role, is_active")
-    .eq("id", userId)
-    .single();
-  return data?.role === "admin" && data?.is_active === true;
 }
 
 type RoundRow = {

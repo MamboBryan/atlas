@@ -31,7 +31,8 @@ export async function userClient(
 export async function makeMeeting(
   hostId: string,
   title: string,
-  status: "live" | "scheduled" = "live",
+  status: "live" | "scheduled" | "postponed" | "ended" = "live",
+  participantsOverride?: string[],
 ) {
   const { data: meeting } = await admin!
     .from("meetings")
@@ -42,6 +43,7 @@ export async function makeMeeting(
       host_user_id: hostId,
       created_by: hostId,
       status,
+      participants_override: participantsOverride ?? null,
     })
     .select("id")
     .single();

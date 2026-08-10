@@ -28,10 +28,14 @@ type RatingMax = 5 | 10;
 
 export type PromptOption = { id: string; question: string };
 
-const KINDS: { v: Kind; label: string }[] = [
+const PARTICIPANT_KINDS: { v: Kind; label: string }[] = [
   { v: "discussion", label: "Discussion" },
   { v: "prompt", label: "Prompt" },
   { v: "picker", label: "Picker" },
+];
+
+const HOST_KINDS: { v: Kind; label: string }[] = [
+  ...PARTICIPANT_KINDS,
   { v: "game", label: "Game" },
 ];
 
@@ -129,9 +133,11 @@ function TabRow<T extends string | number>({
 export function AgendaAddItem({
   meetingId,
   availablePrompts,
+  allowGame,
 }: {
   meetingId: string;
   availablePrompts: PromptOption[];
+  allowGame: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -200,7 +206,11 @@ export function AgendaAddItem({
     <div className="flex flex-col gap-5">
       <div className="space-y-2">
         <Label>Kind</Label>
-        <TabRow value={kind} onChange={setKind} options={KINDS} />
+        <TabRow
+          value={kind}
+          onChange={setKind}
+          options={allowGame ? HOST_KINDS : PARTICIPANT_KINDS}
+        />
       </div>
 
       {kind !== "prompt" && (

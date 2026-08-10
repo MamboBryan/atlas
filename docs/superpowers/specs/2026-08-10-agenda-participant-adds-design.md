@@ -90,24 +90,30 @@ Replace the `canAdd` computation in `addAgendaItemAction` so it mirrors the
 policy:
 
 ```ts
-const isHostOrAdmin =
-  meeting.host_user_id === user.id || (await isCurrentUserAdmin());
+const hostOrAdmin = await isHostOrAdmin(supabase, meeting.host_user_id, user.id);
 const preLive =
   meeting.status === "scheduled" || meeting.status === "postponed";
-const canAdd = isHostOrAdmin || (preLive && parsed.data.kind !== "game");
+const canAdd = hostOrAdmin || (preLive && parsed.data.kind !== "game");
 ```
 
-Uses the existing `isCurrentUserAdmin()` from `lib/auth/is-admin.ts`. Return
-distinct `forbidden` details for the two participant-denial cases — live meeting
-vs. game kind — so a rejection reads as an authorization failure rather than the
-generic `db_error` it produces today.
+`isHostOrAdmin(supabase, hostUserId, userId)` already exists as a module-private
+helper in `lib/actions/game.ts:148`. It moves to `lib/auth/host-or-admin.ts` and
+both call sites import it. It takes the caller's client as an argument, so it
+works under the action test harness, which stubs `requireUser` — unlike
+`isCurrentUserAdmin()` in `lib/auth/is-admin.ts`, which builds its own
+cookie-based client and would bypass the stub. `is-admin.ts` is left alone.
+
+Return distinct `forbidden` details for the two participant-denial cases — live
+meeting vs. game kind — so a rejection reads as an authorization failure rather
+than the generic `db_error` it produces today.
 
 `updateAgendaItemAction`, `deleteAgendaItemAction` and `reorderAgendaAction` are
 unchanged: they keep the `assertHost` gate.
 
 ### 3. UI — `meeting-rail.tsx` and `agenda-add-item.tsx`
 
-`MeetingRail` computes the same predicate it passes to the action. Its current
+`MeetingRail` computes the same predicate it passes to the action, using the
+same `isHostOrAdmin` helper with the client it already holds. Its current
 copy inverts: "Only the host can edit the agenda before it starts" becomes wrong
 under the new rule and is replaced by a live-meeting message ("Only the host can
 add agenda items once the meeting is live"). The `ended`/`cancelled` early

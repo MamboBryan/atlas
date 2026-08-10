@@ -52,18 +52,21 @@ export async function addAgendaItemAction(
     if (!preLive) return err("forbidden", "host only once live");
   }
 
-  const { data: maxRow } = await supabase
-    .from("agenda_items")
-    .select("ordinal")
-    .eq("meeting_id", parsed.data.meeting_id)
-    .order("ordinal", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextOrdinal = (maxRow?.ordinal ?? -1) + 1;
+  const meetingId = parsed.data.meeting_id;
+
+  async function nextOrdinal() {
+    const { data: maxRow } = await supabase
+      .from("agenda_items")
+      .select("ordinal")
+      .eq("meeting_id", meetingId)
+      .order("ordinal", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return (maxRow?.ordinal ?? -1) + 1;
+  }
 
   const row: Record<string, unknown> = {
-    meeting_id: parsed.data.meeting_id,
-    ordinal: nextOrdinal,
+    meeting_id: meetingId,
     title: parsed.data.title,
     kind: parsed.data.kind,
   };
@@ -71,11 +74,27 @@ export async function addAgendaItemAction(
   if (parsed.data.kind === "picker")
     row.picker_config = parsed.data.picker_config;
 
-  const { data, error } = await supabase
+  row.ordinal = await nextOrdinal();
+  let { data, error } = await supabase
     .from("agenda_items")
     .insert(row)
     .select("id")
     .single();
+
+  // Concurrent adds can race on the (meeting_id, ordinal) unique constraint
+  // now that several participants may add items at once. Retry once with a
+  // freshly computed ordinal before giving up.
+  if (error?.code === "23505") {
+    row.ordinal = await nextOrdinal();
+    ({ data, error } = await supabase
+      .from("agenda_items")
+      .insert(row)
+      .select("id")
+      .single());
+  }
+
+  if (error?.code === "23505")
+    return err("conflict", "someone else just added an item, please try again");
   if (error || !data) return err("db_error", error?.message ?? "unknown");
 
   revalidatePath(`/meetings/${parsed.data.meeting_id}`);

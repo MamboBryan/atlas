@@ -98,6 +98,47 @@ test.runIf(canRun)("host may insert while live", async () => {
   expect(error).toBeNull();
 });
 
+test.runIf(canRun)(
+  "guest excluded by participants_override may not insert",
+  async () => {
+    const host = await userClient("agenda-host-excl@atlas.com");
+    const guest = await userClient("agenda-guest-excl@atlas.com");
+    const meetingId = await makeMeeting(host.id, "Agenda excl", "scheduled", [
+      host.id,
+    ]);
+    const { error } = await guest.client
+      .from("agenda_items")
+      .insert({
+        meeting_id: meetingId,
+        ordinal: 0,
+        title: "Nope",
+        kind: "discussion",
+      });
+    expect(error).not.toBeNull();
+  },
+);
+
+test.runIf(canRun)(
+  "guest included in participants_override may insert",
+  async () => {
+    const host = await userClient("agenda-host-incl@atlas.com");
+    const guest = await userClient("agenda-guest-incl@atlas.com");
+    const meetingId = await makeMeeting(host.id, "Agenda incl", "scheduled", [
+      host.id,
+      guest.id,
+    ]);
+    const { error } = await guest.client
+      .from("agenda_items")
+      .insert({
+        meeting_id: meetingId,
+        ordinal: 0,
+        title: "My topic",
+        kind: "discussion",
+      });
+    expect(error).toBeNull();
+  },
+);
+
 test.runIf(canRun)("atlas admin may insert while live", async () => {
   const host = await userClient("agenda-host-adm@atlas.com");
   const adminUser = await userClient("agenda-admin@atlas.com", "admin");

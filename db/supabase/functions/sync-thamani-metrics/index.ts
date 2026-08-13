@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { METRICS } from "./_shared/registry.ts";
+import { collectRows } from "./_shared/collect.ts";
 
 export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -28,9 +29,12 @@ export async function handler(req: Request): Promise<Response> {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    const rows = (
-      await Promise.all(METRICS.map((m) => m.compute(thamani, now)))
-    ).flat();
+    const { rows, failed } = await collectRows(METRICS, thamani, now);
+
+    // Every metric broke — nothing to write, and a 200 here would hide it.
+    if (rows.length === 0 && failed.length > 0)
+      return Response.json({ ok: false, upserted: 0, failed }, { status: 500 });
+
     const { error } = await atlas.from("thamani_metrics").upsert(
       rows.map((r) => ({ ...r, computed_at: now.toISOString() })),
       { onConflict: "metric_key,grain,period_start" },
@@ -40,7 +44,13 @@ export async function handler(req: Request): Promise<Response> {
         { ok: false, error: error.message },
         { status: 500 },
       );
-    return Response.json({ ok: true, upserted: rows.length });
+
+    // 207 on a partial run: the healthy metrics are written, but the status
+    // code still stands out in net._http_response instead of reading as clean.
+    return Response.json(
+      { ok: true, upserted: rows.length, failed },
+      { status: failed.length > 0 ? 207 : 200 },
+    );
   } catch (e) {
     return Response.json(
       { ok: false, error: e instanceof Error ? e.message : String(e) },

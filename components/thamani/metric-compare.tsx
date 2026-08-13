@@ -35,7 +35,7 @@ function describe(sel: Selection): string {
   return sel.from && sel.to ? `${sel.from} → ${sel.to}` : "—";
 }
 
-export function AccountsCompare({
+export function MetricCompare({
   daily,
   year,
 }: {

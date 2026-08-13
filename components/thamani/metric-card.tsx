@@ -91,17 +91,19 @@ function Stat({
   );
 }
 
-export function AccountsCard({
+export function MetricCard({
+  title,
   current,
   previous,
 }: {
+  title: string;
   current: CurrentValues;
   previous: CurrentValues;
 }) {
   return (
     <Card interactive size="sm">
       <CardHeader>
-        <CardTitle>New accounts</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col divide-y divide-[color-mix(in_srgb,var(--ink)_8%,transparent)]">

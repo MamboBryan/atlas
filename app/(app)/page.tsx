@@ -34,7 +34,11 @@ export default async function HomePage() {
             series={accounts}
             year={metricsYear}
           />
-          <MetricPanel title="New devices" series={devices} year={metricsYear} />
+          <MetricPanel
+            title="New devices"
+            series={devices}
+            year={metricsYear}
+          />
         </div>
       </div>
     </DetailWithRail>

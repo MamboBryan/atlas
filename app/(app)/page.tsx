@@ -1,10 +1,8 @@
 import { requireUser } from "@/lib/auth/require";
-import { AccountsMetric } from "@/components/thamani/accounts-metric";
-import {
-  getAccountsSnapshot,
-  getAccountsMonthly,
-  getAccountsDaily,
-} from "@/lib/thamani/read";
+import { MetricPanel } from "@/components/thamani/metric-panel";
+import { getMetricSeries } from "@/lib/thamani/read";
+import { ACCOUNTS_NEW } from "@/lib/thamani/metrics/accounts";
+import { DEVICES_NEW } from "@/lib/thamani/metrics/devices";
 import { DetailWithRail } from "@/components/app/detail-with-rail";
 import { HomeRail } from "@/components/app/home-rail";
 
@@ -13,12 +11,10 @@ export default async function HomePage() {
 
   const metricsNow = new Date();
   const metricsYear = metricsNow.getUTCFullYear();
-  const [{ current, previous }, accountsMonthly, accountsDaily] =
-    await Promise.all([
-      getAccountsSnapshot(supabase, metricsNow),
-      getAccountsMonthly(supabase, metricsYear),
-      getAccountsDaily(supabase, metricsYear),
-    ]);
+  const [accounts, devices] = await Promise.all([
+    getMetricSeries(supabase, ACCOUNTS_NEW, metricsNow, metricsYear),
+    getMetricSeries(supabase, DEVICES_NEW, metricsNow, metricsYear),
+  ]);
 
   return (
     <DetailWithRail rail={<HomeRail />}>
@@ -32,13 +28,14 @@ export default async function HomePage() {
           </div>
         </header>
 
-        <AccountsMetric
-          current={current}
-          previous={previous}
-          monthly={accountsMonthly}
-          daily={accountsDaily}
-          year={metricsYear}
-        />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <MetricPanel
+            title="New accounts"
+            series={accounts}
+            year={metricsYear}
+          />
+          <MetricPanel title="New devices" series={devices} year={metricsYear} />
+        </div>
       </div>
     </DetailWithRail>
   );

@@ -8,13 +8,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AccountsCard,
+  MetricCard,
   TrendArrow,
   PrevBadge,
-} from "@/components/thamani/accounts-card";
-import { AccountsChart } from "@/components/thamani/accounts-chart";
-import { AccountsCompare } from "@/components/thamani/accounts-compare";
-import type { CurrentValues } from "@/lib/thamani/read";
+} from "@/components/thamani/metric-card";
+import { MetricChart } from "@/components/thamani/metric-chart";
+import { MetricCompare } from "@/components/thamani/metric-compare";
+import type { CurrentValues, MetricSeries } from "@/lib/thamani/read";
 
 const ROLLUPS: { key: keyof CurrentValues; label: string }[] = [
   { key: "today", label: "Today" },
@@ -24,19 +24,21 @@ const ROLLUPS: { key: keyof CurrentValues; label: string }[] = [
   { key: "year", label: "This year" },
 ];
 
-export function AccountsMetric({
-  current,
-  previous,
-  monthly,
-  daily,
+/**
+ * One growth metric: a summary card that opens a detail dialog with the
+ * month-by-month chart and the date comparison tool. Metric-agnostic — the
+ * `title` names it everywhere, including the accessible chart labels.
+ */
+export function MetricPanel({
+  title,
+  series,
   year,
 }: {
-  current: CurrentValues;
-  previous: CurrentValues;
-  monthly: { period_start: string; value: number }[];
-  daily: { date: string; value: number }[];
+  title: string;
+  series: MetricSeries;
   year: number;
 }) {
+  const { current, previous, monthly, daily } = series;
   const byMonth = new Map(
     monthly.map((m) => [Number(m.period_start.slice(5, 7)) - 1, m.value]),
   );
@@ -50,15 +52,13 @@ export function AccountsMetric({
   return (
     <Dialog>
       <DialogTrigger
-        render={
-          <button type="button" className="block w-full text-left sm:w-80" />
-        }
+        render={<button type="button" className="block w-full text-left" />}
       >
-        <AccountsCard current={current} previous={previous} />
+        <MetricCard title={title} current={current} previous={previous} />
       </DialogTrigger>
       <DialogContent className="w-[80vw] max-w-[80vw] max-h-[85vh] overflow-y-auto sm:max-w-[80vw]">
         <DialogHeader>
-          <DialogTitle>New accounts</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -83,10 +83,10 @@ export function AccountsMetric({
             <div className="text-xs font-medium uppercase tracking-wide text-ink-soft">
               {year} · month by month
             </div>
-            <AccountsChart values={values} year={year} />
+            <MetricChart values={values} year={year} title={title} />
           </div>
 
-          <AccountsCompare daily={daily} year={year} />
+          <MetricCompare daily={daily} year={year} />
         </div>
       </DialogContent>
     </Dialog>

@@ -23,13 +23,17 @@ const PAD_X = 12;
 const PAD_TOP = 20;
 const PAD_BOTTOM = 16;
 
-export function AccountsChart({
+export function MetricChart({
   values,
   year,
+  title,
 }: {
   values: number[];
   year: number;
+  /** Metric name used in the accessible labels, e.g. "New devices". */
+  title: string;
 }) {
+  const noun = title.toLowerCase();
   const [hover, setHover] = useState<number | null>(null);
   const n = values.length;
   const max = Math.max(1, ...values);
@@ -48,7 +52,7 @@ export function AccountsChart({
           preserveAspectRatio="xMidYMid meet"
           className="block w-full text-accent"
           role="img"
-          aria-label={`New accounts per month in ${year}`}
+          aria-label={`${title} per month in ${year}`}
         >
           {hover !== null && (
             <line
@@ -86,7 +90,7 @@ export function AccountsChart({
             <button
               key={MONTH_LABELS[i]}
               type="button"
-              aria-label={`${MONTH_LABELS[i]} ${year}: ${v} new accounts`}
+              aria-label={`${MONTH_LABELS[i]} ${year}: ${v} ${noun}`}
               className="flex-1 cursor-default focus:outline-none"
               onMouseEnter={() => setHover(i)}
               onFocus={() => setHover(i)}

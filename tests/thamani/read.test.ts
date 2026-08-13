@@ -3,8 +3,9 @@ import {
   pickCurrent,
   trendDirection,
   pickPrevious,
-  getAccountsSnapshot,
+  getMetricSnapshot,
 } from "@/lib/thamani/read";
+import { DEVICES_NEW } from "@/lib/thamani/metrics/devices";
 import type { MetricRow } from "@/lib/thamani/types";
 
 describe("pickCurrent", () => {
@@ -98,22 +99,76 @@ describe("pickPrevious", () => {
   });
 });
 
-describe("getAccountsSnapshot error surfacing", () => {
-  it("logs when the query returns an error", async () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const client = {
+describe("getMetricSnapshot", () => {
+  const client = (result: {
+    data: unknown;
+    error: { message: string } | null;
+  }) =>
+    ({
       from: () => ({
         select: () => ({
-          eq: () => Promise.resolve({ data: null, error: { message: "boom" } }),
+          eq: (_col: string, _val: string) => Promise.resolve(result),
         }),
       }),
-    } as unknown as import("@/lib/thamani/read").MinimalClient;
+    }) as unknown as import("@/lib/thamani/read").MinimalClient;
 
-    await getAccountsSnapshot(client, new Date("2026-07-30T18:05:00Z"));
+  it("logs when the query returns an error", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await getMetricSnapshot(
+      client({ data: null, error: { message: "boom" } }),
+      DEVICES_NEW,
+      new Date("2026-07-30T18:05:00Z"),
+    );
     expect(spy).toHaveBeenCalledWith(
       expect.stringContaining("thamani_metrics read failed"),
       "boom",
     );
     spy.mockRestore();
+  });
+
+  it("filters by the metric key it was given", async () => {
+    const seen: string[] = [];
+    const spying = {
+      from: () => ({
+        select: () => ({
+          eq: (_col: string, val: string) => {
+            seen.push(val);
+            return Promise.resolve({ data: [], error: null });
+          },
+        }),
+      }),
+    } as unknown as import("@/lib/thamani/read").MinimalClient;
+
+    await getMetricSnapshot(
+      spying,
+      DEVICES_NEW,
+      new Date("2026-07-30T18:05:00Z"),
+    );
+    expect(seen).toEqual(["devices_new"]);
+  });
+
+  it("shapes rows into current and previous values", async () => {
+    const rows: MetricRow[] = [
+      {
+        metric_key: "devices_new",
+        grain: "month",
+        period_start: "2026-07-01",
+        value: 5,
+      },
+      {
+        metric_key: "devices_new",
+        grain: "month",
+        period_start: "2026-06-01",
+        value: 2,
+      },
+    ];
+    const { current, previous } = await getMetricSnapshot(
+      client({ data: rows, error: null }),
+      DEVICES_NEW,
+      new Date("2026-07-30T18:05:00Z"),
+    );
+    expect(current.month).toBe(5);
+    expect(previous.month).toBe(2);
   });
 });
